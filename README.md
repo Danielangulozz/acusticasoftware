@@ -41,27 +41,32 @@ Implementa de forma matemática rigurosa los tres modelos clásicos de tiempo de
 
 ```mermaid
 flowchart TD
-    A["Dimensiones L, W, H"] --> B["Geometría V, S, Si, l=4V/S"]
-    C["Materiales & Coeficientes αi"] --> D["Absorción Equivalente A = ∑ Si·αi"]
-    D --> E["Coeficiente Medio ᾱ = A / S"]
-    
-    B --> F["Tiempo de Reverberación RT60"]
-    D --> F
-    E --> F
-    
-    F --> F1["Sabine: 0.161 V / (A + 4mV)"]
-    F --> F2["Eyring: 0.161 V / (-S ln(1-ᾱ) + 4mV)"]
-    F --> F3["Millington: 0.161 V / (-∑ Si ln(1-αi) + 4mV)"]
-    
-    D --> G["Constante de Sala R = A / (1-ᾱ)"]
-    E --> G
-    
-    H["Directividad Q"] --> I["Distancia Crítica Dc = 0.057 √(Q·R)"]
-    G --> I
-    
-    H --> K["Nivel Total Lp(r) = Lw + 10 log(Q/4πr² + 4/R)"]
-    G --> K
-    J["Distancia r & Potencia Lw"] --> K
+    %% Entradas
+    subgraph Inputs [Parámetros de Entrada]
+        A["Dimensiones (L, W, H)"]
+        C["Materiales por Superficie (αi)"]
+        H["Directividad (Q)"]
+        J["Distancia (r) y Potencia (Lw)"]
+    end
+
+    %% Cálculos Intermedios
+    A --> B["Geometría: V, S, Si, l=4V/S"]
+    B & C --> D["Absorción Equivalente: A = ∑ (Si · αi)"]
+    D & B --> E["Coeficiente Medio: ᾱ = A / S"]
+
+    %% Tiempos de Reverberación
+    subgraph Reverberation [Modelos de Reverberación RT60]
+        B & D --> F1["Sabine: 0.161 V / (A + 4mV)"]
+        B & E --> F2["Eyring: 0.161 V / (-S ln(1-ᾱ) + 4mV)"]
+        B & C --> F3["Millington: 0.161 V / (-∑ Si ln(1-αi) + 4mV)"]
+    end
+
+    %% Campo Sonoro y Propagación
+    subgraph SoundField [Propagación y Campo Sonoro]
+        D & E --> G["Constante de Sala: R = A / (1-ᾱ)"]
+        G & H --> I["Distancia Crítica: Dc = 0.057 √(Q·R)"]
+        G & H & J --> K["Nivel Total: Lp(r) = Lw + 10 log(Q/4πr² + 4/R)"]
+    end
 ```
 
 ---
