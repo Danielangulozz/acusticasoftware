@@ -41,19 +41,27 @@ Implementa de forma matemática rigurosa los tres modelos clásicos de tiempo de
 
 ```mermaid
 flowchart TD
-    A[Dimensiones L, W, H] --> B[Geometría V, S, Si, l=4V/S]
-    C[Materiales & Coeficientes αi] --> D[Absorción Equivalente A = ∑ Si·αi]
-    D --> E[Coeficiente Medio ᾱ = A / S]
+    A["Dimensiones L, W, H"] --> B["Geometría V, S, Si, l=4V/S"]
+    C["Materiales & Coeficientes αi"] --> D["Absorción Equivalente A = ∑ Si·αi"]
+    D --> E["Coeficiente Medio ᾱ = A / S"]
     
-    B & D & E --> F[Tiempo de Reverberación RT60]
-    F --> F1[Sabine: 0.161 V / A+4mV]
-    F --> F2[Eyring: 0.161 V / -S ln 1-ᾱ + 4mV]
-    F --> F3[Millington: 0.161 V / -∑ Si ln 1-αi + 4mV]
+    B --> F["Tiempo de Reverberación RT60"]
+    D --> F
+    E --> F
     
-    D & E --> G[Constante de Sala R = A / 1-ᾱ]
-    G & H[Directividad Q] --> I[Distancia Crítica Dc = 0.057 √(Q·R)]
+    F --> F1["Sabine: 0.161 V / (A + 4mV)"]
+    F --> F2["Eyring: 0.161 V / (-S ln(1-ᾱ) + 4mV)"]
+    F --> F3["Millington: 0.161 V / (-∑ Si ln(1-αi) + 4mV)"]
     
-    H & G & J[Distancia r & Potencia Lw] --> K[Nivel Total Lp r = Lw + 10 log Q/4πr² + 4/R]
+    D --> G["Constante de Sala R = A / (1-ᾱ)"]
+    E --> G
+    
+    H["Directividad Q"] --> I["Distancia Crítica Dc = 0.057 √(Q·R)"]
+    G --> I
+    
+    H --> K["Nivel Total Lp(r) = Lw + 10 log(Q/4πr² + 4/R)"]
+    G --> K
+    J["Distancia r & Potencia Lw"] --> K
 ```
 
 ---
