@@ -208,8 +208,8 @@ export default function SurfaceMaterials({
         </div>
 
         {/* Píldora de Selección Rápida de Frecuencia */}
-        <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-          <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#18192a] p-1 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+        <div className="flex items-center gap-2 self-start md:self-auto flex-wrap max-w-full">
+          <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#18192a] p-1 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] overflow-x-auto no-scrollbar touch-scroll-x max-w-full">
             <span className="text-[11px] font-semibold text-[#86868b] dark:text-slate-400 px-2 hidden sm:inline">Banda Activa:</span>
             {OCTAVE_BANDS.map((freq) => (
               <button
@@ -352,12 +352,12 @@ export default function SurfaceMaterials({
           </div>
 
           {/* Menú Desplegable de Materiales */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <span className="text-xs font-semibold text-[#86868b] dark:text-slate-400 hidden sm:inline">Material:</span>
             <select
               value={currentSurfaceConfig.materialId}
               onChange={(e) => handleSelectMaterial(safeActiveId, e.target.value)}
-              className="bg-white dark:bg-[#1e2034] text-xs text-[#1d1d1f] dark:text-white font-semibold px-3.5 py-2 rounded-xl border border-black/[0.1] dark:border-white/[0.12] hover:border-black/[0.2] dark:hover:border-white/[0.25] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 shadow-2xs transition cursor-pointer max-w-xs"
+              className="w-full sm:w-auto bg-white dark:bg-[#1e2034] text-xs text-[#1d1d1f] dark:text-white font-semibold px-3.5 py-2 rounded-xl border border-black/[0.1] dark:border-white/[0.12] hover:border-black/[0.2] dark:hover:border-white/[0.25] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 shadow-2xs transition cursor-pointer max-w-full sm:max-w-xs"
             >
               <option value="custom" disabled={currentSurfaceConfig.materialId !== 'custom'}>
                 ✏️ Valores Manuales / Personalizados

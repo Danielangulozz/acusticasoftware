@@ -260,3 +260,80 @@
     break-inside: avoid !important;
   }
 }
+
+/* ==========================================================================
+   ADAPTACIÓN MOBILE Y MEDIA QUERIES (Smartphones y Tablets)
+   ========================================================================== */
+
+/* Ajustes globales para dispositivos táctiles */
+@media (hover: none) and (pointer: coarse) {
+  button, 
+  [role="button"],
+  select,
+  input[type="range"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Ocultar scrollbars manteniendo desplazamiento táctil */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Contenedores con scroll horizontal táctil nativo de alta inercia */
+.touch-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Media query para smartphones y pantallas compactas (< 640px) */
+@media (max-width: 639px) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Ajustes tipográficos para pantallas móviles */
+  h1 {
+    font-size: 1.45rem !important;
+    line-height: 1.25 !important;
+  }
+  h2 {
+    font-size: 1.2rem !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Tablas de datos en móviles: desplazamiento horizontal protegido */
+  .table-container, table {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modales móviles a pantalla completa ergonómica */
+  .mobile-fullscreen-modal {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Canvas táctil con aislamiento de gestos del navegador */
+  .touch-canvas {
+    touch-action: none !important;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Media query para pantallas ultra angostas (< 380px) */
+@media (max-width: 379px) {
+  .xs-hide {
+    display: none !important;
+  }
+}
+

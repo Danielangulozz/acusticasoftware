@@ -112,46 +112,46 @@ export default function ReportModal({
   const reportSurfaces = geometry?.surfacesList || ROOM_SURFACES;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 print:p-0 print:bg-white print:static print-modal-container">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-md flex items-center justify-center p-2 sm:p-6 print:p-0 print:bg-white print:static print-modal-container">
       
       {/* Contenedor del Modal */}
       <div 
         id="printable-report-modal"
-        className="bg-white dark:bg-[#121322] border border-black/[0.08] dark:border-white/[0.08] rounded-3xl shadow-apple-lg w-full max-w-4xl max-h-[92vh] overflow-y-auto print:max-h-none print:border-none print:shadow-none print:bg-white print:text-black print:overflow-visible"
+        className="bg-white dark:bg-[#121322] border border-black/[0.08] dark:border-white/[0.08] rounded-2xl sm:rounded-3xl shadow-apple-lg w-full max-w-4xl max-h-[92vh] overflow-y-auto print:max-h-none print:border-none print:shadow-none print:bg-white print:text-black print:overflow-visible"
       >
         
         {/* Barra Superior de Acciones (Oculta en Impresión) */}
-        <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#121322]/95 backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.08] px-6 py-4 flex items-center justify-between print:hidden">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold">
+        <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#121322]/95 backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.08] px-3.5 sm:px-6 py-3 sm:py-4 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 print:hidden">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold shrink-0">
               <FileText className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-white">
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-sm font-bold text-[#1d1d1f] dark:text-white truncate">
                 Informe Técnico de Simulación Acústica
               </h3>
-              <p className="text-[11px] text-[#86868b] dark:text-slate-400">
+              <p className="text-[10.5px] sm:text-[11px] text-[#86868b] dark:text-slate-400 truncate">
                 Firma oficial: <strong className="text-[#5833c7] dark:text-[#8767f9]">{leader.name} (Líder)</strong>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={() => setShowMemberEditor(!showMemberEditor)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] text-xs font-semibold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/[0.08] transition"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] text-xs font-semibold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/[0.08] transition"
               title="Configurar los integrantes y el líder firmante"
             >
               <Users className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#8767f9]" />
-              <span>Integrantes ({members.length}/4)</span>
+              <span className="hidden sm:inline">Integrantes</span> ({members.length}/4)
             </button>
 
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] text-white text-xs font-semibold shadow-apple-sm transition active:scale-95"
+              className="flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] text-white text-xs font-semibold shadow-apple-sm transition active:scale-95"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Imprimir / PDF</span>
+              <span><span className="hidden sm:inline">Imprimir / </span>PDF</span>
             </button>
 
             <button

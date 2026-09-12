@@ -88,7 +88,7 @@ export default function AcousticResults({
             <Activity className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#8767f9]" />
             Banda analizada en tarjetas KPI:
           </span>
-          <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#181a28] p-1 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+          <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#181a28] p-1 rounded-xl border border-black/[0.04] dark:border-white/[0.06] overflow-x-auto no-scrollbar touch-scroll-x max-w-full">
             {OCTAVE_BANDS.map((freq) => (
               <button
                 key={freq}
@@ -278,7 +278,7 @@ export default function AcousticResults({
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto touch-scroll-x">
           <table className="w-full text-left text-xs text-[#1d1d1f] dark:text-white">
             <thead className="bg-[#f5f5f7] dark:bg-[#1c1e34] text-[11px] text-[#86868b] dark:text-slate-400 uppercase font-mono border-b border-black/[0.06] dark:border-white/[0.06]">
               <tr>

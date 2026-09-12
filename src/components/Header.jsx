@@ -43,27 +43,27 @@ export default function Header({
   };
 
   return (
-    <header className="bg-white/85 dark:bg-[#0c0d16]/90 backdrop-blur-xl border-b border-black/[0.08] dark:border-white/[0.08] sticky top-0 z-30 px-4 sm:px-6 py-3 transition-colors">
-      <div className="flex items-center justify-between gap-4">
+    <header className="bg-white/85 dark:bg-[#0c0d16]/90 backdrop-blur-xl border-b border-black/[0.08] dark:border-white/[0.08] sticky top-0 z-30 px-2.5 sm:px-6 py-2.5 sm:py-3 transition-colors">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-4">
 
         {/* Lado Izquierdo: Botón Hamburguesa + Breadcrumbs */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
           <button
             onClick={onToggleSidebar}
-            className={`p-2 rounded-xl transition border flex items-center justify-center active:scale-95 ${isSidebarOpen
+            className={`p-2 rounded-xl transition border flex items-center justify-center active:scale-95 shrink-0 ${isSidebarOpen
               ? 'bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] border-[#5833c7]/30'
               : 'bg-[#f5f5f7] dark:bg-[#181a28] hover:bg-[#e8e8ed] dark:hover:bg-[#222438] text-[#1d1d1f] dark:text-slate-200 border-black/[0.06] dark:border-white/[0.08]'
               }`}
             title={isSidebarOpen ? "Ocultar menú lateral" : "Mostrar menú lateral de módulos"}
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             {/* Contenedor del nombre POZOLE con Tooltip al hacer hover */}
-            <div className="relative group cursor-pointer flex items-center gap-2">
-              <PozoleLogo size={28} className="transition-transform duration-200 group-hover:scale-105" />
-              <span className="text-sm font-black tracking-wider text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#8767f9] transition-colors">
+            <div className="relative group cursor-pointer flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <PozoleLogo size={24} className="sm:w-7 sm:h-7 transition-transform duration-200 group-hover:scale-105" />
+              <span className="text-xs sm:text-sm font-black tracking-wider text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#8767f9] transition-colors">
                 POZOLE
               </span>
 
@@ -82,15 +82,15 @@ export default function Header({
               </div>
             </div>
 
-            <ChevronRight className="hidden sm:inline-block w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
-            <h2 className="text-sm font-bold text-[#1d1d1f] dark:text-white tracking-tight">
+            <ChevronRight className="hidden sm:inline-block w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />
+            <h2 className="text-xs sm:text-sm font-bold text-[#1d1d1f] dark:text-white tracking-tight truncate max-w-[100px] xs:max-w-[160px] sm:max-w-none">
               {sectionTitles[activeSection] || 'Simulador'}
             </h2>
           </div>
         </div>
 
         {/* Lado Derecho: Selector de Preset + Botones de Acción */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
 
           {/* Selector de Presets rápido en barra superior */}
           <div className="hidden md:flex items-center">
@@ -131,11 +131,12 @@ export default function Header({
           {/* Informe Técnico Formal */}
           <button
             onClick={onOpenReport}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] text-white text-xs font-semibold shadow-apple-sm transition transform active:scale-95"
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] text-white text-xs font-semibold shadow-apple-sm transition transform active:scale-95"
             title="Generar e imprimir informe técnico"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Informe Técnico</span>
+            <span className="hidden sm:inline">Informe Técnico</span>
+            <span className="inline sm:hidden text-[11px]">Informe</span>
           </button>
 
           {/* Botón Alternar Dark Mode / Light Mode */}

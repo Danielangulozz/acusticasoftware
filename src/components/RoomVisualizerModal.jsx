@@ -137,6 +137,60 @@ export default function RoomVisualizerModal({
     setZoom((prev) => Math.max(0.4, Math.min(3.5, prev - e.deltaY * 0.0012)));
   };
 
+  // Gestos táctiles para móviles (1 dedo = órbita 3D, 2 dedos = pinch-to-zoom)
+  const touchDistRef = useRef(null);
+  const touchLastPosRef = useRef({ x: 0, y: 0 });
+
+  const handleTouchStart = (e) => {
+    if (autoRotate) setAutoRotate(false);
+    if (e.touches.length === 1) {
+      touchLastPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      touchDistRef.current = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.cancelable) e.preventDefault();
+    if (e.touches.length === 1) {
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      const dx = clientX - touchLastPosRef.current.x;
+      const dy = clientY - touchLastPosRef.current.y;
+      touchLastPosRef.current = { x: clientX, y: clientY };
+
+      if (!dragRafRef.current) {
+        dragRafRef.current = requestAnimationFrame(() => {
+          setRotY((prev) => (prev + dx * 0.7) % 360);
+          setRotX((prev) => Math.max(-85, Math.min(85, prev - dy * 0.7)));
+          dragRafRef.current = null;
+        });
+      }
+    } else if (e.touches.length === 2 && touchDistRef.current) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const delta = dist - touchDistRef.current;
+      if (Math.abs(delta) > 3) {
+        const factor = delta > 0 ? 1.03 : 0.97;
+        setZoom((prev) => Math.max(0.4, Math.min(3.5, Number((prev * factor).toFixed(3)))));
+        touchDistRef.current = dist;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchDistRef.current = null;
+    if (dragRafRef.current) {
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = null;
+    }
+  };
+
   const applyViewPreset = (preset) => {
     setViewPreset(preset);
     setPan({ x: 0, y: 0 });
@@ -461,35 +515,35 @@ export default function RoomVisualizerModal({
   }, [selectedFaceId, hoveredFace, faces, materials, selectedBand]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
-      <div className="bg-white dark:bg-[#0e101d] rounded-2xl md:rounded-3xl border border-black/[0.08] dark:border-white/[0.1] shadow-2xl w-[96vw] max-w-7xl h-[92vh] max-h-[820px] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-2 md:p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
+      <div className="bg-white dark:bg-[#0e101d] rounded-none sm:rounded-2xl md:rounded-3xl border-0 sm:border border-black/[0.08] dark:border-white/[0.1] shadow-2xl w-full sm:w-[96vw] max-w-7xl h-full sm:h-[92vh] max-h-none sm:max-h-[820px] flex flex-col overflow-hidden">
         
         {/* Header Modal */}
-        <div className="px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between gap-3 shrink-0 bg-white/90 dark:bg-[#121424]/90 backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold">
-              <Maximize2 className="w-5 h-5" />
+        <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between gap-2 shrink-0 bg-white/90 dark:bg-[#121424]/90 backdrop-blur-md">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold shrink-0">
+              <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-[#1d1d1f] dark:text-white">
-                  Estudio 3D Inmersivo de Sala Acústica
+                <h3 className="text-sm sm:text-base font-bold text-[#1d1d1f] dark:text-white truncate">
+                  Estudio 3D Inmersivo
                 </h3>
-                <span className="px-2 py-0.5 rounded-full bg-[#5833c7]/10 text-[#5833c7] dark:text-[#8767f9] text-[10px] font-bold font-mono">
+                <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-[#5833c7]/10 text-[#5833c7] dark:text-[#8767f9] text-[10px] font-bold font-mono shrink-0">
                   H={H.toFixed(1)}m · V={(geometry?.volume || 0).toFixed(1)}m³
                 </span>
               </div>
-              <p className="text-xs text-[#86868b] dark:text-slate-400">
+              <p className="text-[11px] sm:text-xs text-[#86868b] dark:text-slate-400 truncate hidden sm:block">
                 Órbita fluida a 60 FPS, inspección de materiales, áreas acústicas y cotas ISO 3382
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Toggle Inspector de Superficies */}
             <button
               onClick={() => setShowInspector(!showInspector)}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition ${
                 showInspector
                   ? 'bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] border-[#5833c7]/30'
                   : 'bg-white dark:bg-[#181a2e] text-[#86868b] border-black/[0.08] dark:border-white/[0.08] hover:text-[#1d1d1f]'
@@ -497,7 +551,7 @@ export default function RoomVisualizerModal({
               title={showInspector ? "Ocultar panel de inspector lateral" : "Ver inspector de superficies"}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>{showInspector ? 'Ocultar Inspector' : 'Ver Inspector'}</span>
+              <span className="hidden xs:inline sm:inline">{showInspector ? 'Ocultar' : 'Inspector'}</span>
               <span className="px-1.5 py-0.2 rounded-full bg-[#5833c7]/15 text-[10px] font-mono">
                 {faces.length}
               </span>
@@ -505,7 +559,7 @@ export default function RoomVisualizerModal({
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition"
               title="Cerrar modal (Esc)"
             >
               <X className="w-5 h-5" />
@@ -514,7 +568,7 @@ export default function RoomVisualizerModal({
         </div>
 
         {/* Barra de Herramientas Superior */}
-        <div className="px-5 py-2 bg-[#fbfbfd] dark:bg-[#141628] border-b border-black/[0.04] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+        <div className="px-3 sm:px-5 py-2 bg-[#fbfbfd] dark:bg-[#141628] border-b border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between gap-2 text-xs shrink-0 overflow-x-auto no-scrollbar touch-scroll-x">
           {/* Vistas Canónicas */}
           <div className="flex items-center gap-1 bg-white dark:bg-[#1c1e34] p-1 rounded-xl border border-black/[0.06] dark:border-white/[0.08]">
             <span className="px-2 text-[10px] font-bold text-[#86868b] dark:text-slate-400 uppercase">Cámara:</span>
@@ -638,13 +692,17 @@ export default function RoomVisualizerModal({
           {/* Viewport SVG 3D Ampliado Principal (HERO) */}
           <div
             ref={containerRef}
-            className="flex-1 h-full min-w-0 relative bg-white dark:bg-[#0a0c16] select-none overflow-hidden flex items-center justify-center"
-            style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab' }}
+            className="flex-1 h-full min-w-0 relative bg-white dark:bg-[#0a0c16] select-none overflow-hidden flex items-center justify-center touch-none"
+            style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab', touchAction: 'none' }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onWheel={handleWheel}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
           >
             <svg
               viewBox={`0 0 ${SVG_W} ${SVG_H}`}
@@ -789,9 +847,9 @@ export default function RoomVisualizerModal({
             </svg>
           </div>
 
-          {/* Panel Lateral: Inspector de Superficies y Características (Colapsable) */}
+          {/* Panel Lateral: Inspector de Superficies y Características (Colapsable / Slide-over en móviles) */}
           {showInspector && (
-            <div className="w-72 lg:w-80 shrink-0 h-full border-l border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#111322] flex flex-col min-h-0 overflow-hidden transition-all">
+            <div className="absolute inset-y-0 right-0 z-30 w-72 sm:relative sm:inset-auto sm:w-72 lg:w-80 shrink-0 h-full border-l border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#111322] flex flex-col min-h-0 overflow-hidden shadow-2xl sm:shadow-none transition-all">
               
               <div className="p-3 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
@@ -800,9 +858,17 @@ export default function RoomVisualizerModal({
                     Superficies ({faces.length})
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-[#5833c7]/10 text-[#5833c7] dark:text-[#8767f9] text-[10px] font-bold font-mono">
-                  α ({selectedBand} Hz)
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-md bg-[#5833c7]/10 text-[#5833c7] dark:text-[#8767f9] text-[10px] font-bold font-mono">
+                    α ({selectedBand} Hz)
+                  </span>
+                  <button
+                    onClick={() => setShowInspector(false)}
+                    className="sm:hidden p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Lista Scrollable de Superficies */}

@@ -418,6 +418,38 @@ export default function RoomSketcher({
     }
   }, [isPanning]);
 
+  // --- GESTOS TÁCTILES PARA MÓVILES (PINCH-TO-ZOOM CON 2 DEDOS) ---
+  const touchDistRef = useRef(null);
+  const handleTouchStart = useCallback((e) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchDistRef.current = dist;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    if (e.touches.length === 2 && touchDistRef.current) {
+      if (e.cancelable) e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const delta = dist - touchDistRef.current;
+      if (Math.abs(delta) > 3) {
+        const factor = delta > 0 ? 1.03 : 0.97;
+        setUserZoom((z) => Math.max(0.25, Math.min(5.0, Number((z * factor).toFixed(3)))));
+        touchDistRef.current = dist;
+      }
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    touchDistRef.current = null;
+  }, []);
+
   // --- ARRASTRE DE VÉRTICES DE LA SALA CON RAF (FLUIDO 60FPS) ---
   const handlePointerDown = useCallback((idx, e) => {
     e.preventDefault();
@@ -1026,8 +1058,8 @@ export default function RoomSketcher({
     <div className="space-y-3">
       
       {/* Barra de Herramientas Compacta: Presets + Snap + Cotas + ISO Nodes + Deshacer/Rehacer + Guardar/Cargar */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#161726] rounded-xl p-1 border border-black/[0.06] dark:border-white/[0.08] overflow-x-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#161726] rounded-xl p-1 border border-black/[0.06] dark:border-white/[0.08] overflow-x-auto no-scrollbar touch-scroll-x max-w-full">
           {SHAPE_PRESETS.map((preset) => {
             const Icon = preset.icon;
             const isActive = activePresetId === preset.id;
@@ -1156,8 +1188,13 @@ export default function RoomSketcher({
       {/* Lienzo SVG Dinámico — Con zoom scroll + pan drag */}
       <div
         ref={containerRef}
-        className="relative bg-white dark:bg-[#0c0d18] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden shadow-apple-sm transition-colors w-full flex flex-col"
+        className="relative bg-white dark:bg-[#0c0d18] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden shadow-apple-sm transition-colors w-full flex flex-col touch-none"
+        style={{ touchAction: 'none' }}
         onContextMenu={(e) => e.preventDefault()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         {/* Banner flotante de notificación de estado (guardado / cargado / deshacer) */}
         {statusMsg && (
@@ -1172,8 +1209,8 @@ export default function RoomSketcher({
           ref={svgRef}
           viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
           preserveAspectRatio="xMidYMid meet"
-          className="w-full select-none"
-          style={{ height: '420px', cursor: isPanning ? 'grabbing' : 'grab' }}
+          className="w-full select-none h-[340px] sm:h-[420px]"
+          style={{ cursor: isPanning ? 'grabbing' : 'grab', touchAction: 'none' }}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={(e) => {
             handleCanvasPointerMove(e);
@@ -1464,6 +1501,15 @@ export default function RoomSketcher({
                   <circle cx={s.x} cy={s.y} r={14} fill="rgba(88, 51, 199, 0.2)" filter="url(#vertexGlowPurple2)" />
                 )}
 
+                {/* Hit target táctil transparente ampliado para móviles */}
+                <circle
+                  cx={s.x} cy={s.y}
+                  r={16}
+                  fill="transparent"
+                  style={{ cursor: 'grab', touchAction: 'none' }}
+                  onPointerDown={(e) => handlePointerDown(i, e)}
+                />
+
                 <circle
                   cx={s.x} cy={s.y}
                   r={isDragging ? 8 : isHovered ? 7 : 5.5}
@@ -1668,8 +1714,8 @@ export default function RoomSketcher({
       </div>
 
       {/* Control de Altura (H) Compacto */}
-      <div className="flex items-center justify-between gap-3 bg-white dark:bg-[#121322] rounded-xl border border-black/[0.06] dark:border-white/[0.08] px-3 py-2 shadow-2xs">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white dark:bg-[#121322] rounded-xl border border-black/[0.06] dark:border-white/[0.08] px-3 py-2.5 shadow-2xs">
+        <div className="flex items-center gap-2 flex-wrap">
           <label className="text-xs font-bold text-[#1d1d1f] dark:text-white">
             Altura (H):
           </label>
@@ -1691,15 +1737,15 @@ export default function RoomSketcher({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-between sm:justify-end">
           <input
             type="range"
             min="1" max="10" step="0.1"
             value={height}
             onChange={(e) => handleHeightChange(parseFloat(e.target.value))}
-            className="w-24 sm:w-36 accent-[#5833c7] h-1.5 cursor-pointer"
+            className="flex-1 sm:w-36 accent-[#5833c7] h-1.5 cursor-pointer"
           />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <input
               type="number"
               min="0.5" max="20" step="0.1"

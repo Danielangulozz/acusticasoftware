@@ -125,23 +125,49 @@ export default function RoomVisualizer({
     setZoom((prev) => Math.max(0.35, Math.min(3.0, prev - e.deltaY * 0.0012)));
   };
 
-  // Manejo táctil
+  const touchDistRef = useRef(null);
+  const touchStartZoomRef = useRef(1.0);
+
+  // Manejo táctil optimizado para móviles (1 dedo = rotar órbita, 2 dedos = pellizco zoom)
   const handleTouchStart = (e) => {
     if (e.touches.length === 1) {
       isDraggingRef.current = true;
       lastMousePosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       if (autoRotate) setAutoRotate(false);
+    } else if (e.touches.length === 2) {
+      isDraggingRef.current = false;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchDistRef.current = Math.hypot(dx, dy);
+      touchStartZoomRef.current = zoom;
     }
   };
+
   const handleTouchMove = (e) => {
-    if (!isDraggingRef.current || e.touches.length !== 1) return;
-    const deltaX = e.touches[0].clientX - lastMousePosRef.current.x;
-    const deltaY = e.touches[0].clientY - lastMousePosRef.current.y;
-    lastMousePosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    setRotY((prev) => (prev + deltaX * 0.7) % 360);
-    setRotX((prev) => Math.max(-85, Math.min(85, prev - deltaY * 0.7)));
+    if (e.touches.length === 1 && isDraggingRef.current) {
+      const deltaX = e.touches[0].clientX - lastMousePosRef.current.x;
+      const deltaY = e.touches[0].clientY - lastMousePosRef.current.y;
+      lastMousePosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      setRotY((prev) => (prev + deltaX * 0.7) % 360);
+      setRotX((prev) => Math.max(-85, Math.min(85, prev - deltaY * 0.7)));
+    } else if (e.touches.length === 2 && touchDistRef.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const factor = dist / touchDistRef.current;
+      setZoom(Math.max(0.35, Math.min(3.0, Number((touchStartZoomRef.current * factor).toFixed(2)))));
+    }
   };
-  const handleTouchEnd = () => { isDraggingRef.current = false; };
+
+  const handleTouchEnd = (e) => {
+    if (e.touches.length === 0) {
+      isDraggingRef.current = false;
+      touchDistRef.current = null;
+    } else if (e.touches.length === 1) {
+      touchDistRef.current = null;
+      lastMousePosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
 
   const applyViewPreset = (preset) => {
     setViewPreset(preset);
@@ -624,12 +650,12 @@ export default function RoomVisualizer({
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {/* Techo selector */}
           <div className="flex items-center bg-[#f5f5f7] dark:bg-[#181a28] p-0.5 rounded-lg border border-black/[0.04] dark:border-white/[0.06]">
             <button
               onClick={() => setCeilingMode('translucent')}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+              className={`px-1.5 sm:px-2 py-0.5 rounded text-[9.5px] sm:text-[10px] font-bold transition ${
                 ceilingMode === 'translucent'
                   ? 'bg-white dark:bg-[#25283e] text-[#5833c7] dark:text-[#8767f9] shadow-2xs'
                   : 'text-[#86868b] hover:text-[#1d1d1f]'
@@ -640,25 +666,25 @@ export default function RoomVisualizer({
             </button>
             <button
               onClick={() => setCeilingMode('wireframe')}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+              className={`px-1.5 sm:px-2 py-0.5 rounded text-[9.5px] sm:text-[10px] font-bold transition ${
                 ceilingMode === 'wireframe'
                   ? 'bg-white dark:bg-[#25283e] text-[#5833c7] dark:text-[#8767f9] shadow-2xs'
                   : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
               title="Techo alámbrico"
             >
-              Alámbrico ╌
+              Malla ╌
             </button>
             <button
               onClick={() => setCeilingMode('hidden')}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+              className={`px-1.5 sm:px-2 py-0.5 rounded text-[9.5px] sm:text-[10px] font-bold transition ${
                 ceilingMode === 'hidden'
                   ? 'bg-white dark:bg-[#25283e] text-rose-500 shadow-2xs'
                   : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
               title="Sin techo"
             >
-              Sin Techo ✕
+              Sin ✕
             </button>
           </div>
 
@@ -732,8 +758,8 @@ export default function RoomVisualizer({
       {/* Viewport SVG 3D con Fondo Blanco en Modo Claro */}
       <div
         ref={containerRef}
-        className="relative bg-white dark:bg-[#0c0d18] select-none overflow-hidden transition-colors"
-        style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab' }}
+        className="relative bg-white dark:bg-[#0c0d18] select-none overflow-hidden transition-colors touch-none"
+        style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab', touchAction: 'none' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
