@@ -1,67 +1,86 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
-  Eye, 
-  RotateCcw, 
-  ZoomIn, 
-  ZoomOut, 
-  Play, 
-  Pause, 
-  Maximize2, 
-  Compass, 
-  Layers, 
-  Radio, 
-  Move,
-  Sparkles,
-  Info
+  Eye, RotateCcw, ZoomIn, ZoomOut, Play, Pause, 
+  Layers, Radio, Info, Ruler, Compass, Volume2, Mic, Maximize2,
+  Grid3X3
 } from 'lucide-react';
+import { getMaterialById, getMaterialColor } from '../utils/defaultMaterials';
+import { polygonCentroid, getEdgeArcPoints, isPolygonCCW } from '../utils/acousticCalculations';
+import RoomVisualizerModal from './RoomVisualizerModal';
 
 /**
  * Visualizador 3D Interactivo de la Sala Acústica
- * Incluye: Rotación Orbital 3D con Mouse/Touch, Zoom con Rueda, Auto-Rotación Cinemática,
- * Proyección en Perspectiva Real, Cálculo de Profundidad (Painter's Algorithm) y Auto-Ajuste de Escala.
+ * Fondo Blanco en Modo Claro, altura compacta para optimizar el viewport,
+ * y colores morados profesionales.
  */
-export default function RoomVisualizer({ dimensions, sourceReceiver, criticalDistance, onChangeSourceReceiver }) {
-  // Dimensiones físicas de la sala
-  const L = Math.max(1, Number(dimensions?.length) || 10);
-  const W = Math.max(1, Number(dimensions?.width) || 6);
-  const H = Math.max(1, Number(dimensions?.height) || 3);
+export default function RoomVisualizer({ 
+  roomPolygon,
+  geometry,
+  dimensions,
+  sourceReceiver, 
+  criticalDistance, 
+  onChangeSourceReceiver,
+  materials = {},
+  selectedBand = 1000,
+  isReportGraphic = false, // Modo sin controles UI para informe técnico imprimible
+}) {
+  // Vertices de polígono con fallback seguro
+  const vertices = useMemo(() => {
+    if (roomPolygon?.vertices && roomPolygon.vertices.length >= 3) {
+      return roomPolygon.vertices;
+    }
+    const L = dimensions?.length || 10;
+    const W = dimensions?.width || 6;
+    return [
+      { x: 0, y: 0 },
+      { x: L, y: 0 },
+      { x: L, y: W },
+      { x: 0, y: W }
+    ];
+  }, [roomPolygon, dimensions]);
+
+  const H = roomPolygon?.height || dimensions?.height || 3.0;
   const r = Math.max(0.1, Number(sourceReceiver?.distance) || 3);
   const Q = Number(sourceReceiver?.directivity) || 1;
   const Dc = Math.max(0.1, Number(criticalDistance) || 2.5);
 
-  // Estados de control de la cámara 3D
-  const [rotX, setRotX] = useState(25);  // Elevación / Pitch en grados
-  const [rotY, setRotY] = useState(45);  // Azimuth / Yaw en grados
-  const [zoom, setZoom] = useState(1.0);  // Factor de zoom
-  const [pan, setPan] = useState({ x: 0, y: 0 }); // Desplazamiento
+  // Estados de cámara
+  const [hoveredFace, setHoveredFace] = useState(null);
+  const [rotX, setRotX] = useState(28);
+  const [rotY, setRotY] = useState(42);
+  const [zoom, setZoom] = useState(1.0);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [autoRotate, setAutoRotate] = useState(false);
   const [showRays, setShowRays] = useState(true);
-  const [viewPreset, setViewPreset] = useState('3d'); // '3d', 'top', 'front', 'side'
+  const [viewPreset, setViewPreset] = useState('3d');
+  const [ceilingMode, setCeilingMode] = useState('translucent');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const containerRef = useRef(null);
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
   const animFrameRef = useRef(null);
 
-  // Auto-rotación cinemática continua
+  // Auto-rotación
   useEffect(() => {
     if (!autoRotate) return;
-
     let lastTime = performance.now();
     const animate = (time) => {
       const delta = (time - lastTime) / 1000;
       lastTime = time;
-      setRotY((prev) => (prev + delta * 20) % 360);
+      setRotY((prev) => (prev + delta * 18) % 360);
       animFrameRef.current = requestAnimationFrame(animate);
     };
-
     animFrameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [autoRotate]);
 
-  // Manejo de interacción de arrastre (Orbit Drag) con Mouse y Touch
+  const dragRafRef = useRef(null);
+  const pendingDeltaRef = useRef({ x: 0, y: 0, isShift: false });
+
+  // Manejo de eventos de ratón para órbita 3D
   const handleMouseDown = (e) => {
-    if (e.button !== 0 && e.button !== 1) return; // Solo clic primario o rueda
+    if (e.button !== 0 && e.button !== 1) return;
     isDraggingRef.current = true;
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
     if (autoRotate) setAutoRotate(false);
@@ -73,21 +92,40 @@ export default function RoomVisualizer({ dimensions, sourceReceiver, criticalDis
     const deltaY = e.clientY - lastMousePosRef.current.y;
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
 
-    if (e.shiftKey) {
-      // Si presiona Shift, hace Pan
-      setPan((prev) => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
-    } else {
-      // Rotación 3D orbital
-      setRotY((prev) => (prev + deltaX * 0.7) % 360);
-      setRotX((prev) => Math.max(-85, Math.min(85, prev - deltaY * 0.7)));
+    pendingDeltaRef.current.x += deltaX;
+    pendingDeltaRef.current.y += deltaY;
+    pendingDeltaRef.current.isShift = e.shiftKey;
+
+    if (!dragRafRef.current) {
+      dragRafRef.current = requestAnimationFrame(() => {
+        const { x: dx, y: dy, isShift } = pendingDeltaRef.current;
+        pendingDeltaRef.current = { x: 0, y: 0, isShift: false };
+        dragRafRef.current = null;
+
+        if (isShift) {
+          setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+        } else {
+          setRotY((prev) => (prev + dx * 0.7) % 360);
+          setRotX((prev) => Math.max(-85, Math.min(85, prev - dy * 0.7)));
+        }
+      });
     }
   };
 
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
+  const handleMouseUp = () => { 
+    isDraggingRef.current = false; 
+    if (dragRafRef.current) {
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = null;
+    }
   };
 
-  // Soporte para gestos táctiles en móviles y tablets
+  const handleWheel = (e) => {
+    e.preventDefault();
+    setZoom((prev) => Math.max(0.35, Math.min(3.0, prev - e.deltaY * 0.0012)));
+  };
+
+  // Manejo táctil
   const handleTouchStart = (e) => {
     if (e.touches.length === 1) {
       isDraggingRef.current = true;
@@ -95,599 +133,873 @@ export default function RoomVisualizer({ dimensions, sourceReceiver, criticalDis
       if (autoRotate) setAutoRotate(false);
     }
   };
-
   const handleTouchMove = (e) => {
     if (!isDraggingRef.current || e.touches.length !== 1) return;
     const deltaX = e.touches[0].clientX - lastMousePosRef.current.x;
     const deltaY = e.touches[0].clientY - lastMousePosRef.current.y;
     lastMousePosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-
     setRotY((prev) => (prev + deltaX * 0.7) % 360);
     setRotX((prev) => Math.max(-85, Math.min(85, prev - deltaY * 0.7)));
   };
+  const handleTouchEnd = () => { isDraggingRef.current = false; };
 
-  const handleTouchEnd = () => {
-    isDraggingRef.current = false;
-  };
-
-  // Zoom interactivo con la rueda del ratón (independiente del scroll de la página)
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const handleWheelNonPassive = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
-      setZoom((prev) => Math.max(0.4, Math.min(3.5, prev * zoomFactor)));
-    };
-
-    el.addEventListener('wheel', handleWheelNonPassive, { passive: false });
-    return () => {
-      el.removeEventListener('wheel', handleWheelNonPassive);
-    };
-  }, []);
-
-  // Preset Views (Vistas Predefinidas)
-  const setPreset = (preset) => {
+  const applyViewPreset = (preset) => {
     setViewPreset(preset);
+    setPan({ x: 0, y: 0 });
     setAutoRotate(false);
-    if (preset === '3d') {
-      setRotX(25);
-      setRotY(45);
-      setZoom(1.0);
-      setPan({ x: 0, y: 0 });
-    } else if (preset === 'top') {
-      setRotX(90);
-      setRotY(0);
-      setZoom(1.05);
-      setPan({ x: 0, y: 0 });
-    } else if (preset === 'front') {
-      setRotX(0);
-      setRotY(0);
-      setZoom(1.0);
-      setPan({ x: 0, y: 0 });
-    } else if (preset === 'side') {
-      setRotX(0);
-      setRotY(90);
-      setZoom(1.0);
-      setPan({ x: 0, y: 0 });
+    switch (preset) {
+      case 'top': setRotX(89); setRotY(0); break;
+      case 'front': setRotX(0); setRotY(0); break;
+      case 'side': setRotX(0); setRotY(90); break;
+      default: setRotX(28); setRotY(42); break;
     }
   };
 
-  const resetView = () => {
-    setPreset('3d');
+  const resetCamera = () => {
+    setRotX(28); setRotY(42); setZoom(1.0); setPan({ x: 0, y: 0 });
+    setAutoRotate(false); setViewPreset('3d');
   };
 
-  // ============================================================================
-  // MATRIZ DE TRANSFORMACIÓN Y PROYECCIÓN 3D
-  // ============================================================================
+  // Dimensiones compactas del lienzo SVG
+  const SVG_W = 600, SVG_H = 320;
+  const CX = SVG_W / 2 + pan.x;
+  const CY = SVG_H / 2 + pan.y;
 
-  // Dimensiones normalizadas y escalado dinámico
-  const maxDimension = Math.max(L, W, H, 1);
-  const baseScale = 220 / maxDimension;
-  const currentScale = baseScale * zoom;
+  // Centroide y caja delimitadora
+  const centroid = useMemo(() => polygonCentroid(vertices), [vertices]);
+  const bb = geometry?.boundingBox || { width: 10, length: 6 };
+  const maxDim = Math.max(bb.width || 10, bb.length || 6, H, 4);
 
-  // Centro de pantalla (Viewport SVG 800 x 520 para máxima amplitud)
-  const cx = 400 + pan.x;
-  const cy = 260 + pan.y;
+  // Proyección 3D isométrica
+  const project3D = useCallback((x3d, y3d, z3d) => {
+    const cx = x3d - centroid.x;
+    const cy = y3d - centroid.y;
+    const cz = z3d - H / 2;
 
-  // Ángulos en radianes
-  const radX = (rotX * Math.PI) / 180;
-  const radY = (rotY * Math.PI) / 180;
+    const radX = (rotX * Math.PI) / 180;
+    const radY = (rotY * Math.PI) / 180;
 
-  const sinX = Math.sin(radX);
-  const cosX = Math.cos(radX);
-  const sinY = Math.sin(radY);
-  const cosY = Math.cos(radY);
+    const rx1 = cx * Math.cos(radY) - cy * Math.sin(radY);
+    const ry1 = cx * Math.sin(radY) + cy * Math.cos(radY);
+    const rz1 = cz;
 
-  // Función de proyección 3D: convierte (x, y, z) respecto al centro de la sala a coordenadas 2D (px, py, depth)
-  const project3D = useCallback(
-    (x, y, z) => {
-      // 1. Centrar respecto al centro geométrico del recinto
-      const localX = x - L / 2;
-      const localY = y - W / 2;
-      const localZ = z - H / 2;
+    const ry2 = ry1 * Math.cos(radX) - rz1 * Math.sin(radX);
+    const rz2 = ry1 * Math.sin(radX) + rz1 * Math.cos(radX);
 
-      // 2. Rotación Azimuth (alrededor del eje Z vertical / Yaw)
-      const x1 = localX * cosY - localY * sinY;
-      const y1 = localX * sinY + localY * cosY;
-      const z1 = localZ;
+    const scale = (205 / maxDim) * zoom;
+    const perspective = 650;
+    const fov = perspective / (perspective + ry2);
 
-      // 3. Rotación Elevación (alrededor del eje X / Pitch)
-      const x2 = x1;
-      const y2 = y1 * cosX - z1 * sinX;
-      const z2 = y1 * sinX + z1 * cosX; // Profundidad relativa a la cámara
-
-      // 4. Proyección Ortográfica Escalada con perspectiva ligera
-      const perspective = 1000;
-      const depthFactor = perspective / (perspective + z2 * 0.5);
-
-      const px = cx + x2 * currentScale * depthFactor;
-      const py = cy - y2 * currentScale * depthFactor;
-
-      return { x: px, y: py, depth: z2 };
-    },
-    [L, W, H, cosX, sinX, cosY, sinY, cx, cy, currentScale]
-  );
-
-  // 8 Vértices del recinto en 3D
-  const vertices = useMemo(() => {
     return {
-      v000: project3D(0, 0, 0), // Suelo Frente-Izquierda
-      vL00: project3D(L, 0, 0), // Suelo Frente-Derecha
-      vLW0: project3D(L, W, 0), // Suelo Fondo-Derecha
-      v0W0: project3D(0, W, 0), // Suelo Fondo-Izquierda
-      v00H: project3D(0, 0, H), // Techo Frente-Izquierda
-      vL0H: project3D(L, 0, H), // Techo Frente-Derecha
-      vLWH: project3D(L, W, H), // Techo Fondo-Derecha
-      v0WH: project3D(0, W, H), // Techo Fondo-Izquierda
+      x: CX + rx1 * scale * fov,
+      y: CY - rz2 * scale * fov,
+      depth: ry2,
     };
-  }, [project3D, L, W, H]);
+  }, [rotX, rotY, zoom, CX, CY, centroid, H, maxDim]);
 
-  // 6 Caras de la sala con cálculo de profundidad promedio (Painter's Algorithm)
+  // Pilares verticales en las esquinas
+  const cornerPillars = useMemo(() => {
+    return vertices.map((v, i) => {
+      const p0 = project3D(v.x, v.y, 0);
+      const p1 = project3D(v.x, v.y, H);
+      const avgDepth = (p0.depth + p1.depth) / 2;
+      return { p0, p1, index: i, depth: avgDepth, v };
+    });
+  }, [vertices, H, project3D]);
+
+  const isCCW = useMemo(() => isPolygonCCW(vertices), [vertices]);
+
+  // Caras poligonales con soporte para arcos curvos continuos y estancos
   const faces = useMemo(() => {
-    const { v000, vL00, vLW0, v0W0, v00H, vL0H, vLWH, v0WH } = vertices;
+    if (vertices.length < 3) return [];
+    const allFaces = [];
+    const curvatures = roomPolygon?.curvatures || {};
 
-    const list = [
-      {
-        id: 'floor',
-        name: 'Piso / Suelo',
-        points: `${v000.x},${v000.y} ${vL00.x},${vL00.y} ${vLW0.x},${vLW0.y} ${v0W0.x},${v0W0.y}`,
-        depth: (v000.depth + vL00.depth + vLW0.depth + v0W0.depth) / 4,
-        fill: 'rgba(0, 113, 227, 0.08)',
-        stroke: 'rgba(0, 113, 227, 0.4)',
-        type: 'floor',
-      },
-      {
+    // Muestreo del perímetro de suelo y techo con puntos de arcos curvos continuos
+    const sampledPerimeter = [];
+    for (let i = 0; i < vertices.length; i++) {
+      const j = (i + 1) % vertices.length;
+      const v0 = vertices[i];
+      const v1 = vertices[j];
+      const bulge = curvatures[i] || 0;
+      if (Math.abs(bulge) > 0.02) {
+        const arcPts = getEdgeArcPoints(v0, v1, bulge, 12, isCCW);
+        for (let k = 0; k < arcPts.length - 1; k++) {
+          sampledPerimeter.push(arcPts[k]);
+        }
+      } else {
+        sampledPerimeter.push(v0);
+      }
+    }
+
+    // Piso (z = 0)
+    const floorVerts3D = sampledPerimeter.map(v => project3D(v.x, v.y, 0));
+    const floorCenterDepth = floorVerts3D.reduce((s, p) => s + p.depth, 0) / Math.max(1, floorVerts3D.length);
+    allFaces.push({
+      id: 'floor',
+      name: 'Piso / Suelo',
+      points: floorVerts3D.map(p => `${p.x},${p.y}`).join(' '),
+      rawPoints: floorVerts3D,
+      depth: floorCenterDepth,
+      type: 'floor',
+      area: geometry?.floorArea || geometry?.surfaceAreas?.floor || 0,
+      dimLabel: geometry?.surfaceDimensionsLabels?.floor || 'Planta base',
+    });
+
+    // Techo (z = H)
+    const ceilingVerts3D = sampledPerimeter.map(v => project3D(v.x, v.y, H));
+    const ceilingCenterDepth = ceilingVerts3D.reduce((s, p) => s + p.depth, 0) / Math.max(1, ceilingVerts3D.length);
+    if (ceilingMode !== 'hidden') {
+      allFaces.push({
         id: 'ceiling',
-        name: 'Techo',
-        points: `${v00H.x},${v00H.y} ${vL0H.x},${vL0H.y} ${vLWH.x},${vLWH.y} ${v0WH.x},${v0WH.y}`,
-        depth: (v00H.depth + vL0H.depth + vLWH.depth + v0WH.depth) / 4,
-        fill: 'rgba(52, 199, 89, 0.06)',
-        stroke: 'rgba(52, 199, 89, 0.3)',
+        name: `Techo (H = ${H.toFixed(1)}m)`,
+        points: ceilingVerts3D.map(p => `${p.x},${p.y}`).join(' '),
+        rawPoints: ceilingVerts3D,
+        depth: ceilingCenterDepth,
         type: 'ceiling',
-      },
-      {
-        id: 'wallNorth',
-        name: 'Pared Frontal (Norte)',
-        points: `${v000.x},${v000.y} ${vL00.x},${vL00.y} ${vL0H.x},${vL0H.y} ${v00H.x},${v00H.y}`,
-        depth: (v000.depth + vL00.depth + vL0H.depth + v00H.depth) / 4,
-        fill: 'rgba(0, 0, 0, 0.02)',
-        stroke: 'rgba(0, 0, 0, 0.15)',
-        type: 'wall',
-      },
-      {
-        id: 'wallSouth',
-        name: 'Pared Posterior (Sur)',
-        points: `${v0W0.x},${v0W0.y} ${vLW0.x},${vLW0.y} ${vLWH.x},${vLWH.y} ${v0WH.x},${v0WH.y}`,
-        depth: (v0W0.depth + vLW0.depth + vLWH.depth + v0WH.depth) / 4,
-        fill: 'rgba(0, 0, 0, 0.03)',
-        stroke: 'rgba(0, 0, 0, 0.18)',
-        type: 'wall',
-      },
-      {
-        id: 'wallEast',
-        name: 'Pared Lateral Derecha (Este)',
-        points: `${vL00.x},${vL00.y} ${vLW0.x},${vLW0.y} ${vLWH.x},${vLWH.y} ${vL0H.x},${vL0H.y}`,
-        depth: (vL00.depth + vLW0.depth + vLWH.depth + vL0H.depth) / 4,
-        fill: 'rgba(0, 0, 0, 0.025)',
-        stroke: 'rgba(0, 0, 0, 0.15)',
-        type: 'wall',
-      },
-      {
-        id: 'wallWest',
-        name: 'Pared Lateral Izquierda (Oeste)',
-        points: `${v000.x},${v000.y} ${v0W0.x},${v0W0.y} ${v0WH.x},${v0WH.y} ${v00H.x},${v00H.y}`,
-        depth: (v000.depth + v0W0.depth + v0WH.depth + v00H.depth) / 4,
-        fill: 'rgba(0, 0, 0, 0.025)',
-        stroke: 'rgba(0, 0, 0, 0.15)',
-        type: 'wall',
-      },
-    ];
+        area: geometry?.floorArea || geometry?.surfaceAreas?.ceiling || 0,
+        dimLabel: geometry?.surfaceDimensionsLabels?.ceiling || `Elevado a H = ${H.toFixed(1)}m`,
+      });
+    }
 
-    // Ordenar de mayor profundidad (más atrás) a menor profundidad (más adelante)
-    return list.sort((a, b) => a.depth - b.depth);
-  }, [vertices]);
+    // Paredes extruidas (arcos continuos sin louvers ni artefactos de acordeón)
+    for (let i = 0; i < vertices.length; i++) {
+      const j = (i + 1) % vertices.length;
+      const v0 = vertices[i];
+      const v1 = vertices[j];
+      const bulge = curvatures[i] || 0;
+      const wallId = `wall_${i}`;
+      const dx = v1.x - v0.x;
+      const dy = v1.y - v0.y;
+      const chordLen = Math.sqrt(dx * dx + dy * dy);
+      const isCurved = Math.abs(bulge) > 0.02;
 
-  // Posición 3D de la Fuente según directividad Q
-  let srcX = L * 0.28;
-  let srcY = W * 0.5;
-  let srcZ = H * 0.45;
-  if (Q === 8) {
-    srcX = 0.4; srcY = 0.4; srcZ = 0.4;
-  } else if (Q === 4) {
-    srcX = 0.4; srcY = W * 0.5; srcZ = 0.4;
-  } else if (Q === 2) {
-    srcX = L * 0.28; srcY = W * 0.5; srcZ = 0.15;
+      if (isCurved) {
+        const arcPts = getEdgeArcPoints(v0, v1, bulge, 12, isCCW);
+        const arcLen = chordLen + (8 * bulge * bulge) / (3 * Math.max(0.01, chordLen));
+
+        // Arco inferior en el piso (z = 0)
+        const botPoints = arcPts.map(pt => project3D(pt.x, pt.y, 0));
+        // Arco superior en el techo (z = H) en reversa para cerrar la cinta poligonal
+        const topPointsRev = [...arcPts].reverse().map(pt => project3D(pt.x, pt.y, H));
+
+        const fullRing = [...botPoints, ...topPointsRev];
+        const centerDepth = fullRing.reduce((s, p) => s + p.depth, 0) / Math.max(1, fullRing.length);
+
+        allFaces.push({
+          id: wallId,
+          name: `Pared ${i + 1} (Arco ${arcLen.toFixed(1)}m)`,
+          points: fullRing.map(p => `${p.x},${p.y}`).join(' '),
+          rawPoints: fullRing,
+          depth: centerDepth,
+          type: 'wall',
+          wallIndex: i,
+          isCurved: true,
+          area: geometry?.surfaceAreas?.[wallId] || (arcLen * H),
+          dimLabel: `${arcLen.toFixed(1)}m × ${H.toFixed(1)}m (Flecha ${bulge > 0 ? '+' : ''}${bulge.toFixed(1)}m)`,
+        });
+      } else {
+        const bl = project3D(v0.x, v0.y, 0);
+        const br = project3D(v1.x, v1.y, 0);
+        const tr = project3D(v1.x, v1.y, H);
+        const tl = project3D(v0.x, v0.y, H);
+        const centerDepth = (bl.depth + br.depth + tr.depth + tl.depth) / 4;
+
+        allFaces.push({
+          id: wallId,
+          name: `Pared ${i + 1} (${chordLen.toFixed(1)}m)`,
+          points: `${bl.x},${bl.y} ${br.x},${br.y} ${tr.x},${tr.y} ${tl.x},${tl.y}`,
+          rawPoints: [bl, br, tr, tl],
+          depth: centerDepth,
+          type: 'wall',
+          wallIndex: i,
+          isCurved: false,
+          area: geometry?.surfaceAreas?.[wallId] || (chordLen * H),
+          dimLabel: `${chordLen.toFixed(1)}m × ${H.toFixed(1)}m`,
+        });
+      }
+    }
+
+    allFaces.sort((a, b) => b.depth - a.depth);
+    return allFaces;
+  }, [vertices, H, project3D, geometry, ceilingMode, roomPolygon?.curvatures, isCCW]);
+
+  // Bounding box y extremos del polígono
+  const xs = useMemo(() => vertices.map(v => v.x), [vertices]);
+  const ys = useMemo(() => vertices.map(v => v.y), [vertices]);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  // Posicionamiento físico de la fuente sonora según Directividad Q y norma ISO 3382
+  const sourceWorld = useMemo(() => {
+    if (sourceReceiver?.sourcePos) {
+      return sourceReceiver.sourcePos;
+    }
+    let sx = centroid.x;
+    let sy = centroid.y;
+    let sz = Math.min(1.5, H * 0.5); // 1.5m altura estándar ISO 3382
+
+    if (Q === 8) {
+      // En esquina triédrica (π/2 estereorradianes, piso + 2 paredes)
+      sx = minX + 0.35;
+      sy = minY + 0.35;
+      sz = 0.2;
+    } else if (Q === 4) {
+      // En arista diédrica (π estereorradianes, intersección pared-piso)
+      sx = centroid.x;
+      sy = minY + 0.25;
+      sz = 0.2;
+    } else if (Q === 2) {
+      // En pared o suelo (2π estereorradianes)
+      sx = centroid.x;
+      sy = minY + 0.65;
+      sz = 0.2;
+    } else {
+      // Q = 1: Espacio libre (4π estereorradianes), alejado > 1.5m de paredes
+      sx = centroid.x - Math.min(1.5, (maxX - minX) * 0.2);
+      sy = centroid.y;
+      sz = Math.min(1.5, H * 0.5);
+    }
+    return { x: sx, y: sy, z: sz };
+  }, [sourceReceiver?.sourcePos, Q, centroid, minX, maxX, minY, H]);
+
+  // Posicionamiento físico del receptor según distancia r y altura de oyente ISO (1.2m)
+  const receiverWorld = useMemo(() => {
+    if (sourceReceiver?.receiverPos) {
+      return sourceReceiver.receiverPos;
+    }
+    const maxSpan = Math.max(1, (maxX - minX) * 0.85);
+    const effectiveDist = Math.min(r, maxSpan);
+
+    let rx = sourceWorld.x + effectiveDist;
+    let ry = sourceWorld.y;
+
+    // Si choca con la pared este, orientarlo en diagonal respetando la sala
+    if (rx > maxX - 0.5) {
+      rx = maxX - 0.6;
+      ry = Math.min(maxY - 0.6, sourceWorld.y + Math.max(0.4, effectiveDist * 0.35));
+    }
+    const rz = Math.min(1.2, H * 0.45); // 1.2m altura estándar oyente sentado ISO 3382
+    return { x: rx, y: ry, z: rz };
+  }, [sourceReceiver?.receiverPos, sourceWorld, r, minX, maxX, maxY, H]);
+
+  // Proyección 3D de fuente y receptor
+  const sourcePos = useMemo(() => {
+    return project3D(sourceWorld.x, sourceWorld.y, sourceWorld.z);
+  }, [sourceWorld, project3D]);
+  const sourceFloorPos = useMemo(() => {
+    return project3D(sourceWorld.x, sourceWorld.y, 0);
+  }, [sourceWorld, project3D]);
+
+  const receiverPos = useMemo(() => {
+    return project3D(receiverWorld.x, receiverWorld.y, receiverWorld.z);
+  }, [receiverWorld, project3D]);
+  const receiverFloorPos = useMemo(() => {
+    return project3D(receiverWorld.x, receiverWorld.y, 0);
+  }, [receiverWorld, project3D]);
+
+  // Grilla métrica 3D proyectada en el piso
+  const floor3DGrid = useMemo(() => {
+    const lines = [];
+    const step = 1.0;
+    const startX = Math.floor(minX);
+    const endX = Math.ceil(maxX);
+    const startY = Math.floor(minY);
+    const endY = Math.ceil(maxY);
+
+    for (let x = startX; x <= endX; x += step) {
+      const p1 = project3D(x, startY, 0.01);
+      const p2 = project3D(x, endY, 0.01);
+      lines.push({ p1, p2 });
+    }
+    for (let y = startY; y <= endY; y += step) {
+      const p1 = project3D(startX, y, 0.01);
+      const p2 = project3D(endX, y, 0.01);
+      lines.push({ p1, p2 });
+    }
+    return lines;
+  }, [minX, maxX, minY, maxY, project3D]);
+
+  // Esfera/círculo de Distancia Crítica (Dc) alrededor de la fuente en el suelo
+  const dcCircle = useMemo(() => {
+    const steps = 36;
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+      const angle = (i / steps) * Math.PI * 2;
+      const px = sourceWorld.x + Dc * Math.cos(angle);
+      const py = sourceWorld.y + Dc * Math.sin(angle);
+      const p = project3D(px, py, 0.02);
+      points.push(`${p.x},${p.y}`);
+    }
+    return points.join(' ');
+  }, [sourceWorld, Dc, project3D]);
+
+  // Estilo cromático para cada cara
+  const getFaceStyle = (face) => {
+    const isHovered = hoveredFace === face.id;
+    const matConfig = materials?.[face.id];
+    const matColor = matConfig ? getMaterialColor(matConfig.materialId) : null;
+
+    if (face.type === 'floor') {
+      return {
+        fill: isHovered ? 'rgba(88, 51, 199, 0.18)' : 'rgba(88, 51, 199, 0.08)',
+        stroke: isHovered ? '#5833c7' : 'rgba(88, 51, 199, 0.5)',
+        strokeWidth: isHovered ? 2.5 : 1.5,
+      };
+    }
+
+    if (face.type === 'ceiling') {
+      if (ceilingMode === 'wireframe') {
+        return {
+          fill: 'none',
+          stroke: isHovered ? '#8767f9' : 'rgba(88, 51, 199, 0.7)',
+          strokeWidth: isHovered ? 2.5 : 1.5,
+          strokeDasharray: '4,4',
+        };
+      }
+      return {
+        fill: isHovered ? 'rgba(135, 103, 249, 0.25)' : 'rgba(88, 51, 199, 0.12)',
+        stroke: isHovered ? '#8767f9' : 'rgba(88, 51, 199, 0.75)',
+        strokeWidth: isHovered ? 2.5 : 1.5,
+      };
+    }
+
+    // Paredes
+    const baseColor = matColor?.hex || '#5833c7';
+    let r_ = 88, g_ = 51, b_ = 199;
+    if (baseColor.startsWith('#') && baseColor.length >= 7) {
+      r_ = parseInt(baseColor.slice(1, 3), 16);
+      g_ = parseInt(baseColor.slice(3, 5), 16);
+      b_ = parseInt(baseColor.slice(5, 7), 16);
+    }
+
+    return {
+      fill: isHovered
+        ? `rgba(${r_},${g_},${b_},0.45)`
+        : `rgba(${r_},${g_},${b_},0.15)`,
+      stroke: isHovered
+        ? `rgba(${r_},${g_},${b_},0.95)`
+        : `rgba(${r_},${g_},${b_},0.6)`,
+      strokeWidth: isHovered ? 2.5 : 1.2,
+    };
+  };
+
+  // Tooltip HUD
+  const tooltipInfo = useMemo(() => {
+    if (!hoveredFace) return null;
+    const face = faces.find(f => f.id === hoveredFace);
+    if (!face) return null;
+    const matConfig = materials?.[face.id];
+    const matInfo = matConfig ? getMaterialById(matConfig.materialId) : null;
+    const alpha = matConfig?.coefficients?.[selectedBand] ?? '—';
+    return {
+      name: face.name,
+      material: matInfo?.name || 'Manual / Personalizado',
+      area: (face.area || 0).toFixed(1),
+      dims: face.dimLabel,
+      alpha: typeof alpha === 'number' ? alpha.toFixed(2) : alpha,
+      type: face.type,
+    };
+  }, [hoveredFace, faces, materials, selectedBand]);
+
+  if (isReportGraphic) {
+    return (
+      <div className="w-full h-full bg-white select-none overflow-hidden relative flex items-center justify-center">
+        <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full h-full object-contain">
+          <defs>
+            <pattern id="reportFloorTiles3d" width="18" height="18" patternUnits="userSpaceOnUse">
+              <rect width="18" height="18" fill="rgba(88, 51, 199, 0.04)" />
+              <line x1="0" y1="0" x2="18" y2="0" stroke="rgba(88, 51, 199, 0.12)" strokeWidth="0.5" />
+              <line x1="0" y1="0" x2="0" y2="18" stroke="rgba(88, 51, 199, 0.12)" strokeWidth="0.5" />
+            </pattern>
+            <pattern id="reportCeilingTiles3d" width="16" height="16" patternUnits="userSpaceOnUse">
+              <rect width="16" height="16" fill="rgba(135, 103, 249, 0.08)" />
+              <rect x="1" y="1" width="14" height="14" fill="none" stroke="rgba(88, 51, 199, 0.2)" strokeWidth="0.5" strokeDasharray="2,2" />
+            </pattern>
+          </defs>
+
+          <rect width={SVG_W} height={SVG_H} fill="#ffffff" />
+
+          {/* Grilla 3D proyectada en el piso */}
+          {floor3DGrid.map((l, i) => (
+            <line
+              key={`floor-grid-rep-${i}`}
+              x1={l.p1.x} y1={l.p1.y}
+              x2={l.p2.x} y2={l.p2.y}
+              stroke="rgba(88, 51, 199, 0.18)"
+              strokeWidth={0.7}
+            />
+          ))}
+
+          {/* Caras ordenadas por profundidad */}
+          {faces.map((face) => {
+            const style = getFaceStyle(face);
+            const isFloor = face.type === 'floor';
+            const isCeiling = face.type === 'ceiling';
+
+            return (
+              <g key={`rep-${face.id}`}>
+                {isFloor && (
+                  <polygon points={face.points} fill="url(#reportFloorTiles3d)" />
+                )}
+                {isCeiling && (
+                  <polygon points={face.points} fill="url(#reportCeilingTiles3d)" />
+                )}
+                <polygon
+                  points={face.points}
+                  fill={isFloor ? 'none' : style.fill}
+                  stroke={style.stroke}
+                  strokeWidth={1.5}
+                  strokeLinejoin="round"
+                />
+              </g>
+            );
+          })}
+
+          {/* Pilares verticales */}
+          {cornerPillars.map((pillar) => (
+            <g key={`rep-pillar-${pillar.index}`}>
+              <line
+                x1={pillar.p0.x} y1={pillar.p0.y}
+                x2={pillar.p1.x} y2={pillar.p1.y}
+                stroke="rgba(88, 51, 199, 0.4)"
+                strokeWidth={1}
+                strokeDasharray="3,3"
+              />
+              <circle cx={pillar.p0.x} cy={pillar.p0.y} r={2.5} fill="#5833c7" opacity={0.8} />
+              <circle cx={pillar.p1.x} cy={pillar.p1.y} r={2.5} fill="#8767f9" opacity={0.8} />
+            </g>
+          ))}
+
+          {/* Dc Circle */}
+          <polyline
+            points={dcCircle}
+            fill="rgba(245, 158, 11, 0.05)"
+            stroke="#f59e0b"
+            strokeWidth={1.5}
+            strokeDasharray="4,4"
+          />
+
+          {/* Vástagos */}
+          <line x1={sourceFloorPos.x} y1={sourceFloorPos.y} x2={sourcePos.x} y2={sourcePos.y} stroke="#5833c7" strokeWidth={1.2} strokeDasharray="2,2" />
+          <line x1={receiverFloorPos.x} y1={receiverFloorPos.y} x2={receiverPos.x} y2={receiverPos.y} stroke="#10b981" strokeWidth={1.2} strokeDasharray="2,2" />
+
+          {/* Fuente y Receptor */}
+          <circle cx={sourcePos.x} cy={sourcePos.y} r={6} fill="#5833c7" />
+          <circle cx={sourcePos.x} cy={sourcePos.y} r={2.5} fill="white" />
+          <text x={sourcePos.x} y={sourcePos.y - 9} fill="#5833c7" fontSize="8.5" fontWeight="800" textAnchor="middle" fontFamily="Inter, system-ui">
+            Fuente S
+          </text>
+
+          <circle cx={receiverPos.x} cy={receiverPos.y} r={5.5} fill="#10b981" />
+          <circle cx={receiverPos.x} cy={receiverPos.y} r={2.5} fill="white" />
+          <text x={receiverPos.x} y={receiverPos.y - 9} fill="#10b981" fontSize="8.5" fontWeight="800" textAnchor="middle" fontFamily="Inter, system-ui">
+            Receptor R
+          </text>
+
+          {/* Rayo acústico r */}
+          <line x1={sourcePos.x} y1={sourcePos.y} x2={receiverPos.x} y2={receiverPos.y} stroke="#5833c7" strokeWidth={1.5} strokeDasharray="4,3" />
+          <rect x={(sourcePos.x + receiverPos.x) / 2 - 20} y={(sourcePos.y + receiverPos.y) / 2 - 8} width={40} height={16} rx={4} fill="rgba(255,255,255,0.9)" stroke="#5833c7" strokeWidth={0.8} />
+          <text x={(sourcePos.x + receiverPos.x) / 2} y={(sourcePos.y + receiverPos.y) / 2 + 3.5} fill="#5833c7" fontSize="8.5" fontWeight="800" fontFamily="'JetBrains Mono', monospace" textAnchor="middle">
+            r={r.toFixed(1)}m
+          </text>
+        </svg>
+      </div>
+    );
   }
 
-  // Posición 3D del Receptor a distancia r
-  const angleRad = Math.PI / 10;
-  const maxRoomDist = Math.sqrt(L * L + W * W + H * H) * 0.92;
-  const clampedR = Math.min(r, maxRoomDist);
-  const recX = Math.min(L - 0.3, srcX + clampedR * Math.cos(angleRad));
-  const recY = Math.min(W - 0.3, srcY + clampedR * Math.sin(angleRad));
-  const recZ = Math.min(H - 0.3, srcZ + 0.1);
-
-  const srcPoint = project3D(srcX, srcY, srcZ);
-  const recPoint = project3D(recX, recY, recZ);
-
-  // Distancia crítica 3D representada como radio en pantalla
-  const dcPointX = project3D(srcX + Dc, srcY, srcZ);
-  const dcRadius = Math.max(14, Math.abs(dcPointX.x - srcPoint.x));
-
-  // Rayos de reflexión de primer orden (suelo y pared este)
-  const floorBouncePoint = project3D((srcX + recX) / 2, (srcY + recY) / 2, 0);
-
   return (
-    <div className="bg-white rounded-3xl border border-black/[0.08] p-5 sm:p-7 shadow-apple-sm transition-all flex flex-col">
+    <div className="bg-white dark:bg-[#121322] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm overflow-hidden transition-colors">
       
-      {/* Barra Superior con Controles */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-black/[0.06] mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center font-bold">
-            <Eye className="w-5 h-5" />
+      {/* Barra de Controles Compacta */}
+      <div className="px-4 py-2.5 border-b border-black/[0.06] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold">
+            <Eye className="w-3.5 h-3.5" />
           </div>
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-[#1d1d1f] tracking-tight">
-              Visualizador 3D Interactivo de la Sala
-            </h3>
-            <p className="text-xs text-[#86868b]">
-              Arrastra para rotar en 3D • Rueda del ratón para Zoom • Fuente (S), Receptor (R) y Distancia Crítica (Dc)
-            </p>
-          </div>
+          <span className="text-xs font-bold text-[#1d1d1f] dark:text-white">
+            Vista 3D (H={H.toFixed(1)}m)
+          </span>
         </div>
 
-        {/* Barra de Herramientas de Cámara */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
-          
-          {/* Píldoras de Vistas Predefinidas */}
-          <div className="flex items-center gap-1 bg-[#f5f5f7] p-1 rounded-xl border border-black/[0.04]">
+        <div className="flex items-center gap-1">
+          {/* Techo selector */}
+          <div className="flex items-center bg-[#f5f5f7] dark:bg-[#181a28] p-0.5 rounded-lg border border-black/[0.04] dark:border-white/[0.06]">
             <button
-              onClick={() => setPreset('3d')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
-                viewPreset === '3d' ? 'bg-white text-[#1d1d1f] shadow-xs' : 'text-[#86868b] hover:text-[#1d1d1f]'
+              onClick={() => setCeilingMode('translucent')}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                ceilingMode === 'translucent'
+                  ? 'bg-white dark:bg-[#25283e] text-[#5833c7] dark:text-[#8767f9] shadow-2xs'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
+              title="Techo translúcido"
             >
-              3D
+              Techo █
             </button>
             <button
-              onClick={() => setPreset('top')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
-                viewPreset === 'top' ? 'bg-white text-[#1d1d1f] shadow-xs' : 'text-[#86868b] hover:text-[#1d1d1f]'
+              onClick={() => setCeilingMode('wireframe')}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                ceilingMode === 'wireframe'
+                  ? 'bg-white dark:bg-[#25283e] text-[#5833c7] dark:text-[#8767f9] shadow-2xs'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
+              title="Techo alámbrico"
             >
-              Planta
+              Alámbrico ╌
             </button>
             <button
-              onClick={() => setPreset('front')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
-                viewPreset === 'front' ? 'bg-white text-[#1d1d1f] shadow-xs' : 'text-[#86868b] hover:text-[#1d1d1f]'
+              onClick={() => setCeilingMode('hidden')}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                ceilingMode === 'hidden'
+                  ? 'bg-white dark:bg-[#25283e] text-rose-500 shadow-2xs'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
+              title="Sin techo"
             >
-              Frontal
-            </button>
-            <button
-              onClick={() => setPreset('side')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
-                viewPreset === 'side' ? 'bg-white text-[#1d1d1f] shadow-xs' : 'text-[#86868b] hover:text-[#1d1d1f]'
-              }`}
-            >
-              Lateral
+              Sin Techo ✕
             </button>
           </div>
 
-          {/* Botón Auto-Rotación */}
+          {/* Vistas */}
+          <button
+            onClick={() => applyViewPreset('3d')}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition ${
+              viewPreset === '3d'
+                ? 'bg-[#5833c7] text-white'
+                : 'bg-[#f5f5f7] dark:bg-[#181a28] text-[#86868b]'
+            }`}
+          >
+            3D
+          </button>
+          <button
+            onClick={() => applyViewPreset('top')}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition ${
+              viewPreset === 'top'
+                ? 'bg-[#5833c7] text-white'
+                : 'bg-[#f5f5f7] dark:bg-[#181a28] text-[#86868b]'
+            }`}
+          >
+            Planta
+          </button>
+
+          {/* Auto-rotar */}
           <button
             onClick={() => setAutoRotate(!autoRotate)}
-            className={`p-1.5 rounded-xl border transition ${
-              autoRotate
-                ? 'bg-[#0071e3] text-white border-[#0071e3] shadow-xs'
-                : 'bg-[#f5f5f7] text-[#1d1d1f] border-black/[0.06] hover:bg-[#e8e8ed]'
+            className={`p-1 rounded-lg border transition ${
+              autoRotate ? 'bg-[#5833c7]/10 text-[#5833c7] border-[#5833c7]/30' : 'bg-[#f5f5f7] dark:bg-[#181a28] text-[#86868b] border-black/[0.04]'
             }`}
-            title={autoRotate ? "Detener auto-rotación" : "Giro automático continuo"}
+            title="Auto-rotar"
           >
-            {autoRotate ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            {autoRotate ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
           </button>
 
-          {/* Botones Zoom In / Out */}
+          {/* Zoom & Reset */}
           <button
-            onClick={() => setZoom((prev) => Math.min(3.0, prev * 1.15))}
-            className="p-1.5 rounded-xl bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#1d1d1f] border border-black/[0.06] transition"
-            title="Acercar (Zoom In)"
+            onClick={() => setZoom(z => Math.min(3, z + 0.2))}
+            className="p-1 rounded-lg bg-[#f5f5f7] dark:bg-[#181a28] text-[#86868b] hover:text-[#1d1d1f]"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3 h-3" />
           </button>
           <button
-            onClick={() => setZoom((prev) => Math.max(0.4, prev * 0.85))}
-            className="p-1.5 rounded-xl bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#1d1d1f] border border-black/[0.06] transition"
-            title="Alejar (Zoom Out)"
+            onClick={() => setZoom(z => Math.max(0.35, z - 0.2))}
+            className="p-1 rounded-lg bg-[#f5f5f7] dark:bg-[#181a28] text-[#86868b] hover:text-[#1d1d1f]"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3 h-3" />
+          </button>
+          {/* Reset cámara */}
+          <button
+            onClick={resetCamera}
+            className="p-1 rounded-lg bg-[#f5f5f7] dark:bg-[#181a28] text-[#86868b] hover:text-[#1d1d1f]"
+            title="Reset cámara"
+          >
+            <RotateCcw className="w-3 h-3" />
           </button>
 
-          {/* Restablecer Cámara */}
+          {/* Botón Maximizar / Modal 3D Grande */}
           <button
-            onClick={resetView}
-            className="p-1.5 rounded-xl bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#86868b] hover:text-black border border-black/[0.06] transition"
-            title="Restablecer posición inicial"
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] hover:bg-[#5833c7]/20 text-[10px] font-bold border border-[#5833c7]/30 transition active:scale-95"
+            title="Abrir estudio 3D ampliado con parámetros de visualización"
           >
-            <RotateCcw className="w-4 h-4" />
+            <Maximize2 className="w-3 h-3" />
+            <span className="hidden sm:inline">Ampliar</span>
           </button>
         </div>
       </div>
 
-      {/* Lienzo SVG Interactivo 3D con Soporte Completo de Mouse y Touch */}
+      {/* Viewport SVG 3D con Fondo Blanco en Modo Claro */}
       <div
         ref={containerRef}
+        className="relative bg-white dark:bg-[#0c0d18] select-none overflow-hidden transition-colors"
+        style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative w-full h-[400px] sm:h-[480px] bg-[#fbfbfd] rounded-2xl border border-black/[0.06] overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
       >
-        {/* Trama de Fondo Sutil */}
-        <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px] opacity-70 pointer-events-none"></div>
-
-        <svg
-          viewBox="0 0 800 520"
-          className="w-full h-full pointer-events-none"
-          preserveAspectRatio="xMidYMid meet"
-        >
+        <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ aspectRatio: `${SVG_W}/${SVG_H}` }}>
           <defs>
-            {/* Gradientes Suaves */}
-            <linearGradient id="rayDirectGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ff9500" />
-              <stop offset="100%" stopColor="#0071e3" />
-            </linearGradient>
-            <linearGradient id="rayReflectGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ff9500" stopOpacity="0.6" />
-              <stop offset="50%" stopColor="#34c759" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#0071e3" stopOpacity="0.6" />
-            </linearGradient>
+            {/* Trama técnica para piso en modo claro */}
+            <pattern id="lightFloorTiles3d" width="18" height="18" patternUnits="userSpaceOnUse">
+              <rect width="18" height="18" fill="rgba(88, 51, 199, 0.04)" />
+              <line x1="0" y1="0" x2="18" y2="0" stroke="rgba(88, 51, 199, 0.12)" strokeWidth="0.5" />
+              <line x1="0" y1="0" x2="0" y2="18" stroke="rgba(88, 51, 199, 0.12)" strokeWidth="0.5" />
+            </pattern>
+
+            {/* Trama técnica para techo */}
+            <pattern id="lightCeilingTiles3d" width="16" height="16" patternUnits="userSpaceOnUse">
+              <rect width="16" height="16" fill="rgba(135, 103, 249, 0.08)" />
+              <rect x="1" y="1" width="14" height="14" fill="none" stroke="rgba(88, 51, 199, 0.2)" strokeWidth="0.5" strokeDasharray="2,2" />
+            </pattern>
           </defs>
 
-          {/* 1. RENDERIZADO DE CARAS POSTERIORES (Painter's Algorithm) */}
-          {faces.slice(0, 3).map((face) => (
-            <polygon
-              key={face.id}
-              points={face.points}
-              fill={face.fill}
-              stroke={face.stroke}
-              strokeWidth="1.2"
-              strokeDasharray={face.type === 'ceiling' ? '3 3' : undefined}
+          {/* Fondo blanco luminoso */}
+          <rect width={SVG_W} height={SVG_H} fill="#ffffff" className="dark:fill-[#0c0d18]" />
+
+          {/* Grilla 3D proyectada en el piso */}
+          {floor3DGrid.map((l, i) => (
+            <line
+              key={`floor-grid-${i}`}
+              x1={l.p1.x} y1={l.p1.y}
+              x2={l.p2.x} y2={l.p2.y}
+              stroke="rgba(88, 51, 199, 0.2)"
+              strokeWidth={0.7}
+              className="dark:stroke-[#8767f9]/30"
+              style={{ pointerEvents: 'none' }}
             />
           ))}
 
-          {/* 2. RECORRIDO DE RAYOS ACÚSTICOS INTERNOS */}
-          {showRays && (
-            <>
-              {/* Rayo de Reflexión de Primer Orden (Suelo) */}
-              <polyline
-                points={`${srcPoint.x},${srcPoint.y} ${floorBouncePoint.x},${floorBouncePoint.y} ${recPoint.x},${recPoint.y}`}
-                fill="none"
-                stroke="url(#rayReflectGrad)"
-                strokeWidth="1.4"
-                strokeDasharray="4 3"
-                opacity="0.6"
-              />
+          {/* Caras ordenadas por profundidad */}
+          {faces.map((face) => {
+            const style = getFaceStyle(face);
+            const isFloor = face.type === 'floor';
+            const isCeiling = face.type === 'ceiling';
 
-              {/* Rayo de Sonido Directo (S -> R) */}
-              <line
-                x1={srcPoint.x}
-                y1={srcPoint.y}
-                x2={recPoint.x}
-                y2={recPoint.y}
-                stroke="url(#rayDirectGrad)"
-                strokeWidth="2.5"
-                strokeDasharray="6 3"
-              />
-
-              {/* Etiqueta de Distancia sobre el Rayo Directo */}
-              <g transform={`translate(${(srcPoint.x + recPoint.x) / 2}, ${(srcPoint.y + recPoint.y) / 2 - 12})`}>
-                <rect x="-30" y="-12" width="60" height="20" rx="6" fill="#ffffff" stroke="#ff9500" strokeWidth="1.2" />
-                <text x="0" y="2" fill="#ff9500" fontSize="10" fontWeight="bold" textAnchor="middle" alignmentBaseline="middle" className="font-mono">
-                  r = {r.toFixed(1)}m
-                </text>
+            return (
+              <g key={face.id}>
+                {isFloor && (
+                  <polygon
+                    points={face.points}
+                    fill="url(#lightFloorTiles3d)"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
+                {isCeiling && ceilingMode === 'translucent' && (
+                  <polygon
+                    points={face.points}
+                    fill="url(#lightCeilingTiles3d)"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
+                <polygon
+                  points={face.points}
+                  fill={isFloor ? 'none' : style.fill}
+                  stroke={style.stroke}
+                  strokeWidth={style.strokeWidth}
+                  strokeDasharray={style.strokeDasharray || 'none'}
+                  strokeLinejoin="round"
+                  style={{ cursor: 'pointer', transition: 'all 0.1s ease' }}
+                  onMouseEnter={() => setHoveredFace(face.id)}
+                  onMouseLeave={() => setHoveredFace(null)}
+                />
               </g>
-            </>
+            );
+          })}
+
+          {/* Pilares verticales en las esquinas */}
+          {cornerPillars.map((pillar) => (
+            <g key={`pillar-${pillar.index}`} style={{ pointerEvents: 'none' }}>
+              <line
+                x1={pillar.p0.x} y1={pillar.p0.y}
+                x2={pillar.p1.x} y2={pillar.p1.y}
+                stroke={ceilingMode === 'hidden' ? 'rgba(88, 51, 199, 0.2)' : 'rgba(88, 51, 199, 0.5)'}
+                strokeWidth={1}
+                strokeDasharray="3,3"
+              />
+              <circle cx={pillar.p0.x} cy={pillar.p0.y} r={2.5} fill="#5833c7" opacity={0.7} />
+              {ceilingMode !== 'hidden' && (
+                <circle cx={pillar.p1.x} cy={pillar.p1.y} r={2.5} fill="#8767f9" opacity={0.7} />
+              )}
+            </g>
+          ))}
+
+          {/* Distancia Crítica Dc en el suelo */}
+          {showRays && (
+            <polyline
+              points={dcCircle}
+              fill="rgba(245, 158, 11, 0.05)"
+              stroke="#f59e0b"
+              strokeWidth={1.5}
+              strokeDasharray="4,4"
+              style={{ pointerEvents: 'none' }}
+            />
           )}
 
-          {/* 3. HALO DE DISTANCIA CRÍTICA (Dc) EN 3D */}
-          <ellipse
-            cx={srcPoint.x}
-            cy={srcPoint.y}
-            rx={dcRadius}
-            ry={dcRadius * Math.max(0.4, cosX)}
-            fill="#34c759"
-            fillOpacity="0.08"
-            stroke="#34c759"
-            strokeWidth="1.5"
-            strokeDasharray="4 3"
+          {/* Vástago vertical de Fuente (altura hs) */}
+          <line
+            x1={sourceFloorPos.x} y1={sourceFloorPos.y}
+            x2={sourcePos.x} y2={sourcePos.y}
+            stroke="#5833c7" strokeWidth={1.2}
+            strokeDasharray="2,2"
+            style={{ pointerEvents: 'none' }}
           />
-          <text
-            x={srcPoint.x + dcRadius + 6}
-            y={srcPoint.y - 6}
-            fill="#34c759"
-            fontSize="11"
-            fontWeight="bold"
-            className="font-mono select-none"
-          >
-            Dc = {Dc.toFixed(2)}m
-          </text>
+          <circle cx={sourceFloorPos.x} cy={sourceFloorPos.y} r={3} fill="rgba(88, 51, 199, 0.4)" style={{ pointerEvents: 'none' }} />
 
-          {/* 4. MARCADOR DE FUENTE SONORA (S) */}
-          <g transform={`translate(${srcPoint.x}, ${srcPoint.y})`}>
-            {/* Ondas esféricas animadas */}
-            <circle cx="0" cy="0" r="16" fill="none" stroke="#ff9500" strokeWidth="1.5" opacity="0.3" className="animate-ping" />
-            <circle cx="0" cy="0" r="9" fill="#ff9500" stroke="#ffffff" strokeWidth="2.5" />
-            <text x="0" y="3.5" fill="#ffffff" fontSize="9" fontWeight="black" textAnchor="middle" alignmentBaseline="middle">
-              S
+          {/* Vástago vertical de Receptor (altura hr) */}
+          <line
+            x1={receiverFloorPos.x} y1={receiverFloorPos.y}
+            x2={receiverPos.x} y2={receiverPos.y}
+            stroke="#10b981" strokeWidth={1.2}
+            strokeDasharray="2,2"
+            style={{ pointerEvents: 'none' }}
+          />
+          <circle cx={receiverFloorPos.x} cy={receiverFloorPos.y} r={3} fill="rgba(16, 185, 129, 0.4)" style={{ pointerEvents: 'none' }} />
+
+          {/* Fuente sonora */}
+          <g style={{ pointerEvents: 'none' }}>
+            <circle cx={sourcePos.x} cy={sourcePos.y} r={6.5} fill="#5833c7" />
+            <circle cx={sourcePos.x} cy={sourcePos.y} r={3} fill="white" />
+            <text
+              x={sourcePos.x} y={sourcePos.y - 10}
+              fill="#5833c7" fontSize="8" fontWeight="700"
+              textAnchor="middle" fontFamily="Inter, system-ui"
+            >
+              Fuente (Lw={sourceReceiver?.lw || 90}dB)
             </text>
           </g>
-          <text
-            x={srcPoint.x}
-            y={srcPoint.y + 22}
-            fill="#1d1d1f"
-            fontSize="11"
-            fontWeight="bold"
-            textAnchor="middle"
-            className="font-mono select-none"
-          >
-            Fuente (Q={Q})
-          </text>
 
-          {/* 5. MARCADOR DE RECEPTOR ACÚSTICO (R) */}
-          <g transform={`translate(${recPoint.x}, ${recPoint.y})`}>
-            <circle cx="0" cy="0" r="9" fill="#0071e3" stroke="#ffffff" strokeWidth="2.5" />
-            <text x="0" y="3.5" fill="#ffffff" fontSize="9" fontWeight="black" textAnchor="middle" alignmentBaseline="middle">
-              R
+          {/* Receptor */}
+          <g style={{ pointerEvents: 'none' }}>
+            <circle cx={receiverPos.x} cy={receiverPos.y} r={5.5} fill="#10b981" />
+            <circle cx={receiverPos.x} cy={receiverPos.y} r={2.5} fill="white" />
+            <text
+              x={receiverPos.x} y={receiverPos.y - 9}
+              fill="#10b981" fontSize="8" fontWeight="700"
+              textAnchor="middle" fontFamily="Inter, system-ui"
+            >
+              Receptor
             </text>
           </g>
+
+          {/* Línea de distancia directa r */}
+          {showRays && (
+            <g style={{ pointerEvents: 'none' }}>
+              <line
+                x1={sourcePos.x} y1={sourcePos.y}
+                x2={receiverPos.x} y2={receiverPos.y}
+                stroke="#5833c7" strokeWidth={1.2}
+                strokeDasharray="4,3"
+              />
+              <rect
+                x={(sourcePos.x + receiverPos.x) / 2 - 18}
+                y={(sourcePos.y + receiverPos.y) / 2 - 7}
+                width={36} height={14} rx={3}
+                fill="rgba(255,255,255,0.9)" stroke="rgba(88, 51, 199, 0.4)" strokeWidth={0.5}
+              />
+              <text
+                x={(sourcePos.x + receiverPos.x) / 2}
+                y={(sourcePos.y + receiverPos.y) / 2 + 3}
+                fill="#5833c7" fontSize="7.5" fontWeight="700"
+                fontFamily="'JetBrains Mono', monospace" textAnchor="middle"
+              >
+                r={r.toFixed(1)}m
+              </text>
+            </g>
+          )}
+
+          {/* Etiqueta Piso */}
+          {(() => {
+            const fc = project3D(centroid.x, centroid.y, 0);
+            return (
+              <text
+                x={fc.x} y={fc.y + 3}
+                fill="rgba(88, 51, 199, 0.35)" fontSize="9.5" fontWeight="800"
+                textAnchor="middle" fontFamily="Inter, system-ui"
+                style={{ pointerEvents: 'none' }}
+              >
+                PISO ({(geometry?.floorArea || 0).toFixed(1)} m²)
+              </text>
+            );
+          })()}
+
+          {/* Etiqueta Techo */}
+          {ceilingMode !== 'hidden' && (() => {
+            const cc = project3D(centroid.x, centroid.y, H);
+            return (
+              <text
+                x={cc.x} y={cc.y - 3}
+                fill="rgba(88, 51, 199, 0.45)" fontSize="9" fontWeight="800"
+                textAnchor="middle" fontFamily="Inter, system-ui"
+                style={{ pointerEvents: 'none' }}
+              >
+                TECHO · H={H.toFixed(1)}m
+              </text>
+            );
+          })()}
+
+          {/* Tooltip HUD al pasar el ratón */}
+          {tooltipInfo && (
+            <g style={{ pointerEvents: 'none' }}>
+              <rect
+                x={14} y={SVG_H - 74} width={200} height={62} rx={10}
+                fill="rgba(255,255,255,0.96)" stroke="#5833c7" strokeWidth={1}
+                className="dark:fill-[#121424] dark:stroke-[#8767f9]"
+              />
+              <circle cx={26} cy={SVG_H - 58} r={3} fill="#5833c7" />
+              <text x={34} y={SVG_H - 55} fill="#1d1d1f" fontSize="9.5" fontWeight="800" className="dark:fill-white" fontFamily="Inter, system-ui">
+                {tooltipInfo.name}
+              </text>
+              <text x={26} y={SVG_H - 42} fill="#5833c7" fontSize="8" fontWeight="600" className="dark:fill-[#8767f9]" fontFamily="Inter, system-ui">
+                {tooltipInfo.material}
+              </text>
+              <text x={26} y={SVG_H - 29} fill="#86868b" fontSize="7.5" fontWeight="500" fontFamily="'JetBrains Mono', monospace">
+                {tooltipInfo.dims} · {tooltipInfo.area} m² · α({selectedBand}Hz)={tooltipInfo.alpha}
+              </text>
+            </g>
+          )}
+
+          {/* Orientación */}
           <text
-            x={recPoint.x}
-            y={recPoint.y + 22}
-            fill="#0071e3"
-            fontSize="11"
-            fontWeight="bold"
-            textAnchor="middle"
-            className="font-mono select-none"
+            x={SVG_W - 10} y={SVG_H - 10}
+            fill="rgba(0,0,0,0.3)" fontSize="7.5" fontWeight="600"
+            textAnchor="end" fontFamily="'JetBrains Mono', monospace"
+            className="dark:fill-white/30"
+            style={{ pointerEvents: 'none' }}
           >
-            Receptor {r < Dc ? '(Directo)' : '(Reverberado)'}
+            θ {rotX.toFixed(0)}° φ {rotY.toFixed(0)}° · H={H.toFixed(1)}m
           </text>
-
-          {/* 6. RENDERIZADO DE CARAS FRONTALES (Painter's Algorithm) */}
-          {faces.slice(3).map((face) => (
-            <polygon
-              key={face.id}
-              points={face.points}
-              fill={face.fill}
-              stroke={face.stroke}
-              strokeWidth="1.4"
-            />
-          ))}
-
-          {/* 7. COTAS Y DIMENSIONES DINÁMICAS (Largo, Ancho, Alto) */}
-          <g className="font-mono text-xs select-none" fill="#86868b">
-            {/* Cota Largo (L) */}
-            <text
-              x={(vertices.v000.x + vertices.vL00.x) / 2}
-              y={(vertices.v000.y + vertices.vL00.y) / 2 + 18}
-              textAnchor="middle"
-              fontWeight="bold"
-            >
-              L = {L}m
-            </text>
-
-            {/* Cota Ancho (W) */}
-            <text
-              x={(vertices.v000.x + vertices.v0W0.x) / 2 - 20}
-              y={(vertices.v000.y + vertices.v0W0.y) / 2 + 14}
-              textAnchor="middle"
-              fontWeight="bold"
-            >
-              W = {W}m
-            </text>
-
-            {/* Cota Alto (H) */}
-            <text
-              x={vertices.v000.x - 26}
-              y={(vertices.v000.y + vertices.v00H.y) / 2}
-              textAnchor="middle"
-              fontWeight="bold"
-            >
-              H = {H}m
-            </text>
-          </g>
         </svg>
-
-        {/* Guía Flotante de Controles */}
-        <div className="absolute top-3 left-3 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-black/[0.06] text-[11px] text-[#86868b] flex items-center gap-2 shadow-2xs">
-          <Move className="w-3.5 h-3.5 text-[#0071e3]" />
-          <span>Arrastra para rotar • Rueda para Zoom ({Math.round(zoom * 100)}%)</span>
-        </div>
-
-        {/* Leyenda Minimalista Flotante */}
-        <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-black/[0.06] text-[11px] flex items-center gap-4 text-[#1d1d1f] shadow-2xs">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ff9500]"></span>
-            <span>Fuente (S)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#0071e3]"></span>
-            <span>Receptor (R)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-[#34c759]"></span>
-            <span>Halo Dc ({Dc.toFixed(2)}m)</span>
-          </div>
-        </div>
-
       </div>
 
-      {/* Controles Interactivos Directos de Fuente & Receptor (Sincronización 3D en tiempo real) */}
-      {onChangeSourceReceiver && (
-        <div className="mt-4 p-4 bg-[#f5f5f7] rounded-2xl border border-black/[0.06] flex flex-col lg:flex-row items-center justify-between gap-4 shadow-2xs">
-          
-          {/* Directividad Q */}
-          <div className="flex items-center gap-2 w-full lg:w-auto">
-            <span className="text-xs font-bold text-[#1d1d1f] whitespace-nowrap">Directividad Q:</span>
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-black/[0.06] w-full lg:w-auto">
-              {[1, 2, 4, 8].map((qVal) => (
-                <button
-                  key={qVal}
-                  onClick={() => onChangeSourceReceiver({ ...sourceReceiver, directivity: qVal })}
-                  className={`px-2.5 py-1 text-xs font-mono font-bold rounded-lg transition ${
-                    Q === qVal
-                      ? 'bg-[#ff9500] text-white shadow-xs'
-                      : 'text-[#86868b] hover:text-[#1d1d1f]'
-                  }`}
-                  title={`Q = ${qVal}`}
-                >
-                  Q={qVal}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Slider Distancia r */}
-          <div className="flex items-center gap-3 w-full lg:w-auto flex-1 max-w-sm">
-            <span className="text-xs font-bold text-[#1d1d1f] whitespace-nowrap">Distancia r:</span>
-            <input
-              type="range"
-              min="0.2"
-              max={Math.max(15, Math.sqrt(L * L + W * W + H * H))}
-              step="0.1"
-              value={r}
-              onChange={(e) => onChangeSourceReceiver({ ...sourceReceiver, distance: Math.max(0.1, parseFloat(e.target.value) || 0.1) })}
-              className="w-full accent-[#0071e3] cursor-pointer"
-            />
-            <span className="text-xs font-mono font-bold text-[#0071e3] whitespace-nowrap bg-white px-2.5 py-1 rounded-lg border border-black/[0.06] shadow-2xs">
-              {r.toFixed(1)} m
-            </span>
-          </div>
-
-          {/* Input Potencia Lw */}
-          <div className="flex items-center gap-2 w-full lg:w-auto">
-            <span className="text-xs font-bold text-[#1d1d1f] whitespace-nowrap">Potencia Lw:</span>
-            <input
-              type="number"
-              min="40"
-              max="150"
-              step="1"
-              value={sourceReceiver?.lw || 90}
-              onChange={(e) => onChangeSourceReceiver({ ...sourceReceiver, lw: parseFloat(e.target.value) || 90 })}
-              className="w-16 bg-white text-xs font-mono font-bold text-[#1d1d1f] px-2 py-1 rounded-lg border border-black/[0.08] text-center focus:outline-none focus:border-[#ff9500] shadow-2xs"
-            />
-            <span className="text-xs font-mono text-[#86868b]">dB</span>
-          </div>
-
+      {/* Info bar inferior compacta */}
+      <div className="px-4 py-1.5 border-t border-black/[0.04] dark:border-white/[0.06] bg-[#fafbfc] dark:bg-[#101222] flex flex-wrap items-center justify-between text-[10px] text-[#86868b] dark:text-slate-400 font-medium">
+        <div className="flex items-center gap-3">
+          <span>r = <strong className="text-[#1d1d1f] dark:text-white font-mono">{r.toFixed(1)}m</strong></span>
+          <span>Dc = <strong className="text-amber-600 font-mono">{Dc.toFixed(2)}m</strong></span>
+          <span>V = <strong className="text-[#5833c7] dark:text-[#8767f9] font-mono">{(geometry?.volume || 0).toFixed(1)}m³</strong></span>
         </div>
-      )}
+        <span>{vertices.length} paredes</span>
+      </div>
+
+      {/* Modal 3D Inmersivo Ampliado */}
+      <RoomVisualizerModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        roomPolygon={roomPolygon}
+        geometry={geometry}
+        dimensions={dimensions}
+        sourceReceiver={sourceReceiver}
+        criticalDistance={criticalDistance}
+        onChangeSourceReceiver={onChangeSourceReceiver}
+        materials={materials}
+        selectedBand={selectedBand}
+      />
 
     </div>
   );

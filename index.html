@@ -2,16 +2,62 @@
 <html lang="es" class="light">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/soundwave.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>POZOLE | Propagación de Ondas en Zonas y Optimización de Límites Espaciales</title>
-    <meta name="description" content="POZOLE: Propagación de Ondas en Zonas y Optimización de Límites Espaciales. Simulador acústico interactivo para recintos cerrados." />
+    
+    <!-- Metadatos Primarios y SEO -->
+    <title>POZOLE | Simulador Acústico ISO 3382 - Tiempo de Reverberación RT60 y Modelado 3D</title>
+    <meta name="title" content="POZOLE | Simulador Acústico ISO 3382 - Tiempo de Reverberación RT60 y Modelado 3D" />
+    <meta name="description" content="POZOLE: Simulador acústico profesional para el cálculo del tiempo de reverberación RT60 (Sabine, Norris-Eyring, Millington-Sette), distancia crítica, absorción de materiales y modelado de salas en 3D con paredes curvas según la norma ISO 3382. Desarrollado por Daniel Angulo (Ingeniería de Sonido)." />
+    <meta name="keywords" content="acústica de recintos, cálculo RT60, tiempo de reverberación, norma ISO 3382, fórmula de Sabine, fórmula de Eyring, Millington Sette, distancia crítica acústica, ingeniería de sonido, Daniel Angulo, simulador acústico, POZOLE acústica, absorción sonora, materiales acústicos, modelado 3D de recintos, paredes curvas" />
+    <meta name="author" content="Daniel Angulo" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#5833c7" />
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="POZOLE | Simulador Acústico ISO 3382 - Cálculo de RT60 y Modelado 3D" />
+    <meta property="og:description" content="Calculadora y simulador acústico interactivo de recintos con modelado 3D, paredes curvas, auditoría ISO 3382 y predicción de reverberación Sabine/Eyring. Creado por Daniel Angulo." />
+    <meta property="og:image" content="/favicon.svg" />
+    <meta property="og:site_name" content="POZOLE Acústica" />
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="POZOLE | Simulador Acústico ISO 3382" />
+    <meta name="twitter:description" content="Software de ingeniería para cálculo de tiempo de reverberación RT60, distancia crítica y geometría de salas en 3D. Desarrollado por Daniel Angulo." />
+    <meta name="twitter:image" content="/favicon.svg" />
+
+    <!-- Datos Estructurados JSON-LD (Schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "POZOLE - Propagación de Ondas en Zonas y Optimización de Límites Espaciales",
+      "operatingSystem": "All",
+      "applicationCategory": "EngineeringApplication",
+      "description": "Simulador acústico profesional de recintos cerrados basado en ISO 3382, fórmulas estadísticas de Sabine, Eyring y Millington-Sette con modelado 3D interactivo y paredes curvas.",
+      "softwareVersion": "3.2.0",
+      "author": {
+        "@type": "Person",
+        "name": "Daniel Angulo",
+        "jobTitle": "Ingeniero de Sonido",
+        "description": "Estudiante de Ingeniería de Sonido - Acústica de Recintos"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+
     <!-- Google Fonts: Plus Jakarta Sans, Outfit, Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-[#f5f5f7] text-[#1d1d1f] font-sans antialiased selection:bg-[#0071e3] selection:text-white min-h-screen">
+  <body class="bg-[#f5f5f7] text-[#1d1d1f] font-sans antialiased selection:bg-[#5833c7] selection:text-white min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

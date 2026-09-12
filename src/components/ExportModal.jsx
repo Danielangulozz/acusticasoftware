@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { X, FileSpreadsheet, Download, Copy, Check, Sparkles, FileText, CheckCircle2 } from 'lucide-react';
 import { OCTAVE_BANDS } from '../utils/acousticCalculations';
+import { getMaterialById } from '../utils/defaultMaterials';
 
 /**
  * Modal de Exportación Avanzada para Excel y Software de Análisis
- * Resuelve la separación de columnas en Excel español/internacional.
+ * Compatible con Excel en español (separador ';') y estándar internacional (',').
+ * Incluye geometría completa del polígono, paredes curvas, materiales y matriz acústica.
  */
 export default function ExportModal({
   isOpen,
@@ -15,37 +17,154 @@ export default function ExportModal({
   absorptionData,
   reverberationData,
   soundFieldData,
+  roomPolygon,
+  materials,
 }) {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
-  // Generar CSV compatible con Excel español (Separador ';' y BOM UTF-8)
-  const handleDownloadExcelCSV = () => {
-    // Encabezado sep=; fuerza a Excel a reconocer el separador de columnas inmediatamente
-    let content = 'sep=;\r\n';
-    content += 'REPORTE DE CÁLCULO POZOLE - Propagación de Ondas en Zonas y Optimización de Límites Espaciales;;;;;;;;;;;;\r\n';
-    content += `Fecha;${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')};Integrantes;Daniel Angulo, Jeronimo Gomez, Brandon Guerra;;;;;;;;;\r\n`;
-    content += `Largo (m);${dimensions.length};Ancho (m);${dimensions.width};Alto (m);${dimensions.height};Volumen (m³);${geometry.volume.toFixed(2)};Superficie (m²);${geometry.totalSurfaceArea.toFixed(2)};Recorrido Libre (m);${geometry.meanFreePath.toFixed(2)}\r\n`;
-    content += `Fuente Lw (dB);${sourceReceiver.lw};Directividad Q;${sourceReceiver.directivity};Distancia r (m);${sourceReceiver.distance};;;;;;;\r\n\r\n`;
+  const vertices = roomPolygon?.vertices || [];
+  const curvatures = roomPolygon?.curvatures || {};
+  const height = roomPolygon?.height || dimensions?.height || 3.0;
+  const numWalls = vertices.length || 4;
 
-    // Encabezados de tabla
-    content += 'Frecuencia (Hz);Absorción A (m² Sabine);Coeficiente Medio (ᾱ);Constante de Sala R (m²);RT Sabine (s);RT Norris-Eyring (s);RT Millington-Sette (s);Reflexiones n;Distancia Crítica Dc (m);Lp Directo (dB);Lp Reverberado (dB);Lp Total (dB);DRR (dB)\r\n';
+  // Generador de bloques de datos unificados
+  const buildExportData = (sep = ';') => {
+    let rows = [];
+
+    // 1. Encabezado institucional y autoría
+    rows.push(['POZOLE - Propagación de Ondas en Zonas y Optimización de Límites Espaciales']);
+    rows.push(['Software de Simulación Acústica ISO 3382']);
+    rows.push(['Autor', 'Daniel Angulo (Ingeniería de Sonido)']);
+    rows.push(['Fecha y Hora', `${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`]);
+    rows.push([]);
+
+    // 2. Parámetros Generales del Recinto
+    rows.push(['1. DATOS GENERALES DEL RECINTO']);
+    rows.push(['Parámetro', 'Valor', 'Unidad']);
+    rows.push(['Vértices Polígono', vertices.map(v => `(${v.x}, ${v.y})`).join(' -> '), 'm']);
+    rows.push(['Número de Paredes', numWalls, 'paredes']);
+    rows.push(['Altura del Recinto (H)', Number(height).toFixed(2), 'm']);
+    rows.push(['Área de Planta', (geometry?.floorArea || 0).toFixed(2), 'm²']);
+    rows.push(['Volumen Total (V)', (geometry?.volume || 0).toFixed(2), 'm³']);
+    rows.push(['Superficie Total (S)', (geometry?.totalSurfaceArea || 0).toFixed(2), 'm²']);
+    rows.push(['Recorrido Libre Medio (l)', (geometry?.meanFreePath || 0).toFixed(2), 'm']);
+    rows.push([]);
+
+    // 3. Inventario Detallado de Superficies y Materiales
+    rows.push(['2. INVENTARIO DE SUPERFICIES Y COEFICIENTES DE ABSORCIÓN']);
+    rows.push([
+      'Superficie', 'Tipo', 'Longitud (m)', 'Flecha Curvatura (m)', 'Área (m²)', 
+      'Material Asignado', 'α 125Hz', 'α 250Hz', 'α 500Hz', 'α 1000Hz', 'α 2000Hz', 'α 4000Hz'
+    ]);
+
+    // Piso
+    const floorMat = materials?.floor ? getMaterialById(materials.floor.materialId) : null;
+    const floorCoeffs = materials?.floor?.coefficients || {};
+    rows.push([
+      'Piso / Suelo', 'Plano', '-', '-', (geometry?.floorArea || 0).toFixed(2),
+      floorMat?.name || 'Manual',
+      (floorCoeffs[125] ?? 0.05).toFixed(2), (floorCoeffs[250] ?? 0.05).toFixed(2),
+      (floorCoeffs[500] ?? 0.05).toFixed(2), (floorCoeffs[1000] ?? 0.05).toFixed(2),
+      (floorCoeffs[2000] ?? 0.05).toFixed(2), (floorCoeffs[4000] ?? 0.05).toFixed(2)
+    ]);
+
+    // Techo
+    const ceilingMat = materials?.ceiling ? getMaterialById(materials.ceiling.materialId) : null;
+    const ceilingCoeffs = materials?.ceiling?.coefficients || {};
+    rows.push([
+      'Techo', 'Plano', '-', '-', (geometry?.floorArea || 0).toFixed(2),
+      ceilingMat?.name || 'Manual',
+      (ceilingCoeffs[125] ?? 0.05).toFixed(2), (ceilingCoeffs[250] ?? 0.05).toFixed(2),
+      (ceilingCoeffs[500] ?? 0.05).toFixed(2), (ceilingCoeffs[1000] ?? 0.05).toFixed(2),
+      (ceilingCoeffs[2000] ?? 0.05).toFixed(2), (ceilingCoeffs[4000] ?? 0.05).toFixed(2)
+    ]);
+
+    // Paredes
+    for (let i = 0; i < numWalls; i++) {
+      const j = (i + 1) % numWalls;
+      const wallId = `wall_${i}`;
+      const v0 = vertices[i] || { x: 0, y: 0 };
+      const v1 = vertices[j] || { x: 0, y: 0 };
+      const chordLen = Math.hypot(v1.x - v0.x, v1.y - v0.y);
+      const bulge = Number(curvatures[i] || 0);
+      const isCurved = Math.abs(bulge) > 0.01;
+      const arcLen = isCurved ? chordLen + (8 * bulge * bulge) / (3 * Math.max(0.01, chordLen)) : chordLen;
+      const wallArea = geometry?.surfaceAreas?.[wallId] || (arcLen * height);
+      const wallMat = materials?.[wallId] ? getMaterialById(materials[wallId].materialId) : null;
+      const wallCoeffs = materials?.[wallId]?.coefficients || {};
+
+      rows.push([
+        `Pared ${i + 1} (V${i + 1} -> V${j + 1})`,
+        isCurved ? 'Curva (Arco)' : 'Recta',
+        arcLen.toFixed(2),
+        isCurved ? bulge.toFixed(2) : '0.00',
+        wallArea.toFixed(2),
+        wallMat?.name || 'Manual',
+        (wallCoeffs[125] ?? 0.05).toFixed(2), (wallCoeffs[250] ?? 0.05).toFixed(2),
+        (wallCoeffs[500] ?? 0.05).toFixed(2), (wallCoeffs[1000] ?? 0.05).toFixed(2),
+        (wallCoeffs[2000] ?? 0.05).toFixed(2), (wallCoeffs[4000] ?? 0.05).toFixed(2)
+      ]);
+    }
+    rows.push([]);
+
+    // 4. Parámetros de Fuente Sonora y Receptor
+    rows.push(['3. PARÁMETROS DE FUENTE SONORA Y RECEPTOR (ISO 3382)']);
+    rows.push(['Elemento', 'Posición X (m)', 'Posición Y (m)', 'Altura Z (m)', 'Parámetros Acústicos']);
+    const sPos = sourceReceiver?.sourcePos || { x: 2, y: 2, z: 1.5 };
+    const rPos = sourceReceiver?.receiverPos || { x: 5, y: 2, z: 1.2 };
+    rows.push([
+      'Fuente Sonora (S)', sPos.x.toFixed(2), sPos.y.toFixed(2), (sPos.z ?? 1.5).toFixed(2),
+      `Potencia Lw = ${sourceReceiver?.lw || 90} dB | Directividad Q = ${sourceReceiver?.directivity || 1}`
+    ]);
+    rows.push([
+      'Receptor (R)', rPos.x.toFixed(2), rPos.y.toFixed(2), (rPos.z ?? 1.2).toFixed(2),
+      `Distancia directa r = ${Number(sourceReceiver?.distance || 3).toFixed(2)} m`
+    ]);
+    rows.push([]);
+
+    // 5. Matriz Acústica Completa por Banda de Octava
+    rows.push(['4. RESULTADOS ACÚSTICOS POR BANDA DE OCTAVA']);
+    rows.push([
+      'Frecuencia (Hz)', 'Absorción A (m² Sab)', 'Coeficiente Medio (ᾱ)', 'Constante Sala R (m²)',
+      'RT60 Sabine (s)', 'RT60 Norris-Eyring (s)', 'RT60 Millington-Sette (s)', 'Reflexiones n',
+      'Distancia Crítica Dc (m)', 'Lp Directo (dB)', 'Lp Reverberado (dB)', 'Lp Total (dB)', 'DRR (dB)'
+    ]);
 
     OCTAVE_BANDS.forEach((freq) => {
-      const abs = absorptionData[freq] || {};
-      const rt = reverberationData[freq] || {};
-      const sf = soundFieldData[freq] || {};
+      const abs = absorptionData?.[freq] || {};
+      const rt = reverberationData?.[freq] || {};
+      const sf = soundFieldData?.[freq] || {};
 
-      content += `${freq};${abs.equivalentAbsorption?.toFixed(2)};${abs.alphaMean?.toFixed(3)};${sf.roomConstant?.toFixed(2)};${rt.sabine?.toFixed(2)};${rt.eyring?.toFixed(2)};${rt.millington?.toFixed(2)};${Math.round(rt.reflectionsSabine || 0)};${sf.criticalDistance?.toFixed(2)};${sf.directIntensityLevel?.toFixed(1)};${sf.revIntensityLevel?.toFixed(1)};${sf.lpTotalWithAir?.toFixed(1)};${sf.drrDb?.toFixed(1)}\r\n`;
+      rows.push([
+        freq,
+        abs.equivalentAbsorption?.toFixed(2) ?? '—',
+        abs.alphaMean?.toFixed(3) ?? '—',
+        sf.roomConstant?.toFixed(2) ?? '—',
+        rt.sabine?.toFixed(2) ?? '—',
+        rt.eyring?.toFixed(2) ?? '—',
+        rt.millington?.toFixed(2) ?? '—',
+        Math.round(rt.reflectionsSabine || 0),
+        sf.criticalDistance?.toFixed(2) ?? '—',
+        sf.directIntensityLevel?.toFixed(1) ?? '—',
+        sf.revIntensityLevel?.toFixed(1) ?? '—',
+        sf.lpTotalWithAir?.toFixed(1) ?? '—',
+        sf.drrDb?.toFixed(1) ?? '—'
+      ]);
     });
 
-    // UTF-8 BOM (\uFEFF) para que Excel reconozca tildes y caracteres especiales
+    return rows.map(r => r.join(sep)).join('\r\n');
+  };
+
+  // Generar CSV compatible con Excel español (Separador ';' y BOM UTF-8)
+  const handleDownloadExcelCSV = () => {
+    let content = 'sep=;\r\n' + buildExportData(';');
     const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Acustica_Excel_${dimensions.length}x${dimensions.width}x${dimensions.height}m.csv`;
+    link.download = `POZOLE_Acustica_${numWalls}paredes_${(geometry?.volume || 0).toFixed(0)}m3.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -54,22 +173,12 @@ export default function ExportModal({
 
   // Generar CSV Estándar Internacional (Separador ',')
   const handleDownloadStandardCSV = () => {
-    let content = 'sep=,\r\n';
-    content += 'Frecuencia (Hz),Absorcion A (m2 Sab),Coeficiente Medio (alpha),Constante Sala R (m2),RT Sabine (s),RT Norris-Eyring (s),RT Millington-Sette (s),Reflexiones n,Distancia Critica Dc (m),Lp Directo (dB),Lp Reverberado (dB),Lp Total (dB),DRR (dB)\r\n';
-
-    OCTAVE_BANDS.forEach((freq) => {
-      const abs = absorptionData[freq] || {};
-      const rt = reverberationData[freq] || {};
-      const sf = soundFieldData[freq] || {};
-
-      content += `${freq},${abs.equivalentAbsorption?.toFixed(2)},${abs.alphaMean?.toFixed(3)},${sf.roomConstant?.toFixed(2)},${rt.sabine?.toFixed(2)},${rt.eyring?.toFixed(2)},${rt.millington?.toFixed(2)},${Math.round(rt.reflectionsSabine || 0)},${sf.criticalDistance?.toFixed(2)},${sf.directIntensityLevel?.toFixed(1)},${sf.revIntensityLevel?.toFixed(1)},${sf.lpTotalWithAir?.toFixed(1)},${sf.drrDb?.toFixed(1)}\r\n`;
-    });
-
+    let content = 'sep=,\r\n' + buildExportData(',');
     const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Acustica_Standard_${dimensions.length}x${dimensions.width}x${dimensions.height}m.csv`;
+    link.download = `POZOLE_Acustica_Standard_${numWalls}paredes.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -78,16 +187,7 @@ export default function ExportModal({
 
   // Copiar al Portapapeles (Formato Tab-Separated TSV para pegar directo en Excel con Ctrl+V)
   const handleCopyClipboard = () => {
-    let content = 'Frecuencia (Hz)\tAbsorción A (m² Sab)\tCoeficiente ᾱ\tConstante R (m²)\tRT Sabine (s)\tRT Eyring (s)\tRT Millington (s)\tReflexiones n\tDistancia Crítica Dc (m)\tLp Directo (dB)\tLp Reverberado (dB)\tLp Total (dB)\tDRR (dB)\n';
-
-    OCTAVE_BANDS.forEach((freq) => {
-      const abs = absorptionData[freq] || {};
-      const rt = reverberationData[freq] || {};
-      const sf = soundFieldData[freq] || {};
-
-      content += `${freq}\t${abs.equivalentAbsorption?.toFixed(2)}\t${abs.alphaMean?.toFixed(3)}\t${sf.roomConstant?.toFixed(2)}\t${rt.sabine?.toFixed(2)}\t${rt.eyring?.toFixed(2)}\t${rt.millington?.toFixed(2)}\t${Math.round(rt.reflectionsSabine || 0)}\t${sf.criticalDistance?.toFixed(2)}\t${sf.directIntensityLevel?.toFixed(1)}\t${sf.revIntensityLevel?.toFixed(1)}\t${sf.lpTotalWithAir?.toFixed(1)}\t${sf.drrDb?.toFixed(1)}\n`;
-    });
-
+    const content = buildExportData('\t');
     navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);

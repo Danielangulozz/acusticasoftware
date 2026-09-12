@@ -4,9 +4,64 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   VARIABLE DE COLOR PRINCIPAL: MORADITO OSCURO PROFESIONAL
+   (Edita este valor al gusto para cambiar el tono de toda la app)
+   ========================================================================== */
+:root {
+  --pozole-purple: #5833c7;          /* Moradito elegante con toque oscuro */
+  --pozole-purple-hover: #4726aa;    /* Hover más profundo */
+  --pozole-purple-light: rgba(88, 51, 199, 0.1);
+  --pozole-purple-border: rgba(88, 51, 199, 0.3);
+  --pozole-purple-glow: rgba(88, 51, 199, 0.25);
+}
+
+.dark {
+  --pozole-purple: #8767f9;          /* Moradito vibrante legible para Dark Mode */
+  --pozole-purple-hover: #9c83fc;
+  --pozole-purple-light: rgba(135, 103, 249, 0.18);
+  --pozole-purple-border: rgba(135, 103, 249, 0.35);
+  --pozole-purple-glow: rgba(135, 103, 249, 0.3);
+}
+
+/* Redirección del azul de Apple [#0071e3] al nuevo moradito elegante */
+.bg-\[\#0071e3\] {
+  background-color: var(--pozole-purple) !important;
+}
+.text-\[\#0071e3\] {
+  color: var(--pozole-purple) !important;
+}
+.border-\[\#0071e3\] {
+  border-color: var(--pozole-purple) !important;
+}
+.bg-\[\#0071e3\]\/5 {
+  background-color: rgba(88, 51, 199, 0.05) !important;
+}
+.bg-\[\#0071e3\]\/10 {
+  background-color: var(--pozole-purple-light) !important;
+}
+.bg-\[\#0071e3\]\/20 {
+  background-color: rgba(88, 51, 199, 0.2) !important;
+}
+.border-\[\#0071e3\]\/20,
+.border-\[\#0071e3\]\/30,
+.border-\[\#0071e3\]\/40 {
+  border-color: var(--pozole-purple-border) !important;
+}
+.hover\:bg-\[\#0077ed\]:hover {
+  background-color: var(--pozole-purple-hover) !important;
+}
+.accent-\[\#0071e3\] {
+  accent-color: var(--pozole-purple) !important;
+}
+.ring-\[\#0071e3\]\/20,
+.ring-\[\#0071e3\]\/30 {
+  --tw-ring-color: var(--pozole-purple-glow) !important;
+}
+
 @layer base {
   body {
-    @apply bg-[#f5f5f7] text-[#1d1d1f] antialiased selection:bg-[#0071e3] selection:text-white;
+    @apply bg-[#f5f5f7] text-[#1d1d1f] antialiased selection:bg-[#5833c7] selection:text-white transition-colors duration-200;
     font-family: 'Plus Jakarta Sans', Inter, -apple-system, sans-serif;
   }
 
@@ -19,7 +74,17 @@
   }
 }
 
-/* Scrollbar Minimalista Estilo macOS */
+/* Modo Oscuro Global */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #090a10;
+  color: #f1f2f6;
+}
+
+/* Scrollbar Minimalista Estilo macOS adaptado a Dark Mode */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -34,8 +99,16 @@
   border-radius: 9999px;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Clases de Tarjetas y Vidrio Esmerilado (Frosted Glass) */
@@ -47,11 +120,24 @@
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.dark .apple-card {
+  background: #121320;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
 .apple-glass {
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dark .apple-glass {
+  background: rgba(18, 19, 32, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .apple-input {
@@ -62,32 +148,115 @@
   transition: all 0.15s ease-in-out;
 }
 
+.dark .apple-input {
+  background: #181a28;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f1f2f6;
+}
+
 .apple-input:focus {
   background: #ffffff;
-  border-color: #0071e3;
-  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+  border-color: var(--pozole-purple);
+  box-shadow: 0 0 0 3px var(--pozole-purple-glow);
   outline: none;
 }
 
-/* Optimización para Impresión */
+.dark .apple-input:focus {
+  background: #1e2034;
+  border-color: var(--pozole-purple);
+  box-shadow: 0 0 0 3px var(--pozole-purple-glow);
+}
+
+/* Seamless Dark Mode Surface & Text Overrides */
+.dark .bg-white {
+  background-color: #121320 !important;
+}
+
+.dark .bg-\[\#f5f5f7\] {
+  background-color: #181928 !important;
+}
+
+.dark .bg-\[\#fbfbfd\],
+.dark .bg-\[\#fafafa\] {
+  background-color: #151624 !important;
+}
+
+.dark .text-\[\#1d1d1f\] {
+  color: #f1f2f6 !important;
+}
+
+.dark .text-\[\#86868b\] {
+  color: #9aa0a6 !important;
+}
+
+.dark .border-black\/\[0\.08\],
+.dark .border-black\/\[0\.06\],
+.dark .border-black\/\[0\.04\],
+.dark .border-black\/\[0\.12\] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .divide-black\/\[0\.04\],
+.dark .divide-black\/\[0\.06\] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark select option {
+  background-color: #181928;
+  color: #f1f2f6;
+}
+
+/* ==========================================================================
+   OPTIMIZACIÓN DE IMPRESIÓN PROFESIONAL (Solo Informe Técnico)
+   Evita imprimir la página de fondo y elimina páginas en blanco
+   ========================================================================== */
 @media print {
-  body {
-    background-color: white !important;
-    color: black !important;
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
   }
 
+  /* Ocultar elementos de navegación y toda la app general */
   aside,
   header,
-  .no-print {
+  footer,
+  .no-print,
+  #root > div > div:not(.print-modal-container) {
     display: none !important;
   }
 
-  .print-only {
+  /* Mostrar exclusivamente el modal de reporte con diseño de hoja técnica */
+  #printable-report-modal {
     display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+    overflow: visible !important;
   }
 
-  .apple-card {
-    box-shadow: none !important;
-    border: 1px solid #e5e7eb !important;
+  .print-hidden {
+    display: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  /* Evitar saltos de página partidos en tablas o bloques de firma */
+  table, tr, td, th, .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

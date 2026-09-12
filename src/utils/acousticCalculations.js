@@ -40,7 +40,7 @@ export const AIR_ABSORPTION_COEFFS = {
 };
 
 /**
- * Identificadores y nombres en español de las 6 superficies del recinto
+ * Identificadores y nombres en español de las 6 superficies del recinto (Compatibilidad legacy)
  */
 export const ROOM_SURFACES = [
   { id: 'floor', name: 'Piso / Suelo', description: 'Superficie inferior (L × W)' },
@@ -50,6 +50,246 @@ export const ROOM_SURFACES = [
   { id: 'wallEast', name: 'Pared Lateral Derecha (Este)', description: 'Lateral derecho (L × H)' },
   { id: 'wallWest', name: 'Pared Lateral Izquierda (Oeste)', description: 'Lateral izquierdo (L × H)' },
 ];
+
+/**
+ * Genera la lista dinámica de superficies para un polígono de N vértices.
+ * Produce: floor, ceiling, wall_0, wall_1, ..., wall_{N-1}
+ *
+ * @param {Array<{x: number, y: number}>} vertices - Vértices del polígono en metros
+ * @param {number} height - Altura de extrusión H [m]
+ * @returns {Array<{id: string, name: string, description: string}>}
+ */
+export function generateRoomSurfaces(vertices, height) {
+  const n = vertices.length;
+  const surfaces = [
+    { id: 'floor', name: 'Piso / Suelo', description: `Polígono de ${n} lados` },
+    { id: 'ceiling', name: 'Techo / Plafón', description: `Polígono de ${n} lados` },
+  ];
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const dx = vertices[j].x - vertices[i].x;
+    const dy = vertices[j].y - vertices[i].y;
+    const wallLen = Math.sqrt(dx * dx + dy * dy);
+    surfaces.push({
+      id: `wall_${i}`,
+      name: `Pared ${i + 1} (${wallLen.toFixed(1)}m)`,
+      description: `${wallLen.toFixed(2)}m × ${height.toFixed(1)}m`,
+      wallLength: wallLen,
+    });
+  }
+  return surfaces;
+}
+
+// ==============================================================================
+// GEOMETRÍA DE POLÍGONO LIBRE (PLANTA IRREGULAR)
+// ==============================================================================
+
+/**
+ * Calcula el área de un polígono simple usando la fórmula del Shoelace (Gauss).
+ * @param {Array<{x: number, y: number}>} vertices
+ * @returns {number} Área absoluta en m²
+ */
+export function polygonArea(vertices) {
+  const n = vertices.length;
+  let area = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[j].x * vertices[i].y;
+  }
+  return Math.abs(area) / 2;
+}
+
+/**
+ * Calcula el centroide (centro de masa geométrico) de un polígono simple.
+ * @param {Array<{x: number, y: number}>} vertices
+ * @returns {{x: number, y: number}}
+ */
+export function polygonCentroid(vertices) {
+  const n = vertices.length;
+  let cx = 0, cy = 0, signedArea = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const cross = vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y;
+    signedArea += cross;
+    cx += (vertices[i].x + vertices[j].x) * cross;
+    cy += (vertices[i].y + vertices[j].y) * cross;
+  }
+  signedArea /= 2;
+  if (Math.abs(signedArea) < 1e-10) {
+    // Degenerate polygon fallback
+    cx = vertices.reduce((s, v) => s + v.x, 0) / n;
+    cy = vertices.reduce((s, v) => s + v.y, 0) / n;
+    return { x: cx, y: cy };
+  }
+  cx /= (6 * signedArea);
+  cy /= (6 * signedArea);
+  return { x: cx, y: cy };
+}
+
+/**
+ * Determina si los vértices de un polígono 2D están ordenados en sentido antihorario (CCW).
+ * @param {Array<{x: number, y: number}>} vertices
+ * @returns {boolean}
+ */
+export function isPolygonCCW(vertices) {
+  if (!vertices || vertices.length < 3) return true;
+  let signedArea = 0;
+  for (let i = 0; i < vertices.length; i++) {
+    const j = (i + 1) % vertices.length;
+    signedArea += (vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y);
+  }
+  return signedArea > 0;
+}
+
+/**
+ * Genera puntos muestreados a lo largo de un arco de pared curva.
+ * Flecha positiva (+bulge) arquea hacia el exterior del recinto (expansión),
+ * y flecha negativa (-bulge) arquea hacia el interior (contracción).
+ *
+ * @param {{x: number, y: number}} v0 - Vértice inicial
+ * @param {{x: number, y: number}} v1 - Vértice final
+ * @param {number} bulge - Flecha / altura del arco en metros (positivo hacia afuera)
+ * @param {number} steps - Número de subdivisiones
+ * @param {boolean} isCCW - Si el polígono tiene orientación antihoraria
+ * @returns {Array<{x: number, y: number}>} Puntos muestreados a lo largo del arco
+ */
+export function getEdgeArcPoints(v0, v1, bulge = 0, steps = 4, isCCW = true) {
+  if (!v0 || !v1) return [];
+  if (Math.abs(bulge) < 0.01) return [v0, v1];
+  const dx = v1.x - v0.x;
+  const dy = v1.y - v0.y;
+  const chordLen = Math.hypot(dx, dy);
+  if (chordLen < 0.01) return [v0, v1];
+
+  // Para orientación antihoraria (CCW), la normal exterior (apuntando a la derecha de la marcha de la arista) es (dy/L, -dx/L)
+  // Para orientación horaria (CW), es (-dy/L, dx/L)
+  const sign = isCCW ? 1 : -1;
+  const nx = (sign * dy) / chordLen;
+  const ny = (-sign * dx) / chordLen;
+
+  const pts = [];
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps;
+    const arcOffset = 4 * t * (1 - t) * bulge;
+    pts.push({
+      x: Number((v0.x + t * dx + nx * arcOffset).toFixed(4)),
+      y: Number((v0.y + t * dy + ny * arcOffset).toFixed(4)),
+    });
+  }
+  return pts;
+}
+
+/**
+ * Calcula la geometría completa de una sala definida por un polígono libre extruido a altura H,
+ * con soporte para aristas curvas (flecha de curvatura en metros).
+ *
+ * @param {Array<{x: number, y: number}>} vertices - Vértices del polígono de planta (en metros)
+ * @param {number} height - Altura del recinto H [m]
+ * @param {Object} curvatures - Diccionario opcional { [edgeIndex]: bulge } con flecha de arco en metros
+ * @returns {Object} Geometría calculada con surfaceAreas dinámicas, surfacesList, etc.
+ */
+export function calculatePolygonGeometry(vertices, height, curvatures = {}) {
+  const n = vertices.length;
+  const H = Math.max(0.5, Number(height) || 3);
+
+  // Área base del polígono plano (Gauss/Shoelace)
+  let floorArea = polygonArea(vertices);
+
+  // Perímetro y longitudes de aristas individuales (incluyendo arcos si hay curvatura)
+  const wallLengths = [];
+  let perimeter = 0;
+  let curvedSegmentsAreaDelta = 0;
+
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const dx = vertices[j].x - vertices[i].x;
+    const dy = vertices[j].y - vertices[i].y;
+    const chordLen = Math.hypot(dx, dy);
+    
+    // Curvatura / flecha del arco en metros (positivo = hacia afuera, negativo = hacia adentro)
+    const bulge = Number(curvatures[i] || 0);
+    let arcLen = chordLen;
+    if (Math.abs(bulge) > 0.01 && chordLen > 0.1) {
+      // Longitud de arco de círculo: L_arc ≈ c + (8 * h²) / (3 * c)
+      arcLen = chordLen + (8 * bulge * bulge) / (3 * chordLen);
+      // Área de segmento circular añadida o sustraída: A_seg ≈ (2/3) * c * h
+      curvedSegmentsAreaDelta += (2 / 3) * chordLen * bulge;
+    }
+
+    wallLengths.push(arcLen);
+    perimeter += arcLen;
+  }
+
+  // Área de planta ajustada por los segmentos circulares
+  floorArea = Math.max(1.0, floorArea + curvedSegmentsAreaDelta);
+
+  // Volumen = Área de planta × Altura
+  const volume = floorArea * H;
+
+  // Áreas individuales de cada superficie
+  const surfaceAreas = {
+    floor: floorArea,
+    ceiling: floorArea,
+  };
+  const surfaceDimensionsLabels = {
+    floor: `Planta base, ${floorArea.toFixed(1)} m²`,
+    ceiling: `Plafón superior, ${floorArea.toFixed(1)} m²`,
+  };
+
+  for (let i = 0; i < n; i++) {
+    const wallId = `wall_${i}`;
+    const wallArea = wallLengths[i] * H;
+    const bulge = Number(curvatures[i] || 0);
+    surfaceAreas[wallId] = wallArea;
+    surfaceDimensionsLabels[wallId] = Math.abs(bulge) > 0.01
+      ? `${wallLengths[i].toFixed(2)}m (Arco h=${bulge > 0 ? '+' : ''}${bulge.toFixed(2)}m) × ${H.toFixed(1)}m`
+      : `${wallLengths[i].toFixed(2)}m × ${H.toFixed(1)}m`;
+  }
+
+  // Superficie total
+  const totalSurfaceArea = Object.values(surfaceAreas).reduce((sum, a) => sum + a, 0);
+
+  // Recorrido libre medio: l = 4V / S
+  const meanFreePath = totalSurfaceArea > 0 ? (4 * volume) / totalSurfaceArea : 0;
+  const timeBetweenReflections = SPEED_OF_SOUND > 0 ? meanFreePath / SPEED_OF_SOUND : 0;
+  const reflectionsPerSecond = meanFreePath > 0 ? SPEED_OF_SOUND / meanFreePath : 0;
+
+  // Dimensiones de bounding box
+  const xs = vertices.map(v => v.x);
+  const ys = vertices.map(v => v.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const bbWidth = maxX - minX;
+  const bbLength = maxY - minY;
+
+  // Lista dinámica de superficies
+  const surfacesList = generateRoomSurfaces(vertices, H);
+
+  // Centroide
+  const centroid = polygonCentroid(vertices);
+
+  return {
+    shape: 'polygon',
+    vertices,
+    height: H,
+    length: bbLength,
+    width: bbWidth,
+    volume,
+    surfaceAreas,
+    surfaceDimensionsLabels,
+    totalSurfaceArea,
+    meanFreePath,
+    timeBetweenReflections,
+    reflectionsPerSecond,
+    wallLengths,
+    perimeter,
+    floorArea,
+    surfacesList,
+    centroid,
+    boundingBox: { minX, maxX, minY, maxY, width: bbWidth, length: bbLength },
+  };
+}
 
 /**
  * Directividades típicas de fuentes sonoras según su ubicación espacial (Q)
@@ -62,40 +302,152 @@ export const DIRECTIVITY_PRESETS = [
 ];
 
 // ==============================================================================
+// TIPOS Y FORMAS DE SALA PARAMÉTRICAS
+// ==============================================================================
+
+export const ROOM_SHAPES = {
+  SHOEBOX: 'shoebox',
+  TRAPEZOIDAL: 'trapezoidal',
+  SLOPED: 'sloped',
+};
+
+export const ROOM_SHAPE_PRESETS = [
+  {
+    id: ROOM_SHAPES.SHOEBOX,
+    name: 'Prisma Rectangular (Shoebox)',
+    subtitle: 'Estándar',
+    description: 'Sala paralelepípeda ortogonal clásica (aulas, oficinas, habitaciones).',
+  },
+  {
+    id: ROOM_SHAPES.TRAPEZOIDAL,
+    name: 'Sala Trapezoidal (En Abanico)',
+    subtitle: 'Auditorios y Teatros',
+    description: 'Paredes laterales en ángulo para evitar ecos flotantes y optimizar cobertura.',
+  },
+  {
+    id: ROOM_SHAPES.SLOPED,
+    name: 'Techo Inclinado (Shed / Sloped)',
+    subtitle: 'Estudios de Grabación',
+    description: 'Diferencial de altura piso-techo para romper modos axiales verticales.',
+  },
+];
+
+// ==============================================================================
 // 1. GEOMETRÍA DEL RECINTO
 // ==============================================================================
 
 /**
- * Calcula las propiedades geométricas de una sala paralelepipédica rectangular.
+ * Calcula las propiedades geométricas de una sala paralelepipédica, trapezoidal o con techo inclinado.
  * 
- * @param {number} length - Largo del recinto en metros (L)
- * @param {number} width  - Ancho del recinto en metros (W)
- * @param {number} height - Alto del recinto en metros (H)
+ * @param {number|Object} lengthOrDimensions - Largo o bien objeto con dimensiones y tipo de forma
+ * @param {number} [width]  - Ancho en metros
+ * @param {number} [height] - Alto en metros
  * @returns {Object} Geometría calculada (Volumen, Superficie Total y áreas individuales)
  */
-export function calculateRoomGeometry(length, width, height) {
-  const L = Math.max(0.1, Number(length) || 0);
-  const W = Math.max(0.1, Number(width) || 0);
-  const H = Math.max(0.1, Number(height) || 0);
+export function calculateRoomGeometry(lengthOrDimensions, width, height) {
+  let L, W, H, shape, wFront, wBack, hFront, hBack;
 
-  // Volumen: V = L · W · H [m³]
-  const volume = L * W * H;
+  if (typeof lengthOrDimensions === 'object' && lengthOrDimensions !== null) {
+    shape = lengthOrDimensions.shape || ROOM_SHAPES.SHOEBOX;
+    L = Math.max(0.5, Number(lengthOrDimensions.length) || 10);
+    wFront = Math.max(0.5, Number(lengthOrDimensions.widthFront ?? lengthOrDimensions.width) || 6);
+    wBack = Math.max(0.5, Number(lengthOrDimensions.widthBack ?? lengthOrDimensions.width) || 6);
+    W = (wFront + wBack) / 2;
+    hFront = Math.max(0.5, Number(lengthOrDimensions.heightFront ?? lengthOrDimensions.height) || 3);
+    hBack = Math.max(0.5, Number(lengthOrDimensions.heightBack ?? lengthOrDimensions.height) || 3);
+    H = (hFront + hBack) / 2;
+  } else {
+    shape = ROOM_SHAPES.SHOEBOX;
+    L = Math.max(0.5, Number(lengthOrDimensions) || 10);
+    W = Math.max(0.5, Number(width) || 6);
+    H = Math.max(0.5, Number(height) || 3);
+    wFront = W;
+    wBack = W;
+    hFront = H;
+    hBack = H;
+  }
 
-  // Áreas individuales de las 6 superficies [m²]
-  const surfaceAreas = {
-    floor: L * W,
-    ceiling: L * W,
-    wallNorth: W * H,
-    wallSouth: W * H,
-    wallEast: L * H,
-    wallWest: L * H,
-  };
+  let volume = 0;
+  const surfaceAreas = {};
+  const surfaceDimensionsLabels = {};
 
-  // Superficie total: S = 2(LW + LH + WH) [m²]
-  const totalSurfaceArea = 2 * (L * W + L * H + W * H);
+  if (shape === ROOM_SHAPES.TRAPEZOIDAL) {
+    // Sala Trapezoidal / Abanico (Paredes laterales divergentes o convergentes)
+    const avgW = (wFront + wBack) / 2;
+    const floorCeilArea = avgW * L;
+    surfaceAreas.floor = floorCeilArea;
+    surfaceAreas.ceiling = floorCeilArea;
+    surfaceDimensionsLabels.floor = `${L.toFixed(1)}m × [${wFront.toFixed(1)}m a ${wBack.toFixed(1)}m]`;
+    surfaceDimensionsLabels.ceiling = `${L.toFixed(1)}m × [${wFront.toFixed(1)}m a ${wBack.toFixed(1)}m]`;
+
+    // Pared Norte (Frontal)
+    surfaceAreas.wallNorth = wFront * H;
+    surfaceDimensionsLabels.wallNorth = `${wFront.toFixed(1)}m × ${H.toFixed(1)}m`;
+
+    // Pared Sur (Posterior)
+    surfaceAreas.wallSouth = wBack * H;
+    surfaceDimensionsLabels.wallSouth = `${wBack.toFixed(1)}m × ${H.toFixed(1)}m`;
+
+    // Paredes laterales inclinadas (Este y Oeste)
+    const lateralDelta = Math.abs(wBack - wFront) / 2;
+    const sideWallLength = Math.sqrt(L * L + lateralDelta * lateralDelta);
+    const sideWallArea = sideWallLength * H;
+    surfaceAreas.wallEast = sideWallArea;
+    surfaceAreas.wallWest = sideWallArea;
+    surfaceDimensionsLabels.wallEast = `${sideWallLength.toFixed(2)}m (inclinada) × ${H.toFixed(1)}m`;
+    surfaceDimensionsLabels.wallWest = `${sideWallLength.toFixed(2)}m (inclinada) × ${H.toFixed(1)}m`;
+
+    volume = avgW * L * H;
+  } else if (shape === ROOM_SHAPES.SLOPED) {
+    // Sala con Techo Inclinado (Shed / Sloped Ceiling)
+    surfaceAreas.floor = L * W;
+    surfaceDimensionsLabels.floor = `${L.toFixed(1)}m × ${W.toFixed(1)}m`;
+
+    // Techo es un plano inclinado a lo largo de L
+    const deltaH = Math.abs(hBack - hFront);
+    const roofSlopeLength = Math.sqrt(L * L + deltaH * deltaH);
+    surfaceAreas.ceiling = roofSlopeLength * W;
+    surfaceDimensionsLabels.ceiling = `${roofSlopeLength.toFixed(2)}m (inclinado) × ${W.toFixed(1)}m`;
+
+    // Pared Norte (Frontal)
+    surfaceAreas.wallNorth = W * hFront;
+    surfaceDimensionsLabels.wallNorth = `${W.toFixed(1)}m × ${hFront.toFixed(1)}m`;
+
+    // Pared Sur (Posterior)
+    surfaceAreas.wallSouth = W * hBack;
+    surfaceDimensionsLabels.wallSouth = `${W.toFixed(1)}m × ${hBack.toFixed(1)}m`;
+
+    // Paredes laterales (Este y Oeste)
+    const sideArea = ((hFront + hBack) / 2) * L;
+    surfaceAreas.wallEast = sideArea;
+    surfaceAreas.wallWest = sideArea;
+    surfaceDimensionsLabels.wallEast = `${L.toFixed(1)}m × [${hFront.toFixed(1)}m a ${hBack.toFixed(1)}m]`;
+    surfaceDimensionsLabels.wallWest = `${L.toFixed(1)}m × [${hFront.toFixed(1)}m a ${hBack.toFixed(1)}m]`;
+
+    volume = L * W * ((hFront + hBack) / 2);
+  } else {
+    // Prisma Rectangular (Shoebox clásico)
+    volume = L * W * H;
+
+    surfaceAreas.floor = L * W;
+    surfaceAreas.ceiling = L * W;
+    surfaceAreas.wallNorth = W * H;
+    surfaceAreas.wallSouth = W * H;
+    surfaceAreas.wallEast = L * H;
+    surfaceAreas.wallWest = L * H;
+
+    surfaceDimensionsLabels.floor = `${L.toFixed(1)}m × ${W.toFixed(1)}m`;
+    surfaceDimensionsLabels.ceiling = `${L.toFixed(1)}m × ${W.toFixed(1)}m`;
+    surfaceDimensionsLabels.wallNorth = `${W.toFixed(1)}m × ${H.toFixed(1)}m`;
+    surfaceDimensionsLabels.wallSouth = `${W.toFixed(1)}m × ${H.toFixed(1)}m`;
+    surfaceDimensionsLabels.wallEast = `${L.toFixed(1)}m × ${H.toFixed(1)}m`;
+    surfaceDimensionsLabels.wallWest = `${L.toFixed(1)}m × ${H.toFixed(1)}m`;
+  }
+
+  // Superficie total: suma de las 6 superficies individuales
+  const totalSurfaceArea = Object.values(surfaceAreas).reduce((sum, area) => sum + area, 0);
 
   // Recorrido libre medio estadístico: l = 4V / S [m]
-  // Distancia promedio que recorre una onda sonora entre dos reflexiones consecutivas
   const meanFreePath = totalSurfaceArea > 0 ? (4 * volume) / totalSurfaceArea : 0;
 
   // Tiempo promedio entre reflexiones consecutivas: τ = l / c [s]
@@ -105,11 +457,17 @@ export function calculateRoomGeometry(length, width, height) {
   const reflectionsPerSecond = meanFreePath > 0 ? SPEED_OF_SOUND / meanFreePath : 0;
 
   return {
+    shape,
     length: L,
     width: W,
     height: H,
+    widthFront: wFront,
+    widthBack: wBack,
+    heightFront: hFront,
+    heightBack: hBack,
     volume,
     surfaceAreas,
+    surfaceDimensionsLabels,
     totalSurfaceArea,
     meanFreePath,
     timeBetweenReflections,
@@ -122,41 +480,58 @@ export function calculateRoomGeometry(length, width, height) {
 // ==============================================================================
 
 /**
- * Calcula la absorción equivalente A y el coeficiente medio de absorción ā por banda.
- * 
- * Ecuaciones:
- * A(f) = ∑ (S_i · α_i(f)) [m² Sabine o unidades de absorción métrica]
- * ā(f) = A(f) / S_total  [adimensional, 0 a 1]
+ * Calcula la absorción equivalente A y el coeficiente medio de absorción ā por banda,
+ * considerando tanto el material base de cada superficie como sus sub-elementos (puertas, ventanas, paneles).
  * 
  * @param {Object} surfaceAreas - Áreas individuales de cada superficie { floor, ceiling, ... }
  * @param {number} totalSurface - Superficie total del recinto (S)
- * @param {Object} materials - Configuración de coeficientes α por superficie y por banda
- * @returns {Object} Resultados de absorción por banda { [freq]: { A, alphaMean, absorptionBySurface } }
+ * @param {Object} materials - Configuración de coeficientes α por superficie y sub-elementos
+ * @returns {Object} Resultados de absorción por banda
  */
 export function calculateRoomAbsorption(surfaceAreas, totalSurface, materials) {
   const result = {};
+  // Iterar sobre las claves reales de surfaceAreas (funciona con 6 caras fijas o N dinámicas)
+  const surfaceIds = Object.keys(surfaceAreas);
 
   OCTAVE_BANDS.forEach((freq) => {
     let equivalentAbsorption = 0;
     const absorptionBySurface = {};
+    const effectiveAlphaBySurface = {};
 
-    ROOM_SURFACES.forEach(({ id }) => {
-      const area = surfaceAreas[id] || 0;
-      // Obtener el coeficiente de absorción para la superficie y frecuencia dada (entre 0 y 1)
-      const rawCoeff = materials[id]?.coefficients?.[freq] ?? materials[id]?.[freq];
-      const alpha = Math.min(0.9999, Math.max(0.0001, Number(rawCoeff) || 0.05));
-      
-      const surfaceAbs = area * alpha;
+    surfaceIds.forEach((id) => {
+      const totalArea = surfaceAreas[id] || 0;
+      const matConfig = materials[id] || {};
+      const subElements = Array.isArray(matConfig.subElements) ? matConfig.subElements : [];
+
+      // Área ocupada por sub-elementos
+      const subAreaSum = subElements.reduce((acc, el) => acc + (Number(el.area) || 0), 0);
+      const baseArea = Math.max(0, totalArea - subAreaSum);
+
+      // Coeficiente y absorción del material base
+      const rawBaseCoeff = matConfig?.coefficients?.[freq] ?? matConfig?.[freq];
+      const alphaBase = Math.min(0.9999, Math.max(0.0001, Number(rawBaseCoeff) || 0.05));
+      let surfaceAbs = baseArea * alphaBase;
+
+      // Absorción de cada sub-elemento
+      subElements.forEach((el) => {
+        const elArea = Number(el.area) || 0;
+        const elRawCoeff = el.coefficients?.[freq] ?? alphaBase;
+        const elAlpha = Math.min(0.9999, Math.max(0.0001, Number(elRawCoeff) || 0.05));
+        surfaceAbs += elArea * elAlpha;
+      });
+
       absorptionBySurface[id] = surfaceAbs;
+      effectiveAlphaBySurface[id] = totalArea > 0 ? surfaceAbs / totalArea : alphaBase;
       equivalentAbsorption += surfaceAbs;
     });
 
     const alphaMean = totalSurface > 0 ? equivalentAbsorption / totalSurface : 0;
 
     result[freq] = {
-      equivalentAbsorption,   // A = ∑ (S_i · α_i) [m² Sabine]
-      alphaMean: Math.min(0.9999, alphaMean), // ā = A / S [adimensional]
-      absorptionBySurface,    // Desglose por superficie [m² Sabine]
+      equivalentAbsorption,
+      alphaMean: Math.min(0.9999, alphaMean),
+      absorptionBySurface,
+      effectiveAlphaBySurface,
     };
   });
 
@@ -179,14 +554,14 @@ export function calculateRoomAbsorption(surfaceAreas, totalSurface, materials) {
  *    - Air ON:  RT = (0.161 · V) / (-S · ln(1 - ā) + 4mV)
  * 
  * 3. MILLINGTON-SETTE (1932):
- *    - Air OFF: RT = (0.161 · V) / (-∑[S_i · ln(1 - α_i)])
- *    - Air ON:  RT = (0.161 · V) / (-∑[S_i · ln(1 - α_i)] + 4mV)
+ *    - Air OFF: RT = (0.161 · V) / (-∑[S_k · ln(1 - α_k)])
+ *    - Air ON:  RT = (0.161 · V) / (-∑[S_k · ln(1 - α_k)] + 4mV)
  * 
  * @param {number} volume - Volumen del recinto V [m³]
  * @param {number} totalSurface - Superficie total S [m²]
  * @param {Object} surfaceAreas - Áreas individuales S_i [m²]
  * @param {Object} absorptionData - Datos de absorción calculados por calculateRoomAbsorption
- * @param {Object} materials - Coeficientes α por superficie
+ * @param {Object} materials - Coeficientes α por superficie y sub-elementos
  * @param {boolean} includeAirAbsorption - Si se incluye la corrección 4mV de disipación en el aire
  * @returns {Object} Tiempos de reverberación por banda para cada modelo
  */
@@ -223,14 +598,34 @@ export function calculateReverberationTimes(
 
     // -------------------------------------------------------------
     // 3. Modelo de Millington-Sette
-    // RT_mil = 0.161 · V / (-∑ [S_i · ln(1 - α_i)] + 4mV)
+    // RT_mil = 0.161 · V / (-∑ [S_k · ln(1 - α_k)] + 4mV)
+    // Desglosa tanto el material base como cada sub-elemento incrustado
     // -------------------------------------------------------------
     let millingtonAbsorptionTerm = 0;
-    ROOM_SURFACES.forEach(({ id }) => {
-      const area = surfaceAreas[id] || 0;
-      const rawCoeff = materials[id]?.coefficients?.[freq] ?? materials[id]?.[freq];
-      const alpha = Math.min(0.9999, Math.max(0.0001, Number(rawCoeff) || 0.05));
-      millingtonAbsorptionTerm += -area * Math.log(1 - alpha);
+    // Iterate over dynamic surface keys (works with both legacy 6-face and polygon N-face)
+    Object.keys(surfaceAreas).forEach((id) => {
+      const totalArea = surfaceAreas[id] || 0;
+      const matConfig = materials[id] || {};
+      const subElements = Array.isArray(matConfig.subElements) ? matConfig.subElements : [];
+
+      const subAreaSum = subElements.reduce((acc, el) => acc + (Number(el.area) || 0), 0);
+      const baseArea = Math.max(0, totalArea - subAreaSum);
+
+      const rawBaseCoeff = matConfig?.coefficients?.[freq] ?? matConfig?.[freq];
+      const alphaBase = Math.min(0.9999, Math.max(0.0001, Number(rawBaseCoeff) || 0.05));
+
+      if (baseArea > 0) {
+        millingtonAbsorptionTerm += -baseArea * Math.log(1 - alphaBase);
+      }
+
+      subElements.forEach((el) => {
+        const elArea = Number(el.area) || 0;
+        const elRawCoeff = el.coefficients?.[freq] ?? alphaBase;
+        const elAlpha = Math.min(0.9999, Math.max(0.0001, Number(elRawCoeff) || 0.05));
+        if (elArea > 0) {
+          millingtonAbsorptionTerm += -elArea * Math.log(1 - elAlpha);
+        }
+      });
     });
 
     const denomMillington = millingtonAbsorptionTerm + airDissipationTerm;
