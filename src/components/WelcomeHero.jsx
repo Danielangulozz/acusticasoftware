@@ -8,6 +8,7 @@ import {
   Sparkles, 
   BookOpen, 
   User, 
+  Users,
   GraduationCap, 
   Building2,
   Compass,
@@ -18,7 +19,7 @@ import RoomVisualizer from './RoomVisualizer';
 
 /**
  * WelcomeHero — Página de Bienvenida y Presentación del Simulador POZOLE
- * Creado por Daniel Angulo para el curso de Acústica de Recintos (Ingeniería de Sonido)
+ * Desarrollado por el equipo de Ingeniería de Sonido: Daniel Angulo, Jeronimo Gomez y Brandon Guerra
  */
 export default function WelcomeHero({
   onEnterStudio,
@@ -70,15 +71,48 @@ export default function WelcomeHero({
               (ISO 3382, ISO 3741 y DIN 18041).
             </p>
 
-            {/* Tarjeta Destacada del Autor */}
-            <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-[#1a1d33]/80 backdrop-blur-md border border-black/[0.06] dark:border-white/[0.08] shadow-2xs space-y-1 text-left">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#1d1d1f] dark:text-white">
-                <GraduationCap className="w-4 h-4 text-[#5833c7] dark:text-[#8767f9]" />
-                <span>Desarrollado por Daniel Angulo</span>
+            {/* Tarjeta Destacada de Integrantes del Grupo */}
+            <div className="p-4 rounded-2xl bg-white/85 dark:bg-[#181a2e]/90 backdrop-blur-md border border-black/[0.06] dark:border-white/[0.08] shadow-2xs space-y-3 text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#1d1d1f] dark:text-white">
+                  <Users className="w-4 h-4 text-[#5833c7] dark:text-[#8767f9]" />
+                  <span>Integrantes del Proyecto</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] text-[10px] font-bold font-mono">
+                  Acústica de Recintos 2026
+                </span>
               </div>
-              <p className="text-[11px] text-[#86868b] dark:text-slate-400 pl-6">
-                Ingeniería de Sonido · Curso de Acústica de Recintos
-              </p>
+
+              {/* Lista de los 3 Integrantes */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { name: 'Daniel Angulo', initials: 'DA', color: 'from-[#361b8c] to-[#5833c7]' },
+                  { name: 'Jeronimo Gomez', initials: 'JG', color: 'from-[#059669] to-[#10b981]' },
+                  { name: 'Brandon Guerra', initials: 'BG', color: 'from-[#d97706] to-[#f59e0b]' },
+                ].map((member) => (
+                  <div
+                    key={member.name}
+                    className="flex items-center gap-2 p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] hover:border-[#5833c7]/30 transition group"
+                  >
+                    <div className={`w-7 h-7 rounded-lg bg-gradient-to-tr ${member.color} text-white flex items-center justify-center font-bold text-[10px] shrink-0 shadow-2xs`}>
+                      {member.initials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#1d1d1f] dark:text-white truncate group-hover:text-[#5833c7] dark:group-hover:text-[#8767f9] transition-colors">
+                        {member.name}
+                      </p>
+                      <p className="text-[10px] text-[#86868b] dark:text-slate-400 truncate font-mono">
+                        Ing. de Sonido
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1.5 text-[11px] text-[#86868b] dark:text-slate-400 pt-1 border-t border-black/[0.04] dark:border-white/[0.06]">
+                <GraduationCap className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#8767f9] shrink-0" />
+                <span>Facultad de Ingeniería · Asignatura: Acústica de Recintos</span>
+              </div>
             </div>
 
             {/* Botones de Acción */}

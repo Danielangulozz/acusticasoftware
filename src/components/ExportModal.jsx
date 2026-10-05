@@ -36,7 +36,7 @@ export default function ExportModal({
     // 1. Encabezado institucional y autoría
     rows.push(['POZOLE - Propagación de Ondas en Zonas y Optimización de Límites Espaciales']);
     rows.push(['Software de Simulación Acústica ISO 3382']);
-    rows.push(['Autor', 'Daniel Angulo (Ingeniería de Sonido)']);
+    rows.push(['Equipo / Autores', 'Daniel Angulo, Jeronimo Gomez, Brandon Guerra (Ingeniería de Sonido)']);
     rows.push(['Fecha y Hora', `${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`]);
     rows.push([]);
 
