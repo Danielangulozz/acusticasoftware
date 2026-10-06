@@ -44,6 +44,8 @@ export default function Sidebar({
   onReset,
   isDarkMode,
   onToggleDarkMode,
+  schroederFreq,
+  modalCount,
 }) {
   // Secciones de la suite acústica
   const navigationItems = [
@@ -90,6 +92,13 @@ export default function Sidebar({
       label: '5. Gráficas Acústicas',
       subtitle: 'RT vs Freq, Lp vs Distancia',
       icon: LineChart,
+    },
+    {
+      id: 'modes',
+      label: '6. Modos Propios',
+      subtitle: `fs ≈ ${schroederFreq || 385} Hz • ${modalCount || 0} modos`,
+      icon: Waves,
+      badge: 'Ondulatoria',
     },
     {
       id: 'all',

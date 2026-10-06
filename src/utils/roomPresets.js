@@ -186,4 +186,93 @@ export const ROOM_PRESETS = [
     },
     roomType: 'multipurpose',
   },
+  {
+    id: 'course_cube_3x3x3',
+    name: 'Ejercicio Curso 3×3×3 m (RT = 1.0 s)',
+    category: 'Docencia / Modos Propios',
+    description: 'Sala cúbica de 3×3×3 m con tiempo de reverberación de 1.0 s y c = 345 m/s. Escenario clásico con degeneraciones triples y severa infracción de Bonello.',
+    icon: 'Waves',
+    dimensions: { length: 3.0, width: 3.0, height: 3.0 },
+    source: { lw: 90, directivity: 1, distance: 1.5, name: 'Fuente Central' },
+    materials: {
+      floor: {
+        materialId: 'wood_parquet_on_concrete',
+        coefficients: { 125: 0.08, 250: 0.08, 500: 0.08, 1000: 0.08, 2000: 0.08, 4000: 0.08 },
+      },
+      ceiling: {
+        materialId: 'plaster_on_solid',
+        coefficients: { 125: 0.08, 250: 0.08, 500: 0.08, 1000: 0.08, 2000: 0.08, 4000: 0.08 },
+      },
+      wallNorth: {
+        materialId: 'plaster_on_solid',
+        coefficients: { 125: 0.08, 250: 0.08, 500: 0.08, 1000: 0.08, 2000: 0.08, 4000: 0.08 },
+      },
+      wallSouth: {
+        materialId: 'plaster_on_solid',
+        coefficients: { 125: 0.08, 250: 0.08, 500: 0.08, 1000: 0.08, 2000: 0.08, 4000: 0.08 },
+      },
+      wallEast: {
+        materialId: 'plaster_on_solid',
+        coefficients: { 125: 0.08, 250: 0.08, 500: 0.08, 1000: 0.08, 2000: 0.08, 4000: 0.08 },
+      },
+      wallWest: {
+        materialId: 'plaster_on_solid',
+        coefficients: { 125: 0.08, 250: 0.08, 500: 0.08, 1000: 0.08, 2000: 0.08, 4000: 0.08 },
+      },
+    },
+    roomType: 'speech',
+    modal: {
+      c: 345,
+      tempC: 23,
+      nMax: 6,
+      fMax: 400,
+      t60Source: 'override',
+      t60Override: 1.0,
+      tolerance: 0.1,
+    },
+  },
+  {
+    id: 'insitu_4_5x9x2_7',
+    name: 'Sala de Ensayo 4.5×9×2.7 m (In Situ)',
+    category: 'Medición / Laboratorio',
+    description: 'Recinto con proporciones 1 : 1.67 : 3.33 ideal para el despliegue de cuadrícula de 1.5 m, validación REW y corrección con proporciones de Bolt.',
+    icon: 'MapPin',
+    dimensions: { length: 9.0, width: 4.5, height: 2.7 },
+    source: { lw: 94, directivity: 1, distance: 3.0, name: 'Fuente Dodecaédrica S0' },
+    materials: {
+      floor: {
+        materialId: 'ceramic_tile',
+        coefficients: { 125: 0.01, 250: 0.01, 500: 0.01, 1000: 0.02, 2000: 0.02, 4000: 0.02 },
+      },
+      ceiling: {
+        materialId: 'mineral_fiber_ceiling_tiles',
+        coefficients: { 125: 0.35, 250: 0.50, 500: 0.70, 1000: 0.80, 2000: 0.85, 4000: 0.85 },
+      },
+      wallNorth: {
+        materialId: 'gypsum_board_13mm',
+        coefficients: { 125: 0.20, 250: 0.12, 500: 0.08, 1000: 0.06, 2000: 0.06, 4000: 0.05 },
+      },
+      wallSouth: {
+        materialId: 'gypsum_board_13mm',
+        coefficients: { 125: 0.20, 250: 0.12, 500: 0.08, 1000: 0.06, 2000: 0.06, 4000: 0.05 },
+      },
+      wallEast: {
+        materialId: 'glass_single_4mm',
+        coefficients: { 125: 0.18, 250: 0.06, 500: 0.04, 1000: 0.03, 2000: 0.02, 4000: 0.02 },
+      },
+      wallWest: {
+        materialId: 'curtains_heavy_draped',
+        coefficients: { 125: 0.14, 250: 0.35, 500: 0.55, 1000: 0.72, 2000: 0.70, 4000: 0.65 },
+      },
+    },
+    roomType: 'speech',
+    modal: {
+      c: 343,
+      tempC: 20,
+      nMax: 5,
+      fMax: 350,
+      t60Source: 'sabine',
+      tolerance: 0.5,
+    },
+  },
 ];

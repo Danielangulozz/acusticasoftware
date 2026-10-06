@@ -39,6 +39,7 @@ export default function Header({
     source: '3. Fuente Sonora y Receptor',
     results: '4. Parámetros Acústicos',
     charts: '5. Gráficas Interactivas',
+    modes: '6. Acústica Ondulatoria y Modos Propios',
     all: 'Estudio Completo de la Sala',
   };
 

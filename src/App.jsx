@@ -27,6 +27,13 @@ import {
 } from './utils/acousticCalculations';
 import { getDefaultPolygonMaterials } from './utils/defaultMaterials';
 import { ROOM_PRESETS } from './utils/roomPresets';
+import ModesModule from './components/modes/ModesModule';
+import {
+  getRectangularDims,
+  computeModes,
+  schroederFrequency,
+  evaluateBonello,
+} from './utils/modalCalculations';
 
 /**
  * Componente Principal de la Suite Acústica — POZOLE v3.0
@@ -95,6 +102,36 @@ export default function App() {
   const [roomType, setRoomType] = useState('speech');
   const [selectedBand, setSelectedBand] = useState(1000);
   const [selectedPresetId, setSelectedPresetId] = useState('');
+
+  // 5. Parámetros de Acústica Ondulatoria y Modos Propios
+  const [modalSettings, setModalSettings] = useState({
+    c: 343,
+    tempC: 20,
+    nMax: 5,
+    fMax: 400,
+    t60Source: 'sabine',
+    t60Override: 1.0,
+    tolerance: 0.5,
+  });
+
+  const [measurementData, setMeasurementData] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('pozole_measurement_data');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  const handleUpdateMeasurementData = useCallback((data) => {
+    setMeasurementData(data);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('pozole_measurement_data', JSON.stringify(data));
+      } catch (e) {}
+    }
+  }, []);
 
   // Modales
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -188,6 +225,58 @@ export default function App() {
 
   const rt500Sabine = reverberationData[500]?.sabine || 0;
 
+  // 6. Cálculos de Acústica Ondulatoria / Modos Propios
+  const modalDimensions = useMemo(() => {
+    return getRectangularDims(roomPolygon, dimensions.height);
+  }, [roomPolygon, dimensions.height]);
+
+  const t60ForSchroeder = useMemo(() => {
+    if (modalSettings.t60Source === 'override') {
+      return modalSettings.t60Override || 1.0;
+    }
+    if (modalSettings.t60Source === 'eyring') {
+      const e500 = reverberationData[500]?.eyring || 1.0;
+      const e1k = reverberationData[1000]?.eyring || 1.0;
+      return (e500 + e1k) / 2;
+    }
+    const s500 = reverberationData[500]?.sabine || 1.0;
+    const s1k = reverberationData[1000]?.sabine || 1.0;
+    return (s500 + s1k) / 2;
+  }, [modalSettings.t60Source, modalSettings.t60Override, reverberationData]);
+
+  const schroederData = useMemo(() => {
+    const v = geometry.volume || (modalDimensions.Lx * modalDimensions.Ly * modalDimensions.Lz);
+    return schroederFrequency(t60ForSchroeder, v, modalSettings.c);
+  }, [t60ForSchroeder, geometry.volume, modalDimensions, modalSettings.c]);
+
+  const calculatedModes = useMemo(() => {
+    return computeModes({
+      Lx: modalDimensions.Lx,
+      Ly: modalDimensions.Ly,
+      Lz: modalDimensions.Lz,
+      c: modalSettings.c,
+      nMax: modalSettings.nMax,
+      fMax: modalSettings.fMax,
+    });
+  }, [modalDimensions, modalSettings.c, modalSettings.nMax, modalSettings.fMax]);
+
+  const bonelloResult = useMemo(() => {
+    return evaluateBonello(calculatedModes, schroederData.fsApprox, modalSettings.tolerance);
+  }, [calculatedModes, schroederData.fsApprox, modalSettings.tolerance]);
+
+  const handleApplyProportions = useCallback(({ Lx, Ly, Lz }) => {
+    setRoomPolygon({
+      vertices: [
+        { x: 0, y: 0 },
+        { x: Lx, y: 0 },
+        { x: Lx, y: Ly },
+        { x: 0, y: Ly },
+      ],
+      height: Lz,
+      curvatures: {},
+    });
+  }, []);
+
   // ============================================================================
   // ACCIONES
   // ============================================================================
@@ -231,6 +320,13 @@ export default function App() {
       }));
       setRoomType(preset.roomType || 'speech');
       setSelectedPresetId(preset.id);
+
+      if (preset.modal) {
+        setModalSettings((prev) => ({
+          ...prev,
+          ...preset.modal,
+        }));
+      }
     }
   }, []);
 
@@ -276,6 +372,8 @@ export default function App() {
         onReset={handleReset}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(prev => !prev)}
+        schroederFreq={schroederData?.fsApprox}
+        modalCount={calculatedModes.length}
       />
 
       {/* Área de Contenido Principal */}
@@ -332,6 +430,9 @@ export default function App() {
               materials={materials}
               selectedBand={selectedBand}
               onChangeSourceReceiver={setSourceReceiver}
+              schroederData={schroederData}
+              bonelloResult={bonelloResult}
+              modalModes={calculatedModes}
             />
           )}
 
@@ -437,6 +538,24 @@ export default function App() {
             </div>
           )}
 
+          {/* 6. Acústica Ondulatoria y Modos Propios */}
+          {activeSection === 'modes' && (
+            <div className="animate-fadeIn">
+              <ModesModule
+                dimensions={modalDimensions}
+                geometry={geometry}
+                modes={calculatedModes}
+                schroederData={schroederData}
+                bonelloResult={bonelloResult}
+                modalSettings={modalSettings}
+                onUpdateModalSettings={setModalSettings}
+                measurementData={measurementData}
+                onUpdateMeasurementData={handleUpdateMeasurementData}
+                onApplyProportions={handleApplyProportions}
+              />
+            </div>
+          )}
+
           {/* 7. Vista Completa (Todo el Estudio) */}
           {activeSection === 'all' && (
             <div className="space-y-8 animate-fadeIn">
@@ -519,6 +638,22 @@ export default function App() {
                 geometry={geometry}
                 materials={materials}
               />
+
+              {/* Módulo Modal en la vista completa */}
+              <div className="pt-6 border-t border-black/[0.08] dark:border-white/[0.08]">
+                <ModesModule
+                  dimensions={modalDimensions}
+                  geometry={geometry}
+                  modes={calculatedModes}
+                  schroederData={schroederData}
+                  bonelloResult={bonelloResult}
+                  modalSettings={modalSettings}
+                  onUpdateModalSettings={setModalSettings}
+                  measurementData={measurementData}
+                  onUpdateMeasurementData={handleUpdateMeasurementData}
+                  onApplyProportions={handleApplyProportions}
+                />
+              </div>
             </div>
           )}
 
@@ -543,6 +678,14 @@ export default function App() {
         roomType={roomType}
         roomPolygon={roomPolygon}
         selectedBand={selectedBand}
+        modalData={{
+          dimensions: modalDimensions,
+          modes: calculatedModes,
+          schroederData,
+          bonelloResult,
+          modalSettings,
+          measurementData,
+        }}
       />
 
       {/* Modal de Formulario Físico */}
@@ -563,6 +706,14 @@ export default function App() {
         soundFieldData={soundFieldData}
         roomPolygon={roomPolygon}
         materials={materials}
+        modalData={{
+          dimensions: modalDimensions,
+          modes: calculatedModes,
+          schroederData,
+          bonelloResult,
+          modalSettings,
+          measurementData,
+        }}
       />
 
     </div>

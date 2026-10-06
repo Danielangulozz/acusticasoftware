@@ -35,6 +35,7 @@ export default function ReportModal({
   roomType,
   roomPolygon,
   selectedBand = 1000,
+  modalData = null,
 }) {
   // Estado de integrantes del informe (máximo 4)
   const [members, setMembers] = useState([
@@ -468,15 +469,78 @@ export default function ReportModal({
             </div>
           </div>
 
-          {/* 4. Diagnóstico y Veredicto */}
+          {/* 4. Análisis de Modos Propios y Acústica Ondulatoria */}
+          {modalData && (
+            <div className="print-avoid-break space-y-3">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#5833c7] border-b border-black/[0.06] dark:border-white/[0.06] pb-1">
+                4. Análisis de Modos Propios de Vibración y Criterio de Bonello
+              </h2>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04]">
+                  <span className="text-[#86868b] block text-[10px]">Frec. Schroeder (fs):</span>
+                  <strong className="text-[#0071e3] text-sm">{modalData.schroederData?.fsApprox} Hz</strong>
+                </div>
+                <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04]">
+                  <span className="text-[#86868b] block text-[10px]">Criterio de Bonello:</span>
+                  <strong className={modalData.bonelloResult?.complies ? 'text-[#10b981]' : 'text-[#ef4444]'}>
+                    {modalData.bonelloResult?.complies ? 'CUMPLE' : 'NO CUMPLE'}
+                  </strong>
+                </div>
+                <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04]">
+                  <span className="text-[#86868b] block text-[10px]">Modos Calculados:</span>
+                  <strong className="text-[#1d1d1f] dark:text-white text-sm">{modalData.modes?.length || 0} modos</strong>
+                </div>
+                <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04]">
+                  <span className="text-[#86868b] block text-[10px]">Degeneraciones:</span>
+                  <strong className="text-[#f59e0b] text-sm">{modalData.bonelloResult?.degenerateGroups?.length || 0} grupos</strong>
+                </div>
+              </div>
+
+              {/* Tabla de Primeros Modos hasta fs */}
+              <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[10px] uppercase text-[#86868b]">
+                    <tr>
+                      <th className="p-2 text-center">#</th>
+                      <th className="p-2">Índices (nx, ny, nz)</th>
+                      <th className="p-2 font-bold text-[#5833c7]">Frecuencia f (Hz)</th>
+                      <th className="p-2">Tipo de Modo</th>
+                      <th className="p-2">Vector k (rad/m)</th>
+                      <th className="p-2 text-center">Energía Relativa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-black/[0.04] text-[11px]">
+                    {(modalData.modes || []).slice(0, 15).map((m) => (
+                      <tr key={m.id}>
+                        <td className="p-2 text-center text-[#86868b]">{m.index}</td>
+                        <td className="p-2 font-bold text-[#1d1d1f] dark:text-white">({m.nx}, {m.ny}, {m.nz})</td>
+                        <td className="p-2 font-bold text-[#0071e3]">{m.frequency.toFixed(2)} Hz</td>
+                        <td className="p-2 font-sans font-medium" style={{ color: m.color }}>{m.label}</td>
+                        <td className="p-2 text-[#86868b]">|k| = {m.kVector?.k.toFixed(2)}</td>
+                        <td className="p-2 text-center">{m.weight === 1 ? '0 dB (Axial)' : m.weight === 0.5 ? '-3 dB' : '-6 dB'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 5. Diagnóstico y Veredicto */}
           <div className="bg-[#f5f5f7] dark:bg-[#161726] p-5 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] text-xs print-avoid-break">
             <h3 className="font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider mb-2">
-              4. Diagnóstico y Veredicto Acústico
+              5. Diagnóstico Integral y Veredicto Acústico
             </h3>
             <div className="space-y-2 text-[#1d1d1f] dark:text-slate-300">
               <p>
                 • <strong>Condiciones de Emisión:</strong> Fuente sonora con Lw = {sourceReceiver.lw} dB (Directividad Q = {sourceReceiver.directivity}) a distancia r = {sourceReceiver.distance} m.
               </p>
+              {modalData && (
+                <p>
+                  • <strong>Comportamiento Modal (Baja Frecuencia):</strong> Frecuencia de Schroeder fs ≈ {modalData.schroederData?.fsApprox} Hz. Criterio de Bonello: <strong className={modalData.bonelloResult?.complies ? 'text-emerald-600' : 'text-rose-600'}>{modalData.bonelloResult?.complies ? 'CUMPLE' : 'NO CUMPLE'}</strong> ({modalData.bonelloResult?.violations?.length || 0} infracciones registradas).
+                </p>
+              )}
               <p>
                 • <strong>Distancia Crítica (@ 1 kHz):</strong> Dc = {field1k.criticalDistance?.toFixed(2)} m. El receptor está a r = {sourceReceiver.distance} m, ubicándose en zona de <strong>{sourceReceiver.distance < field1k.criticalDistance ? 'Campo Directo' : 'Campo Reverberado'}</strong>.
               </p>

@@ -23,6 +23,7 @@ import RoomVisualizer from './RoomVisualizer';
  */
 export default function WelcomeHero({
   onEnterStudio,
+  onEnter,
   roomPolygon,
   geometry,
   dimensions,
@@ -119,7 +120,7 @@ export default function WelcomeHero({
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-2">
               <button
                 type="button"
-                onClick={onEnterStudio}
+                onClick={onEnterStudio || onEnter}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#5833c7] hover:bg-[#4726aa] text-white font-bold text-sm shadow-apple-sm hover:shadow-apple-hover transition transform active:scale-95"
               >
                 <span>Entrar al Estudio Acústico</span>

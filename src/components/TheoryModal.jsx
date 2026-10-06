@@ -150,6 +150,60 @@ export default function TheoryModal({ isOpen, onClose }) {
             </div>
           </div>
 
+          {/* Sección 4: Acústica Ondulatoria y Modos Propios */}
+          <div className="bg-[#fbfbfd] p-5 rounded-2xl border border-black/[0.06]">
+            <h4 className="font-bold text-[#5833c7] text-sm mb-3 flex items-center gap-2">
+              <BookOpen className="w-4 h-4" /> 4. Acústica Ondulatoria, Modos Normales y Criterio de Bonello
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="font-mono text-[#1d1d1f] bg-white p-2.5 rounded-xl border border-black/[0.06] mb-1 font-bold">
+                  f(nx, ny, nz) = (c / 2) · √[ (nx/Lx)² + (ny/Ly)² + (nz/Lz)² ] [Hz]
+                </p>
+                <p className="text-[#86868b] text-xs">
+                  <strong>Frecuencias Propias:</strong> Resonancias estacionarias en recintos ortogonales.
+                </p>
+              </div>
+
+              <div>
+                <p className="font-mono text-[#1d1d1f] bg-white p-2.5 rounded-xl border border-black/[0.06] mb-1 font-bold">
+                  k = (nx·π/Lx, ny·π/Ly, nz·π/Lz) &nbsp;|&nbsp; |k| = √(kx² + ky² + kz²)
+                </p>
+                <p className="text-[#86868b] text-xs">
+                  <strong>Vector de Onda (k):</strong> Componentes de propagación espacial en rad/m.
+                </p>
+              </div>
+
+              <div>
+                <p className="font-mono text-[#1d1d1f] bg-white p-2.5 rounded-xl border border-black/[0.06] mb-1 font-bold">
+                  fs ≈ 2000 · √(T60 / V) &nbsp;|&nbsp; fs_exact = √[c³ / (4·ln 10)] · √(T60 / V)
+                </p>
+                <p className="text-[#86868b] text-xs">
+                  <strong>Frecuencia de Schroeder:</strong> Límite entre el régimen modal discreto y el régimen estadístico difuso (~3 modos por ancho de banda modal).
+                </p>
+              </div>
+
+              <div>
+                <p className="font-mono text-[#1d1d1f] bg-white p-2.5 rounded-xl border border-black/[0.06] mb-1 font-bold">
+                  dN/df = (4πV / c³) · f² + (πS / 2c²) · f + L / (8c)
+                </p>
+                <p className="text-[#86868b] text-xs">
+                  <strong>Densidad Modal de Weyl:</strong> Tasa de modos por Hertz. La expresión angular dN/dω = V·ω² / (2π²c³) es su equivalente en rad/s.
+                </p>
+              </div>
+
+              <div className="md:col-span-2">
+                <p className="font-mono text-[#1d1d1f] bg-white p-2.5 rounded-xl border border-black/[0.06] mb-1 font-bold">
+                  Criterio de Bonello (1981) &nbsp;|&nbsp; Proporciones de Bolt (1946: 1 : 1.404 : 1.863)
+                </p>
+                <p className="text-[#86868b] text-xs leading-relaxed">
+                  <strong>Regla 1:</strong> Monotonía no decreciente en bandas de 1/3 de octava (N_i ≥ N_i-1).<br />
+                  <strong>Regla 2:</strong> Dos modos pueden compartir frecuencia modal (degeneración) sólo si en dicha banda hay más de 5 modos (N_i &gt; 5).
+                </p>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>

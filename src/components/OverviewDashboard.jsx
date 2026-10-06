@@ -35,6 +35,9 @@ export default function OverviewDashboard({
   materials,
   selectedBand = 1000,
   onChangeSourceReceiver,
+  schroederData = { fsApprox: 385, fsExact: 403 },
+  bonelloResult = { complies: false, violations: [], degenerateGroups: [] },
+  modalModes = [],
 }) {
   const rt500 = reverberationData[500] || { sabine: 0, eyring: 0, millington: 0 };
   const abs500 = absorptionData[500] || { equivalentAbsorption: 0, alphaMean: 0 };
@@ -43,6 +46,7 @@ export default function OverviewDashboard({
   const isRTInOptRange = avgRT500 >= optimumRT.min && avgRT500 <= optimumRT.max;
   const isDirectDominant = sourceReceiver.distance < criticalDistance;
   const surfaceCount = Object.keys(materials || {}).length || 6;
+  const modesUnderFs = modalModes.filter(m => m.frequency <= (schroederData?.fsApprox || 385)).length;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -224,8 +228,109 @@ export default function OverviewDashboard({
             <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#0071e3] transition" />
           </button>
 
+          <button
+            onClick={() => setActiveSection('modes')}
+            className="w-full text-left p-4 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.08] dark:border-white/[0.08] hover:border-[#5833c7] dark:hover:border-purple-400 shadow-apple-sm transition flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400 flex items-center justify-center font-bold">
+                <Waves className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-purple-400 transition">
+                  6. Modos Propios y Resonancias
+                </h4>
+                <p className="text-xs text-[#86868b] dark:text-slate-400">
+                  fs ≈ {schroederData?.fsApprox || 385} Hz &bull; {modalModes.length} modos &bull; Bonello {bonelloResult?.complies ? 'CUMPLE' : 'NO CUMPLE'}
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#5833c7] transition" />
+          </button>
+
         </div>
 
+      </div>
+
+      {/* 4 KPIs de Acústica Ondulatoria / Modos Propios */}
+      <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 sm:p-6 shadow-apple-sm transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400">
+              <Waves className="w-5 h-5" />
+            </span>
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-[#1d1d1f] dark:text-white">
+                Régimen Modal y Acústica Ondulatoria (ISO 3382 / Bonello)
+              </h3>
+              <p className="text-xs text-[#86868b] dark:text-slate-400">
+                Límite de validez del campo difuso vs resonancias discretas de baja frecuencia.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveSection('modes')}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4727a8] text-white text-xs font-semibold shadow-sm transition self-start sm:self-auto"
+          >
+            <span>Ir a Modos Propios</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <div className="bg-[#fbfbfd] dark:bg-[#18192a] p-3.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+            <div className="text-[11px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">
+              Frec. de Schroeder (fs)
+            </div>
+            <div className="text-2xl font-black font-mono text-[#0071e3] dark:text-sky-400 mt-1">
+              {schroederData?.fsApprox || 385} <span className="text-sm font-normal text-[#86868b]">Hz</span>
+            </div>
+            <div className="text-[11px] text-[#86868b] dark:text-slate-400 mt-1 font-medium">
+              Exacta: {schroederData?.fsExact || 403} Hz
+            </div>
+          </div>
+
+          <div className="bg-[#fbfbfd] dark:bg-[#18192a] p-3.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+            <div className="text-[11px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">
+              Modos Propios (f ≤ fs)
+            </div>
+            <div className="text-2xl font-black font-mono text-[#5833c7] dark:text-purple-400 mt-1">
+              {modesUnderFs} <span className="text-sm font-normal text-[#86868b]">modos</span>
+            </div>
+            <div className="text-[11px] text-[#86868b] dark:text-slate-400 mt-1 font-medium">
+              Total en catálogo: {modalModes.length}
+            </div>
+          </div>
+
+          <div className="bg-[#fbfbfd] dark:bg-[#18192a] p-3.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+            <div className="text-[11px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">
+              Criterio de Bonello
+            </div>
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-black flex items-center gap-1 ${
+                bonelloResult?.complies ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-[#ef4444]/20 text-[#ef4444]'
+              }`}>
+                {bonelloResult?.complies ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                {bonelloResult?.complies ? 'CUMPLE' : 'NO CUMPLE'}
+              </span>
+            </div>
+            <div className="text-[11px] text-[#86868b] dark:text-slate-400 mt-1.5 font-medium">
+              {bonelloResult?.violations?.length || 0} infracciones detectadas
+            </div>
+          </div>
+
+          <div className="bg-[#fbfbfd] dark:bg-[#18192a] p-3.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+            <div className="text-[11px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">
+              Degeneraciones Modales
+            </div>
+            <div className="text-2xl font-black font-mono text-[#f59e0b] dark:text-amber-400 mt-1">
+              {bonelloResult?.degenerateGroups?.length || 0} <span className="text-sm font-normal text-[#86868b]">grupos</span>
+            </div>
+            <div className="text-[11px] text-[#86868b] dark:text-slate-400 mt-1 font-medium">
+              Frecuencias coincidentes
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>

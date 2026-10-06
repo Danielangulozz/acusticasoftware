@@ -19,8 +19,10 @@ export default function ExportModal({
   soundFieldData,
   roomPolygon,
   materials,
+  modalData = null,
 }) {
   const [copied, setCopied] = useState(false);
+  const [includeModalAnalysis, setIncludeModalAnalysis] = useState(true);
 
   if (!isOpen) return null;
 
@@ -154,6 +156,62 @@ export default function ExportModal({
       ]);
     });
 
+    // 5. Análisis Modal y Modos Propios (si está habilitado)
+    if (includeModalAnalysis && modalData) {
+      const { dimensions: mDims, modes = [], schroederData: sData, bonelloResult: bRes, modalSettings: mSet } = modalData;
+
+      rows.push([]);
+      rows.push(['5. ANÁLISIS DE ACÚSTICA ONDULATORIA Y MODOS PROPIOS']);
+      rows.push(['Parámetro Modal', 'Valor', 'Unidad']);
+      rows.push(['Velocidad del Sonido (c)', mSet?.c || 343, 'm/s']);
+      rows.push(['Dimensiones Ortogonales Equivalentes (Lx, Ly, Lz)', `${mDims?.Lx} × ${mDims?.Ly} × ${mDims?.Lz}`, 'm']);
+      rows.push(['Frecuencia de Schroeder Aproximada (fs)', sData?.fsApprox || '—', 'Hz']);
+      rows.push(['Frecuencia de Schroeder Exacta (fs)', sData?.fsExact || '—', 'Hz']);
+      rows.push(['Veredicto Criterio de Bonello', bRes?.complies ? 'CUMPLE' : 'NO CUMPLE', '']);
+      rows.push(['Infracciones Bonello', bRes?.violations?.length || 0, 'infracciones']);
+      rows.push([]);
+
+      // Modos individuales
+      rows.push(['MODOS PROPIOS CALCULADOS (HASTA FRECUENCIA DE CORTE)']);
+      rows.push([
+        '#', 'nx', 'ny', 'nz', 'Frecuencia f (Hz)', 'Tipo de Modo', 'Detalle',
+        'kx (rad/m)', 'ky (rad/m)', 'kz (rad/m)', 'k total (rad/m)', 'Peso Energético'
+      ]);
+      modes.slice(0, 60).forEach(m => {
+        rows.push([
+          m.index,
+          m.nx,
+          m.ny,
+          m.nz,
+          m.frequency.toFixed(2),
+          m.label,
+          m.detail || '',
+          m.kVector?.kx.toFixed(3) || '',
+          m.kVector?.ky.toFixed(3) || '',
+          m.kVector?.kz.toFixed(3) || '',
+          m.kVector?.k.toFixed(3) || '',
+          m.weight
+        ]);
+      });
+      rows.push([]);
+
+      // Conteo por bandas de 1/3 de octava y Bonello
+      if (bRes?.evaluatedBands?.length > 0) {
+        rows.push(['DISTRIBUCIÓN MODAL POR BANDAS DE 1/3 OCTAVA (BONELLO)']);
+        rows.push(['Banda fc (Hz)', 'f_inferior (Hz)', 'f_superior (Hz)', 'Nº Modos', 'Estado Bonello', 'Fallas Detectadas']);
+        bRes.evaluatedBands.forEach(b => {
+          rows.push([
+            b.fc,
+            b.fLow.toFixed(1),
+            b.fHigh.toFixed(1),
+            b.count,
+            b.complies ? 'CONFORME' : 'FALLA',
+            b.failures?.map(f => f.message).join(' | ') || 'Ninguna'
+          ]);
+        });
+      }
+    }
+
     return rows.map(r => r.join(sep)).join('\r\n');
   };
 
@@ -224,6 +282,18 @@ export default function ExportModal({
         {/* Opciones de Exportación */}
         <div className="p-6 space-y-4">
           
+          {modalData && (
+            <label className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#5833c7]/5 border border-[#5833c7]/20 text-xs text-[#1d1d1f] font-medium cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeModalAnalysis}
+                onChange={(e) => setIncludeModalAnalysis(e.target.checked)}
+                className="rounded border-gray-400 text-[#5833c7] focus:ring-[#5833c7]"
+              />
+              <span>Incluir Módulo de Modos Propios (resonancias, Schroeder y Bonello) en el archivo CSV</span>
+            </label>
+          )}
+
           {/* Opción 1: CSV para Excel (Recomendada) */}
           <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-black/[0.06] hover:border-[#34c759] transition">
             <div className="flex items-start justify-between gap-3">
