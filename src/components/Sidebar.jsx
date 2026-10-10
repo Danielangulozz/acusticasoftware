@@ -121,12 +121,12 @@ export default function Sidebar({
 
       {/* Contenedor Sidebar */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-50 w-72 bg-white/95 dark:bg-[#0c0d18]/95 backdrop-blur-2xl border-r border-black/[0.08] dark:border-white/[0.08] flex flex-col justify-between transition-transform duration-300 ease-in-out shadow-apple-lg ${
+        className={`fixed top-0 left-0 bottom-0 z-50 w-72 bg-white/95 dark:bg-[#0A0C14] backdrop-blur-2xl border-r border-black/[0.08] dark:border-white/10 flex flex-col justify-between transition-transform duration-300 ease-in-out shadow-apple-lg ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Parte Superior: Marca */}
-        <div className="p-5 flex flex-col gap-2 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div className="p-5 flex flex-col gap-2 border-b border-black/[0.06] dark:border-white/10">
           
           {/* Logo y Nombre de la Aplicación */}
           <div className="flex items-center justify-between">
@@ -231,22 +231,22 @@ export default function Sidebar({
           })}
         </div>
 
-        {/* Tarjeta de Resumen Rápido / KPIs de Bolsillo */}
-        <div className="p-3 mx-3 mb-2 bg-[#f5f5f7] dark:bg-[#151624] rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
-          <div className="flex items-center justify-between text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider mb-2">
-            <span>Estado Acústico</span>
-            <span className="w-2 h-2 rounded-full bg-[#34c759] animate-pulse"></span>
+        {/* Widget compacto titulado ESTADO ACÚSTICO */}
+        <div className="p-3 mx-3 mb-2 bg-[#f5f5f7] dark:bg-[#141622] rounded-2xl border border-black/[0.06] dark:border-white/10">
+          <div className="flex items-center justify-between text-[10px] font-bold text-[#86868b] dark:text-slate-400 uppercase tracking-wider mb-2">
+            <span>ESTADO ACÚSTICO</span>
+            <span className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse"></span>
           </div>
           <div className="grid grid-cols-2 gap-2 text-center">
-            <div className="bg-white dark:bg-[#1a1c2c] p-2 rounded-lg border border-black/[0.04] dark:border-white/[0.06] shadow-2xs">
-              <div className="text-[10px] text-[#86868b] dark:text-slate-400">RT (500Hz)</div>
-              <div className="text-xs font-bold text-[#5833c7] dark:text-[#9d7eff] font-mono">
+            <div className="bg-white dark:bg-[#0A0C14] p-2 rounded-xl border border-black/[0.04] dark:border-white/[0.06] shadow-2xs">
+              <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-medium">RT (500Hz)</div>
+              <div className="text-xs font-bold text-[#10b981] dark:text-emerald-400 font-mono mt-0.5">
                 {rt500.toFixed(2)}s
               </div>
             </div>
-            <div className="bg-white dark:bg-[#1a1c2c] p-2 rounded-lg border border-black/[0.04] dark:border-white/[0.06] shadow-2xs">
-              <div className="text-[10px] text-[#86868b] dark:text-slate-400">Dist. Crítica</div>
-              <div className="text-xs font-bold text-[#34c759] dark:text-emerald-400 font-mono">
+            <div className="bg-white dark:bg-[#0A0C14] p-2 rounded-xl border border-black/[0.04] dark:border-white/[0.06] shadow-2xs">
+              <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-medium">Dist. Crítica</div>
+              <div className="text-xs font-bold text-[#8b5cf6] dark:text-purple-400 font-mono mt-0.5">
                 {criticalDistance.toFixed(2)}m
               </div>
             </div>

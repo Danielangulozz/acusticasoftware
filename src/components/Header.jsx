@@ -44,7 +44,7 @@ export default function Header({
   };
 
   return (
-    <header className="bg-white/85 dark:bg-[#0c0d16]/90 backdrop-blur-xl border-b border-black/[0.08] dark:border-white/[0.08] sticky top-0 z-30 px-2.5 sm:px-6 py-2.5 sm:py-3 transition-colors">
+    <header className="bg-white/85 dark:bg-[#0B0F19]/95 backdrop-blur-xl border-b border-black/[0.08] dark:border-white/10 sticky top-0 z-30 px-2.5 sm:px-6 py-2.5 sm:py-3 transition-colors">
       <div className="flex items-center justify-between gap-1.5 sm:gap-4">
 
         {/* Lado Izquierdo: Botón Hamburguesa + Breadcrumbs */}
@@ -53,7 +53,7 @@ export default function Header({
             onClick={onToggleSidebar}
             className={`p-2 rounded-xl transition border flex items-center justify-center active:scale-95 shrink-0 ${isSidebarOpen
               ? 'bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] border-[#5833c7]/30'
-              : 'bg-[#f5f5f7] dark:bg-[#181a28] hover:bg-[#e8e8ed] dark:hover:bg-[#222438] text-[#1d1d1f] dark:text-slate-200 border-black/[0.06] dark:border-white/[0.08]'
+              : 'bg-[#f5f5f7] dark:bg-[#141622] hover:bg-[#e8e8ed] dark:hover:bg-[#1c1d2d] text-[#1d1d1f] dark:text-slate-200 border-black/[0.06] dark:border-white/10'
               }`}
             title={isSidebarOpen ? "Ocultar menú lateral" : "Mostrar menú lateral de módulos"}
           >
@@ -98,7 +98,7 @@ export default function Header({
             <select
               value={selectedPresetId || ''}
               onChange={(e) => onLoadPreset(e.target.value)}
-              className="bg-[#f5f5f7] dark:bg-[#181a28] hover:bg-[#e8e8ed] dark:hover:bg-[#202236] text-xs font-semibold text-[#1d1d1f] dark:text-slate-200 px-3 py-1.5 rounded-xl border border-black/[0.06] dark:border-white/[0.08] focus:outline-none focus:ring-2 focus:ring-[#5833c7]/30 transition cursor-pointer"
+              className="bg-[#f5f5f7] dark:bg-[#141622] hover:bg-[#e8e8ed] dark:hover:bg-[#1c1d2d] text-xs font-semibold text-[#1d1d1f] dark:text-slate-200 px-3.5 py-1.5 rounded-xl border border-black/[0.06] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#5833c7]/30 transition cursor-pointer"
             >
               <option value="" disabled>Escenario / Preset...</option>
               {ROOM_PRESETS.map((preset) => (

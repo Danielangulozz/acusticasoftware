@@ -517,3 +517,218 @@ export function modePressureAt(x, y, z, t, mode, Lx, Ly, Lz, amplitude = 1.0) {
   const f = mode.frequency || 50;
   return amplitude * shape * Math.cos(2 * Math.PI * f * t);
 }
+
+/**
+ * ==============================================================================
+ * PROGRAMA DE PRESIÓN ACÚSTICA LIBRE EN EL DOMINIO DEL TIEMPO p(t)
+ * ==============================================================================
+ * Modelado físico canónico de la oscilación amortiguada de una cavidad resonante:
+ * p_n(x, y, z, t) = P0 * psi_n(x, y, z) * exp(-delta * t) * cos(2*pi*f_n*t + phi)
+ *
+ * Parámetros y constantes:
+ * - delta: Factor de amortiguamiento de amplitud de presión: delta = 3*ln(10)/T60 ≈ 6.9078 / T60 [s^-1]
+ * - deltaEnergy: Factor de amortiguamiento de energía: delta_E = 6*ln(10)/T60 ≈ 13.8155 / T60 [s^-1]
+ * - tau: Constante de tiempo de relajación (tiempo para decaer a 1/e ≈ 36.8%): tau = 1/delta [s]
+ * - bandwidth: Ancho de banda a -3 dB: Delta_f = delta / pi ≈ 2.20 / T60 [Hz]
+ * - halfLife: Tiempo de vida media (tiempo para que la presión caiga al 50%): t_1/2 = ln(2) / delta [s]
+ */
+export function calculateModalDamping(T60 = 1.0) {
+  const t = Math.max(0.01, Number(T60) || 1.0);
+  const delta = (3 * Math.LN10) / t; // s^-1 (amplitud)
+  const deltaEnergy = (6 * Math.LN10) / t; // s^-1 (energía)
+  const tau = 1 / delta; // s
+  const bandwidth = delta / Math.PI; // Hz (~2.20 / T60)
+  const halfLife = Math.LN2 / delta; // s
+
+  return {
+    T60: Number(t.toFixed(3)),
+    delta: Number(delta.toFixed(4)),
+    deltaEnergy: Number(deltaEnergy.toFixed(4)),
+    tau: Number(tau.toFixed(4)),
+    tauMs: Number((tau * 1000).toFixed(2)),
+    bandwidth: Number(bandwidth.toFixed(3)),
+    halfLife: Number(halfLife.toFixed(4)),
+    halfLifeMs: Number((halfLife * 1000).toFixed(2)),
+  };
+}
+
+/**
+ * Genera la serie temporal de presión acústica p_n(t) y su envolvente exponencial +/- exp(-delta * t):
+ *
+ * @param {Object} params
+ * @param {Object} params.mode - Objeto del modo { nx, ny, nz, frequency }
+ * @param {number} params.Lx - Longitud de la sala [m]
+ * @param {number} params.Ly - Ancho de la sala [m]
+ * @param {number} params.Lz - Altura de la sala [m]
+ * @param {number} [params.x=0] - Posición X del receptor [m]
+ * @param {number} [params.y=0] - Posición Y del receptor [m]
+ * @param {number} [params.z=0] - Posición Z del receptor [m]
+ * @param {number} [params.T60=1.0] - Tiempo de reverberación T60 [s]
+ * @param {number} [params.durationMs=250] - Ventana temporal de visualización [ms]
+ * @param {number} [params.numPoints=600] - Cantidad de puntos discretizados
+ * @param {number} [params.initialPressure=1.0] - Amplitud pico inicial P0 [Pa]
+ * @param {number} [params.phase=0] - Fase inicial phi [rad]
+ */
+export function generateModeTimeResponse({
+  mode,
+  Lx = 10,
+  Ly = 6,
+  Lz = 3,
+  x = 0,
+  y = 0,
+  z = 0,
+  T60 = 1.0,
+  durationMs = 250,
+  numPoints = 600,
+  initialPressure = 1.0,
+  phase = 0,
+}) {
+  if (!mode) return null;
+
+  const f = Math.max(0.1, Number(mode.frequency || mode.freq || 50));
+  const period = 1 / f; // s
+  const periodMs = period * 1000; // ms
+  const shape = modePressureShape(x, y, z, mode, Lx, Ly, Lz);
+  const damping = calculateModalDamping(T60);
+  const delta = damping.delta;
+  const P0 = Math.max(0.001, Number(initialPressure) || 1.0);
+  const localPeak = P0 * shape;
+
+  const durationSec = Math.max(0.005, Number(durationMs) / 1000);
+  const N = Math.min(2000, Math.max(50, parseInt(numPoints, 10) || 600));
+
+  const samples = [];
+  for (let i = 0; i < N; i++) {
+    const t = (i / (N - 1)) * durationSec; // segundos
+    const tMs = t * 1000;
+    const decayFactor = Math.exp(-delta * t);
+    const envUpper = Math.abs(localPeak) * decayFactor;
+    const envLower = -envUpper;
+    const pressure = localPeak * decayFactor * Math.cos(2 * Math.PI * f * t + phase);
+
+    // Nivel en dB relativo al pico inicial local
+    const ratio = Math.abs(pressure) / (Math.abs(localPeak) || 1e-6);
+    const levelDb = ratio > 1e-6 ? 20 * Math.log10(ratio) : -120;
+
+    samples.push({
+      index: i,
+      t: Number(t.toFixed(6)),
+      tMs: Number(tMs.toFixed(3)),
+      pressure: Number(pressure.toFixed(4)),
+      envelopeUpper: Number(envUpper.toFixed(4)),
+      envelopeLower: Number(envLower.toFixed(4)),
+      decayFactor: Number(decayFactor.toFixed(4)),
+      levelDb: Number(levelDb.toFixed(1)),
+    });
+  }
+
+  const qualityFactor = Number(((Math.PI * f) / delta).toFixed(1));
+
+  return {
+    mode,
+    frequency: f,
+    period: Number(period.toFixed(6)),
+    periodMs: Number(periodMs.toFixed(3)),
+    spatialShape: Number(shape.toFixed(4)),
+    localPeak: Number(localPeak.toFixed(4)),
+    initialPressure: P0,
+    durationMs,
+    durationSec,
+    damping,
+    qualityFactor,
+    cyclesInWindow: Number((durationSec / period).toFixed(2)),
+    samples,
+  };
+}
+
+/**
+ * Superposición lineal de múltiples modos resonantes en el dominio del tiempo:
+ * p_total(t) = sum_k [ P_k * psi_k * exp(-delta * t) * cos(2*pi*f_k*t + phi_k) ]
+ * Demuestra físicamente interferencia destructiva/constructiva y batimiento acústico (beats).
+ */
+export function generateSuperposedModesTimeResponse({
+  modes = [],
+  Lx = 10,
+  Ly = 6,
+  Lz = 3,
+  x = 0,
+  y = 0,
+  z = 0,
+  T60 = 1.0,
+  durationMs = 250,
+  numPoints = 600,
+  initialPressure = 1.0,
+}) {
+  if (!modes || modes.length === 0) return null;
+
+  const damping = calculateModalDamping(T60);
+  const delta = damping.delta;
+  const P0 = Math.max(0.001, Number(initialPressure) || 1.0);
+  const durationSec = Math.max(0.005, Number(durationMs) / 1000);
+  const N = Math.min(2000, Math.max(50, parseInt(numPoints, 10) || 600));
+
+  const modesPrepared = modes.map(m => {
+    const f = Math.max(0.1, Number(m.frequency || m.freq || 50));
+    const shape = modePressureShape(x, y, z, m, Lx, Ly, Lz);
+    return {
+      ...m,
+      frequency: f,
+      shape,
+      localPeak: P0 * shape,
+    };
+  });
+
+  // Frecuencia de batimiento si hay 2 modos
+  let beatFreq = null;
+  let beatPeriodMs = null;
+  if (modesPrepared.length === 2) {
+    beatFreq = Number(Math.abs(modesPrepared[0].frequency - modesPrepared[1].frequency).toFixed(2));
+    if (beatFreq > 0.01) {
+      beatPeriodMs = Number(((1 / beatFreq) * 1000).toFixed(1));
+    }
+  }
+
+  const samples = [];
+  let maxTotalAmp = 0;
+
+  for (let i = 0; i < N; i++) {
+    const t = (i / (N - 1)) * durationSec;
+    const tMs = t * 1000;
+    const decayFactor = Math.exp(-delta * t);
+
+    let sumPressure = 0;
+    let sumEnvelope = 0;
+
+    modesPrepared.forEach(m => {
+      const pMode = m.localPeak * decayFactor * Math.cos(2 * Math.PI * m.frequency * t);
+      sumPressure += pMode;
+      sumEnvelope += Math.abs(m.localPeak) * decayFactor;
+    });
+
+    if (Math.abs(sumPressure) > maxTotalAmp) {
+      maxTotalAmp = Math.abs(sumPressure);
+    }
+
+    samples.push({
+      index: i,
+      t: Number(t.toFixed(6)),
+      tMs: Number(tMs.toFixed(3)),
+      pressure: Number(sumPressure.toFixed(4)),
+      envelopeUpper: Number(sumEnvelope.toFixed(4)),
+      envelopeLower: Number((-sumEnvelope).toFixed(4)),
+      decayFactor: Number(decayFactor.toFixed(4)),
+    });
+  }
+
+  return {
+    modes: modesPrepared,
+    damping,
+    durationMs,
+    durationSec,
+    beatFreq,
+    beatPeriodMs,
+    maxTotalAmp: Number(maxTotalAmp.toFixed(4)),
+    samples,
+  };
+}
+

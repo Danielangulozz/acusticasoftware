@@ -1,31 +1,29 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Layers, 
-  Copy, 
-  Check, 
-  Info, 
-  Sliders, 
+import {
+  Layers,
+  Copy,
+  Check,
+  Info,
+  Sliders,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Activity,
-  Clock,
-  Ruler,
-  Volume2,
-  Sparkles,
   Plus,
   Trash2,
-  DoorClosed,
-  AppWindow,
   SquareDashed,
-  Sparkle
+  Sparkles,
 } from 'lucide-react';
 import { OCTAVE_BANDS, ROOM_SURFACES } from '../utils/acousticCalculations';
-import { DEFAULT_MATERIALS_DATABASE, MATERIAL_CATEGORIES, getMaterialById, DEFAULT_SUB_ELEMENTS_PRESETS } from '../utils/defaultMaterials';
+import {
+  DEFAULT_MATERIALS_DATABASE,
+  MATERIAL_CATEGORIES,
+  getMaterialById,
+  DEFAULT_SUB_ELEMENTS_PRESETS,
+} from '../utils/defaultMaterials';
 
 /**
- * Componente de Materiales y Coeficientes de Absorción (α) con Sub-superficies (Puertas, Ventanas, Paneles)
- * Soporta polígonos dinámicos y dark mode.
+ * Módulo 2: Materiales y Caras (SurfaceMaterials)
+ * Diseño Bento Grid limpio, intuitivo y optimizado para reducir la sobrecarga cognitiva.
  */
 export default function SurfaceMaterials({
   materials = {},
@@ -34,9 +32,6 @@ export default function SurfaceMaterials({
   surfacesList,
   selectedBand = 1000,
   setSelectedBand,
-  absorptionData = {},
-  reverberationData = {},
-  soundFieldData = {},
 }) {
   // Lista dinámica de superficies
   const effectiveSurfaces = useMemo(() => {
@@ -57,8 +52,6 @@ export default function SurfaceMaterials({
   }, [materials, activeSurfaceId, effectiveSurfaces]);
 
   const [copiedNotification, setCopiedNotification] = useState(false);
-  const [isSubElementsOpen, setIsSubElementsOpen] = useState(false);
-
   const safeActiveId = materials[activeSurfaceId] ? activeSurfaceId : (effectiveSurfaces[0]?.id || 'floor');
 
   const handleSelectMaterial = (surfaceId, materialId) => {
@@ -76,7 +69,7 @@ export default function SurfaceMaterials({
   const handleCoefficientChange = (surfaceId, freq, value) => {
     const parsedVal = parseFloat(value);
     const safeVal = isNaN(parsedVal) ? 0 : Math.min(1.0, Math.max(0.001, parsedVal));
-    
+
     onChangeMaterials({
       ...materials,
       [surfaceId]: {
@@ -90,7 +83,7 @@ export default function SurfaceMaterials({
     });
   };
 
-  // Copiar a todas las paredes dinámicas
+  // Copiar material y coeficientes a todas las paredes dinámicas
   const handleCopyToAllWalls = () => {
     const activeConf = materials[safeActiveId] || {};
     const currentCoeffs = activeConf.coefficients || {};
@@ -110,7 +103,7 @@ export default function SurfaceMaterials({
 
     onChangeMaterials(updated);
     setCopiedNotification(true);
-    setTimeout(() => setCopiedNotification(false), 2000);
+    setTimeout(() => setCopiedNotification(false), 2200);
   };
 
   const handleAddSubElement = (surfaceId, presetType) => {
@@ -167,12 +160,12 @@ export default function SurfaceMaterials({
   const activeArea = surfaceAreas[safeActiveId] || 0;
   const activeSurfaceMeta = effectiveSurfaces.find((s) => s.id === safeActiveId) || { name: safeActiveId, description: '' };
 
-  // Cálculo de sub-elementos
+  // Sub-elementos y área efectiva
   const activeSubElements = currentSurfaceConfig.subElements || [];
   const activeSubAreaSum = activeSubElements.reduce((acc, el) => acc + (Number(el.area) || 0), 0);
   const activeBaseArea = Math.max(0, activeArea - activeSubAreaSum);
 
-  // Coeficiente efectivo compuesto
+  // Coeficiente efectivo compuesto para la banda activa
   const baseAlpha = currentSurfaceConfig.coefficients?.[selectedBand] || 0.05;
   const subAbsSum = activeSubElements.reduce((acc, el) => {
     const a = el.coefficients?.[selectedBand] ?? baseAlpha;
@@ -181,387 +174,321 @@ export default function SurfaceMaterials({
   const totalSurfaceAbsAtBand = (activeBaseArea * baseAlpha) + subAbsSum;
   const effectiveAlphaAtBand = activeArea > 0 ? (totalSurfaceAbsAtBand / activeArea) : baseAlpha;
 
-  // Métricas reactivas
-  const currentAbs = absorptionData[selectedBand] || { equivalentAbsorption: 0, alphaMean: 0 };
-  const currentRt = reverberationData[selectedBand] || { sabine: 0, eyring: 0, millington: 0 };
-  const currentSf = soundFieldData[selectedBand] || { roomConstant: 0, criticalDistance: 0 };
-
   const wallCount = effectiveSurfaces.filter(s => s.id.startsWith('wall')).length;
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 sm:p-8 shadow-apple-sm transition-all space-y-6">
-      
-      {/* Encabezado Principal y Selector de Banda Activa */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-black/[0.06] dark:border-white/[0.06]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3] dark:text-sky-400 flex items-center justify-center font-bold">
+    <div className="bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 shadow-apple-sm transition-all space-y-6">
+
+      {/* 1. Encabezado Bento Limpio */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-black/[0.06] dark:border-white/10">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa] flex items-center justify-center font-bold">
             <Layers className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#1d1d1f] dark:text-white tracking-tight">
-              2. Materiales y Coeficientes de Absorción (α)
+            <h2 className="text-lg font-black text-[#1d1d1f] dark:text-white tracking-tight">
+              2. Materiales y Caras
             </h2>
             <p className="text-xs text-[#86868b] dark:text-slate-400">
-              {effectiveSurfaces.length} superficies activas ({wallCount} paredes) · Impacto reactivo en tiempo real
+              {effectiveSurfaces.length} superficies activas ({wallCount} paredes) &bull; Coeficientes de absorción α por octava
             </p>
           </div>
         </div>
 
-        {/* Píldora de Selección Rápida de Frecuencia */}
-        <div className="flex items-center gap-2 self-start md:self-auto flex-wrap max-w-full">
-          <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#18192a] p-1 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] overflow-x-auto no-scrollbar touch-scroll-x max-w-full">
-            <span className="text-[11px] font-semibold text-[#86868b] dark:text-slate-400 px-2 hidden sm:inline">Banda Activa:</span>
-            {OCTAVE_BANDS.map((freq) => (
-              <button
-                key={freq}
-                onClick={() => setSelectedBand && setSelectedBand(freq)}
-                className={`px-2.5 py-1 text-xs font-mono font-bold rounded-xl transition ${
-                  selectedBand === freq
-                    ? 'bg-[#0071e3] text-white shadow-sm'
-                    : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
-                }`}
-              >
-                {freq >= 1000 ? `${freq / 1000}k` : `${freq}`} Hz
-              </button>
-            ))}
-          </div>
-
-          {/* Botón Replicar a todas las paredes */}
+        {/* Acciones Rápidas del Encabezado */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             onClick={handleCopyToAllWalls}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] hover:bg-[#e8e8ed] dark:hover:bg-[#222438] text-xs font-semibold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/[0.08] transition active:scale-95"
-            title={`Copiar material y coeficientes a las ${wallCount} paredes del recinto`}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#0A0C14] hover:bg-slate-200 dark:hover:bg-[#1c1e30] text-xs font-bold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/10 transition active:scale-95"
+            title={`Copiar material y coeficientes a las ${wallCount} paredes`}
           >
             {copiedNotification ? (
               <>
-                <Check className="w-3.5 h-3.5 text-[#34c759]" />
-                <span className="text-[#34c759] font-bold">¡Copiado a {wallCount} paredes!</span>
+                <Check className="w-3.5 h-3.5 text-[#10b981]" />
+                <span className="text-[#10b981]">¡Copiado a {wallCount} paredes!</span>
               </>
             ) : (
               <>
-                <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                <span>Aplicar a {wallCount} paredes</span>
+                <Copy className="w-3.5 h-3.5 text-slate-400" />
+                <span>Aplicar a todas las paredes ({wallCount})</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Tarjeta Flotante de Resultados Acústicos en Vivo para la Frecuencia Seleccionada */}
-      <div className="bg-[#fbfbfd] dark:bg-[#161726] p-4 rounded-2xl border border-[#0071e3]/20 shadow-apple-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#0071e3] text-white flex items-center justify-center font-black text-xs">
-            {selectedBand >= 1000 ? `${selectedBand / 1000}k` : `${selectedBand}`}
-          </div>
-          <div>
-            <div className="text-xs font-bold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
-              <span>Resultados para la Banda de {selectedBand} Hz</span>
-              <span className="text-[10px] font-mono text-[#0071e3] dark:text-sky-400 bg-[#0071e3]/10 dark:bg-[#0071e3]/20 px-2 py-0.5 rounded-full font-bold">
-                Evaluación reactiva
-              </span>
-            </div>
-            <div className="text-[11px] text-[#86868b] dark:text-slate-400 mt-0.5">
-              Absorción A = {currentAbs.equivalentAbsorption?.toFixed(2)} m² Sabine | Coef. Medio ᾱ = {currentAbs.alphaMean?.toFixed(3)}
-            </div>
-          </div>
+      {/* 2. Selector Horizontal de Superficies (Pills) */}
+      <div>
+        <div className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400 mb-2">
+          Seleccionar Superficie
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs font-mono">
-          <div className="bg-white dark:bg-[#1c1e30] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-            <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-sans font-semibold">Constante R</div>
-            <div className="font-bold text-[#1d1d1f] dark:text-white">{currentSf.roomConstant?.toFixed(2)} m²</div>
-          </div>
-          <div className="bg-white dark:bg-[#1c1e30] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-            <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-sans font-semibold">Distancia Crítica</div>
-            <div className="font-bold text-[#34c759] dark:text-emerald-400">{currentSf.criticalDistance?.toFixed(2)} m</div>
-          </div>
-          <div className="bg-white dark:bg-[#1c1e30] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-            <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-sans font-semibold">RT Sabine</div>
-            <div className="font-bold text-[#0071e3] dark:text-sky-400">{currentRt.sabine?.toFixed(2)} s</div>
-          </div>
-          <div className="bg-white dark:bg-[#1c1e30] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-            <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-sans font-semibold">RT Eyring / Mil.</div>
-            <div className="font-bold text-[#ff9500] dark:text-amber-400">{currentRt.eyring?.toFixed(2)}s / {currentRt.millington?.toFixed(2)}s</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Pestañas de Selección de Superficie (Piso, Techo, Paredes) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        {effectiveSurfaces.map((surf) => {
-          const isActive = safeActiveId === surf.id;
-          const surfArea = surfaceAreas[surf.id] || 0;
-          const currentMat = getMaterialById(materials[surf.id]?.materialId);
-          const alphaBand = materials[surf.id]?.coefficients?.[selectedBand] || 0.05;
-
-          return (
-            <button
-              key={surf.id}
-              onClick={() => setActiveSurfaceId(surf.id)}
-              className={`p-3.5 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between ${
-                isActive
-                  ? 'bg-white dark:bg-[#1a1c2e] border-[#0071e3] dark:border-sky-500 shadow-md ring-2 ring-[#0071e3]/20'
-                  : 'bg-[#fbfbfd] dark:bg-[#161726] border-black/[0.06] dark:border-white/[0.08] hover:bg-[#f5f5f7] dark:hover:bg-[#1e2034]'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold ${isActive ? 'text-[#0071e3] dark:text-sky-400' : 'text-[#1d1d1f] dark:text-slate-200'}`}>
-                    {surf.name.split('/')[0].split('(')[0]}
-                  </span>
-                  <span className="text-[10px] font-mono text-[#86868b] dark:text-slate-400">{surfArea.toFixed(1)} m²</span>
-                </div>
-                <p className="text-[11px] text-[#86868b] dark:text-slate-400 truncate mt-1" title={currentMat?.name || 'Material'}>
-                  {currentMat?.name || 'Personalizado'}
-                </p>
-              </div>
-
-              {/* Barra de Absorción Media para la Banda Seleccionada */}
-              <div className="mt-3">
-                <div className="flex justify-between text-[9px] text-[#86868b] dark:text-slate-400 font-mono mb-1">
-                  <span>α @ {selectedBand}Hz</span>
-                  <span className="text-[#1d1d1f] dark:text-white font-bold">{alphaBand.toFixed(2)}</span>
-                </div>
-                <div className="w-full bg-black/[0.06] dark:bg-white/[0.1] rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="bg-[#0071e3] dark:bg-sky-400 h-full rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, alphaBand * 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Tarjeta de Configuración de la Superficie Activa */}
-      <div className="bg-[#f5f5f7] dark:bg-[#161728] rounded-2xl p-5 sm:p-6 border border-black/[0.06] dark:border-white/[0.08]">
-        
-        {/* Barra Superior con Selector de Material */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06] mb-5">
-          <div>
-            <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-white flex items-center gap-2">
-              {activeSurfaceMeta.name}
-              <span className="text-xs font-mono font-medium text-[#0071e3] dark:text-sky-400 bg-[#0071e3]/10 dark:bg-[#0071e3]/20 px-2 py-0.5 rounded-md">
-                Área = {activeArea.toFixed(2)} m²
-              </span>
-            </h3>
-            <p className="text-xs text-[#86868b] dark:text-slate-400 mt-0.5">
-              {activeSurfaceMeta.description}
-            </p>
-          </div>
-
-          {/* Menú Desplegable de Materiales */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-xs font-semibold text-[#86868b] dark:text-slate-400 hidden sm:inline">Material:</span>
-            <select
-              value={currentSurfaceConfig.materialId}
-              onChange={(e) => handleSelectMaterial(safeActiveId, e.target.value)}
-              className="w-full sm:w-auto bg-white dark:bg-[#1e2034] text-xs text-[#1d1d1f] dark:text-white font-semibold px-3.5 py-2 rounded-xl border border-black/[0.1] dark:border-white/[0.12] hover:border-black/[0.2] dark:hover:border-white/[0.25] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 shadow-2xs transition cursor-pointer max-w-full sm:max-w-xs"
-            >
-              <option value="custom" disabled={currentSurfaceConfig.materialId !== 'custom'}>
-                ✏️ Valores Manuales / Personalizados
-              </option>
-              {Object.entries(MATERIAL_CATEGORIES).map(([catKey, catName]) => (
-                <optgroup key={catKey} label={catName} className="font-bold text-slate-800 dark:text-slate-200">
-                  {DEFAULT_MATERIALS_DATABASE.filter((m) => m.category === catName).map((mat) => (
-                    <option key={mat.id} value={mat.id} className="text-[#1d1d1f] dark:text-white">
-                      {mat.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Inputs de Coeficiente por Banda de Octava */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-          {OCTAVE_BANDS.map((freq) => {
-            const alpha = currentSurfaceConfig.coefficients[freq] || 0.05;
-            const surfaceAbs = activeArea * alpha;
-            const isSelected = selectedBand === freq;
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar touch-scroll-x">
+          {effectiveSurfaces.map((surf) => {
+            const isActive = safeActiveId === surf.id;
+            const surfArea = surfaceAreas[surf.id] || 0;
+            const currentMat = getMaterialById(materials[surf.id]?.materialId);
 
             return (
-              <div
-                key={freq}
-                onClick={() => setSelectedBand && setSelectedBand(freq)}
-                className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-white dark:bg-[#1a1c2e] border-[#0071e3] dark:border-sky-500 shadow-md ring-2 ring-[#0071e3]/30'
-                    : 'bg-white dark:bg-[#1a1c2e] border-black/[0.06] dark:border-white/[0.06] hover:border-black/[0.15]'
+              <button
+                key={surf.id}
+                onClick={() => setActiveSurfaceId(surf.id)}
+                className={`px-4 py-2.5 rounded-2xl border text-left shrink-0 transition-all flex items-center gap-3 ${
+                  isActive
+                    ? 'bg-[#5833c7] text-white border-[#5833c7] shadow-md shadow-[#5833c7]/20 font-bold'
+                    : 'bg-[#fbfbfd] dark:bg-[#0A0C14] border-black/[0.06] dark:border-white/10 text-[#1d1d1f] dark:text-slate-300 hover:border-black/[0.15] dark:hover:border-white/20'
                 }`}
               >
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className={`text-xs font-bold ${isSelected ? 'text-[#0071e3] dark:text-sky-400' : 'text-[#1d1d1f] dark:text-slate-200'}`}>
-                    {freq >= 1000 ? `${freq / 1000} kHz` : `${freq} Hz`}
-                  </span>
-                  {isSelected && (
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-[#0071e3] px-1.5 py-0.5 rounded-md">
-                      Activa
+                <div>
+                  <div className="text-xs font-bold flex items-center gap-1.5">
+                    <span>{surf.name.split('/')[0].split('(')[0]}</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-px rounded-md ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-black/[0.05] dark:bg-white/[0.08] text-[#86868b] dark:text-slate-400'
+                    }`}>
+                      {surfArea.toFixed(1)} m²
                     </span>
-                  )}
+                  </div>
+                  <div className={`text-[10px] truncate max-w-[140px] font-normal ${
+                    isActive ? 'text-white/80' : 'text-[#86868b] dark:text-slate-400'
+                  }`}>
+                    {currentMat?.name || 'Personalizado'}
+                  </div>
                 </div>
-
-                <input
-                  type="number"
-                  min="0.00"
-                  max="1.00"
-                  step="0.01"
-                  value={alpha}
-                  onFocus={() => setSelectedBand && setSelectedBand(freq)}
-                  onChange={(e) => handleCoefficientChange(safeActiveId, freq, e.target.value)}
-                  className={`w-full font-mono text-center text-base font-bold py-1.5 px-2 rounded-lg border focus:outline-none transition ${
-                    isSelected
-                      ? 'bg-[#0071e3]/5 dark:bg-[#0071e3]/20 border-[#0071e3] text-[#0071e3] dark:text-sky-400'
-                      : 'bg-[#fbfbfd] dark:bg-[#141524] border-black/[0.08] dark:border-white/[0.1] text-[#1d1d1f] dark:text-white focus:border-[#0071e3]'
-                  }`}
-                />
-
-                <div className="flex justify-between items-center text-[10px] font-mono text-[#86868b] dark:text-slate-400 mt-2 pt-1.5 border-t border-black/[0.04] dark:border-white/[0.06]">
-                  <span>Aporte Sᵢ · α:</span>
-                  <span className="text-[#1d1d1f] dark:text-slate-200 font-semibold">{surfaceAbs.toFixed(2)} m²</span>
-                </div>
-              </div>
+              </button>
             );
           })}
         </div>
+      </div>
 
-        {/* Descripción del Material Seleccionado */}
-        <div className="bg-white dark:bg-[#1a1c2e] p-3 rounded-xl border border-black/[0.06] dark:border-white/[0.06] text-xs text-[#86868b] dark:text-slate-400 flex items-start gap-2.5">
-          <Info className="w-4 h-4 text-[#0071e3] dark:text-sky-400 shrink-0 mt-0.5" />
-          <div>
-            <strong className="text-[#1d1d1f] dark:text-white">{currentMatMeta.name}: </strong>
-            <span>{currentMatMeta.description}</span>
-          </div>
-        </div>
+      {/* 3. Cuadrícula Bento de 2 Columnas */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-        {/* --- SECCIÓN DE SUB-ELEMENTOS Y ABERTURAS (PUERTAS, VENTANAS, PANELES) --- */}
-        <div className="mt-6 pt-5 border-t border-black/[0.06] dark:border-white/[0.06]">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        {/* Columna Izquierda (7 cols): Material y Coeficientes */}
+        <div className="lg:col-span-7 bg-[#fbfbfd] dark:bg-[#0A0C14] p-5 sm:p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 space-y-4">
+          
+          {/* Fila Superior: Nombre de Superficie y Selector de Material */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/[0.04] dark:border-white/[0.06]">
             <div>
-              <span className="text-xs font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <SquareDashed className="w-3.5 h-3.5 text-[#0071e3] dark:text-sky-400" />
-                Sub-elementos en {activeSurfaceMeta.name.split('/')[0]}
-              </span>
+              <div className="text-sm font-bold text-[#1d1d1f] dark:text-white flex items-center gap-2">
+                <span>{activeSurfaceMeta.name}</span>
+                <span className="text-xs font-mono font-bold text-[#5833c7] dark:text-[#a78bfa] bg-[#5833c7]/10 dark:bg-[#5833c7]/20 px-2 py-0.5 rounded-md">
+                  {activeArea.toFixed(2)} m²
+                </span>
+              </div>
               <p className="text-[11px] text-[#86868b] dark:text-slate-400 mt-0.5">
-                Incrusta aberturas o parches con área y coeficientes acústicos individuales.
+                {activeSurfaceMeta.description || 'Configuración acústica de esta cara'}
               </p>
             </div>
 
-            {/* Distribución Superficial y Toggle */}
-            <div className="flex items-center gap-2 text-xs font-mono flex-wrap">
-              <span className="text-[#86868b] dark:text-slate-400">Base: <strong className="text-[#1d1d1f] dark:text-white">{activeBaseArea.toFixed(1)} m²</strong></span>
-              <span className="text-[#86868b] dark:text-slate-600">•</span>
-              <span className="text-[#86868b] dark:text-slate-400">Aberturas: <strong className="text-[#0071e3] dark:text-sky-400">{activeSubAreaSum.toFixed(1)} m²</strong></span>
-              <button
-                type="button"
-                onClick={() => setIsSubElementsOpen(!isSubElementsOpen)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-[#1a1c2e] hover:bg-slate-100 dark:hover:bg-[#22253c] border border-black/[0.08] dark:border-white/[0.1] text-xs font-sans font-semibold text-[#0071e3] dark:text-sky-400 transition shadow-2xs"
+            <div className="w-full sm:w-auto">
+              <select
+                value={currentSurfaceConfig.materialId}
+                onChange={(e) => handleSelectMaterial(safeActiveId, e.target.value)}
+                className="w-full sm:w-auto bg-white dark:bg-[#141622] text-xs text-[#1d1d1f] dark:text-white font-bold px-3.5 py-2 rounded-xl border border-black/[0.1] dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[#5833c7]/30 shadow-2xs transition cursor-pointer max-w-full"
               >
-                <span>{isSubElementsOpen ? 'Ocultar' : `Gestionar (${activeSubElements.length})`}</span>
-                {isSubElementsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
+                <option value="custom" disabled={currentSurfaceConfig.materialId !== 'custom'}>
+                  ✏️ Coeficientes Personalizados
+                </option>
+                {Object.entries(MATERIAL_CATEGORIES).map(([catKey, catName]) => (
+                  <optgroup key={catKey} label={catName} className="font-bold text-slate-800 dark:text-slate-200">
+                    {DEFAULT_MATERIALS_DATABASE.filter((m) => m.category === catName).map((mat) => (
+                      <option key={mat.id} value={mat.id} className="text-[#1d1d1f] dark:text-white">
+                        {mat.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* Panel Desplegable de Sub-elementos */}
-          {isSubElementsOpen && (
-            <div className="animate-fadeIn space-y-3 pt-2">
-              {/* Botones Rápidos para Añadir Sub-elementos */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                <span className="text-[11px] font-semibold text-[#86868b] dark:text-slate-400 whitespace-nowrap">Añadir a la superficie:</span>
-                {DEFAULT_SUB_ELEMENTS_PRESETS.map((preset) => (
-                  <button
-                    key={preset.type}
-                    type="button"
-                    onClick={() => handleAddSubElement(safeActiveId, preset.type)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#1a1c2e] hover:bg-slate-100 dark:hover:bg-[#22253c] border border-black/[0.08] dark:border-white/[0.1] text-xs font-medium text-[#1d1d1f] dark:text-white transition-all shadow-2xs whitespace-nowrap active:scale-95"
+          {/* Breve descripción del material */}
+          <div className="p-3 bg-white dark:bg-[#141622] rounded-xl border border-black/[0.04] dark:border-white/[0.06] text-xs text-[#86868b] dark:text-slate-400 flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa] shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-[#1d1d1f] dark:text-white">{currentMatMeta.name}: </strong>
+              <span>{currentMatMeta.description}</span>
+            </div>
+          </div>
+
+          {/* Cuadrícula de Coeficientes de Absorción α (125 a 4000 Hz) */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400">
+                Coeficientes de Absorción (α) por Banda
+              </span>
+              <span className="text-[10px] text-[#86868b] dark:text-slate-400 font-mono">
+                Valores de 0.00 a 1.00
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {OCTAVE_BANDS.map((freq) => {
+                const alpha = currentSurfaceConfig.coefficients[freq] || 0.05;
+                const surfaceAbs = activeArea * alpha;
+                const isSelected = selectedBand === freq;
+
+                return (
+                  <div
+                    key={freq}
+                    onClick={() => setSelectedBand && setSelectedBand(freq)}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-white dark:bg-[#141622] border-[#5833c7] dark:border-[#a78bfa] ring-2 ring-[#5833c7]/20 shadow-xs'
+                        : 'bg-white dark:bg-[#141622] border-black/[0.06] dark:border-white/10 hover:border-black/[0.15]'
+                    }`}
                   >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: preset.colorHex }}></span>
-                    <span>+ {preset.name.split(' ')[0]} {preset.name.split(' ')[1] || ''}</span>
-                  </button>
-                ))}
-              </div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className={`text-xs font-bold font-mono ${
+                        isSelected ? 'text-[#5833c7] dark:text-[#a78bfa]' : 'text-[#1d1d1f] dark:text-slate-300'
+                      }`}>
+                        {freq >= 1000 ? `${freq / 1000} kHz` : `${freq} Hz`}
+                      </span>
+                      {isSelected && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-[#5833c7] px-1.5 py-px rounded-md">
+                          Activa
+                        </span>
+                      )}
+                    </div>
 
-              {/* Lista de Sub-elementos Incrustados */}
-              {activeSubElements.length === 0 ? (
-                <div className="p-4 rounded-xl border border-dashed border-black/[0.1] dark:border-white/[0.1] bg-white/50 dark:bg-black/20 text-center text-xs text-[#86868b] dark:text-slate-400">
-                  Esta superficie es 100% continua del material base. Haz clic arriba en <strong className="text-[#1d1d1f] dark:text-white">+ Añadir</strong> para incrustar una ventana, puerta o panel fonoabsorbente.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {activeSubElements.map((sub) => {
-                    const subAlpha = sub.coefficients?.[selectedBand] || 0.05;
-                    const subAbs = (Number(sub.area) || 0) * subAlpha;
-                    return (
+                    <input
+                      type="number"
+                      min="0.00"
+                      max="1.00"
+                      step="0.01"
+                      value={alpha}
+                      onFocus={() => setSelectedBand && setSelectedBand(freq)}
+                      onChange={(e) => handleCoefficientChange(safeActiveId, freq, e.target.value)}
+                      className="w-full font-mono text-center text-sm font-bold py-1 px-1.5 rounded-lg border bg-[#fbfbfd] dark:bg-[#0A0C14] border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#5833c7]"
+                    />
+
+                    {/* Barra visual de absorción */}
+                    <div className="w-full bg-black/[0.06] dark:bg-white/10 rounded-full h-1 mt-2 overflow-hidden">
                       <div
-                        key={sub.id}
-                        className="p-3.5 rounded-xl bg-white dark:bg-[#1a1c2e] border border-black/[0.08] dark:border-white/[0.1] shadow-2xs flex flex-col justify-between"
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sub.colorHex || '#0071e3' }}></span>
-                            <div className="min-w-0">
-                              <span className="text-xs font-bold text-[#1d1d1f] dark:text-white block truncate" title={sub.name}>
-                                {sub.name}
-                              </span>
-                              <span className="text-[10px] text-[#86868b] dark:text-slate-400 font-medium">
-                                {sub.category || 'Elemento'}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSubElement(safeActiveId, sub.id)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-                            title="Eliminar elemento"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        className="bg-[#5833c7] dark:bg-[#a78bfa] h-full rounded-full transition-all"
+                        style={{ width: `${Math.min(100, alpha * 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] font-mono text-[#86868b] dark:text-slate-400 mt-1.5">
+                      <span>Aporte:</span>
+                      <span className="text-[#1d1d1f] dark:text-slate-200 font-bold">{surfaceAbs.toFixed(2)} m²</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Columna Derecha (5 cols): Sub-elementos y Aberturas */}
+        <div className="lg:col-span-5 bg-[#fbfbfd] dark:bg-[#0A0C14] p-5 sm:p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 space-y-4">
+          
+          <div className="flex items-center justify-between pb-3 border-b border-black/[0.04] dark:border-white/[0.06]">
+            <div>
+              <div className="text-xs font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <SquareDashed className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa]" />
+                <span>Aberturas & Sub-elementos</span>
+              </div>
+              <p className="text-[11px] text-[#86868b] dark:text-slate-400 mt-0.5">
+                Ventanas, puertas o paneles incrustados
+              </p>
+            </div>
+            <span className="text-xs font-mono font-bold text-[#5833c7] dark:text-[#a78bfa] bg-[#5833c7]/10 dark:bg-[#5833c7]/20 px-2.5 py-0.5 rounded-full">
+              {activeSubElements.length} {activeSubElements.length === 1 ? 'elemento' : 'elementos'}
+            </span>
+          </div>
+
+          {/* Resumen Superficial */}
+          <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono bg-white dark:bg-[#141622] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+            <div>
+              <div className="text-[10px] text-[#86868b] dark:text-slate-400">Base</div>
+              <div className="font-bold text-[#1d1d1f] dark:text-white mt-0.5">{activeBaseArea.toFixed(1)} m²</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-[#86868b] dark:text-slate-400">Aberturas</div>
+              <div className="font-bold text-[#5833c7] dark:text-[#a78bfa] mt-0.5">{activeSubAreaSum.toFixed(1)} m²</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-[#86868b] dark:text-slate-400">ᾱ Efectivo</div>
+              <div className="font-bold text-[#10b981] mt-0.5">{effectiveAlphaAtBand.toFixed(2)}</div>
+            </div>
+          </div>
+
+          {/* Botones de Inserción Rápida */}
+          <div>
+            <div className="text-[11px] font-semibold text-[#86868b] dark:text-slate-400 mb-2">
+              Añadir a esta superficie:
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {DEFAULT_SUB_ELEMENTS_PRESETS.map((preset) => (
+                <button
+                  key={preset.type}
+                  type="button"
+                  onClick={() => handleAddSubElement(safeActiveId, preset.type)}
+                  className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-[#141622] hover:bg-slate-100 dark:hover:bg-[#1e2034] border border-black/[0.06] dark:border-white/10 text-xs text-[#1d1d1f] dark:text-white font-medium transition active:scale-95 text-left"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: preset.colorHex }} />
+                  <span className="truncate">{preset.name.split(' ')[0]} {preset.name.split(' ')[1] || ''}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lista de Sub-elementos Activos */}
+          <div className="space-y-2 pt-1">
+            {activeSubElements.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed border-black/[0.1] dark:border-white/10 text-center text-xs text-[#86868b] dark:text-slate-400 bg-white/40 dark:bg-black/20">
+                100% material continuo. Pulsa un botón arriba para incrustar una ventana, puerta o panel fonoabsorbente.
+              </div>
+            ) : (
+              activeSubElements.map((sub) => {
+                const subAlpha = sub.coefficients?.[selectedBand] || 0.05;
+                return (
+                  <div
+                    key={sub.id}
+                    className="p-3 rounded-xl bg-white dark:bg-[#141622] border border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sub.colorHex || '#5833c7' }} />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-[#1d1d1f] dark:text-white truncate">
+                          {sub.name}
                         </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-black/[0.04] dark:border-white/[0.06] text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-[#86868b] dark:text-slate-400">Área:</span>
-                            <input
-                              type="number"
-                              min="0.1"
-                              max={activeArea}
-                              step="0.1"
-                              value={sub.area}
-                              onChange={(e) => handleUpdateSubElementArea(safeActiveId, sub.id, e.target.value)}
-                              className="w-16 font-mono font-bold text-xs bg-[#fbfbfd] dark:bg-[#141524] px-1.5 py-0.5 rounded border border-black/[0.1] dark:border-white/[0.12] text-center text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#0071e3]"
-                            />
-                            <span className="text-[10px] text-[#86868b] dark:text-slate-400 font-mono">m²</span>
-                          </div>
-
-                          <div className="text-right font-mono text-[11px]">
-                            <span className="text-[#86868b] dark:text-slate-400">α: </span>
-                            <strong className="text-[#0071e3] dark:text-sky-400">{subAlpha.toFixed(2)}</strong>
-                            <span className="text-[10px] text-[#86868b] dark:text-slate-400 ml-1">({subAbs.toFixed(2)} m²)</span>
-                          </div>
+                        <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-mono">
+                          α = {subAlpha.toFixed(2)} @ {selectedBand}Hz
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    </div>
 
-              {/* Resumen de Absorción Compuesta Ponderada de la Pared */}
-              <div className="mt-3 p-3 rounded-xl bg-white dark:bg-[#1a1c2e] border border-black/[0.06] dark:border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-[#1d1d1f] dark:text-white">Coeficiente Efectivo Compuesto (ᾱ @ {selectedBand}Hz):</span>
-                  <span className="text-xs font-mono font-bold text-[#0071e3] dark:text-sky-400 bg-[#0071e3]/10 dark:bg-[#0071e3]/20 px-2 py-0.5 rounded-md">
-                    ᾱ_efectivo = {effectiveAlphaAtBand.toFixed(3)}
-                  </span>
-                </div>
-                <div className="text-[11px] font-mono text-[#86868b] dark:text-slate-400">
-                  Absorción total cara = <strong className="text-[#1d1d1f] dark:text-white">{totalSurfaceAbsAtBand.toFixed(2)} m² Sabine</strong>
-                </div>
-              </div>
-            </div>
-          )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max={activeArea}
+                          value={sub.area}
+                          onChange={(e) => handleUpdateSubElementArea(safeActiveId, sub.id, e.target.value)}
+                          className="w-14 bg-[#fbfbfd] dark:bg-[#0A0C14] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white px-1.5 py-1 rounded border border-black/[0.08] dark:border-white/10 text-right focus:outline-none focus:border-[#5833c7]"
+                        />
+                        <span className="text-[11px] font-mono text-[#86868b]">m²</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSubElement(safeActiveId, sub.id)}
+                        className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                        title="Eliminar elemento"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
         </div>
 
       </div>

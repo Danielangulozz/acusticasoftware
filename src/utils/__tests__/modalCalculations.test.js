@@ -14,6 +14,9 @@ import {
   modalDensityN,
   modalDensityDerivative,
   modePressureShape,
+  calculateModalDamping,
+  generateModeTimeResponse,
+  generateSuperposedModesTimeResponse,
 } from '../modalCalculations.js';
 
 describe('Cálculos Modales (modalCalculations)', () => {
@@ -130,5 +133,77 @@ describe('Cálculos Modales (modalCalculations)', () => {
     // En x = 2 (centro), cos(pi * 2 / 4) = cos(pi/2) = 0 (nodo)
     const pNode = modePressureShape(2, 1.5, 1.5, mode, 4, 3, 3);
     expect(Math.abs(pNode)).toBeCloseTo(0, 4);
+  });
+
+  it('calcula amortiguamiento modal: delta ≈ 6.908 / T60, tau, y ancho de banda a -3 dB', () => {
+    // Para T60 = 1.0 s: delta = 3 * ln(10) ≈ 6.9078 s^-1
+    // tau = 1 / delta ≈ 0.1448 s
+    // bandwidth = delta / pi ≈ 2.20 Hz
+    const d1 = calculateModalDamping(1.0);
+    expect(d1.delta).toBeCloseTo(6.9078, 3);
+    expect(d1.tau).toBeCloseTo(0.1448, 3);
+    expect(d1.bandwidth).toBeCloseTo(2.199, 2);
+
+    // Para T60 = 2.0 s: delta debe ser exactamente la mitad
+    const d2 = calculateModalDamping(2.0);
+    expect(d2.delta).toBeCloseTo(3.4539, 3);
+  });
+
+  it('genera la respuesta de presión libre p(t) y su envolvente exponencial', () => {
+    const mode = { nx: 1, ny: 0, nz: 0, frequency: 50 };
+    const resp = generateModeTimeResponse({
+      mode,
+      Lx: 3.43,
+      Ly: 3,
+      Lz: 3,
+      x: 0, // antinodo en la pared (cos = 1)
+      y: 0,
+      z: 0,
+      T60: 1.0,
+      durationMs: 200,
+      numPoints: 100,
+      initialPressure: 2.0,
+    });
+
+    expect(resp).toBeDefined();
+    expect(resp.samples.length).toBe(100);
+    // En t = 0, p(0) = P0 * cos(0) * exp(0) * cos(0) = 2.0
+    expect(resp.samples[0].pressure).toBeCloseTo(2.0, 3);
+    expect(resp.samples[0].envelopeUpper).toBeCloseTo(2.0, 3);
+
+    // A lo largo del tiempo, la envolvente debe decrecer estrictamente
+    const sFirst = resp.samples[0];
+    const sLast = resp.samples[resp.samples.length - 1];
+    expect(sLast.envelopeUpper).toBeLessThan(sFirst.envelopeUpper);
+
+    // Cada muestra p(t) debe estar acotada por la envolvente [-env, +env]
+    resp.samples.forEach(s => {
+      expect(s.pressure).toBeLessThanOrEqual(s.envelopeUpper + 0.0001);
+      expect(s.pressure).toBeGreaterThanOrEqual(s.envelopeLower - 0.0001);
+    });
+  });
+
+  it('calcula la superposición de 2 modos y detecta frecuencia de batimiento', () => {
+    const mode1 = { id: '1-0-0', nx: 1, ny: 0, nz: 0, frequency: 50 };
+    const mode2 = { id: '0-1-0', nx: 0, ny: 1, nz: 0, frequency: 55 };
+
+    const superposed = generateSuperposedModesTimeResponse({
+      modes: [mode1, mode2],
+      Lx: 4,
+      Ly: 4,
+      Lz: 3,
+      x: 0,
+      y: 0,
+      z: 0,
+      T60: 1.0,
+      durationMs: 300,
+      numPoints: 150,
+      initialPressure: 1.0,
+    });
+
+    expect(superposed).toBeDefined();
+    expect(superposed.beatFreq).toBeCloseTo(5.0, 2); // 55 - 50 = 5 Hz
+    expect(superposed.beatPeriodMs).toBeCloseTo(200.0, 1); // 1 / 5 = 200 ms
+    expect(superposed.samples.length).toBe(150);
   });
 });

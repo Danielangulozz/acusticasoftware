@@ -353,7 +353,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#090a10] text-[#1d1d1f] dark:text-[#f5f5f7] font-sans antialiased flex flex-col lg:flex-row transition-colors duration-200">
+    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#0B0F19] text-[#1d1d1f] dark:text-[#f5f5f7] font-sans antialiased flex flex-col lg:flex-row transition-colors duration-200">
 
       {/* Navegación Lateral (Sidebar) */}
       <Sidebar
@@ -497,6 +497,7 @@ export default function App() {
                 geometry={geometry}
                 materials={materials}
                 selectedBand={selectedBand}
+                soundFieldData={soundFieldData}
               />
             </div>
           )}

@@ -50,32 +50,41 @@ export default function RoomDimensions({
 
   // Tarjeta de métricas físicas y validación matemática
   const renderMetricsCard = () => (
-    <div className="bg-white dark:bg-[#121322] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] p-4 shadow-apple-sm transition-colors space-y-3">
+    <div className="bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-5 shadow-apple-sm transition-colors space-y-4">
+      <div className="flex items-center justify-between pb-1 border-b border-black/[0.05] dark:border-white/[0.06]">
+        <span className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400">
+          Telemetría del Recinto
+        </span>
+        <span className="text-[11px] font-mono text-[#5833c7] dark:text-[#a78bfa] font-bold">
+          {vertices.length} Caras Verticales
+        </span>
+      </div>
+
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-          <span className="text-[9.5px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider block">Volumen (V)</span>
-          <span className="text-base font-black text-[#1d1d1f] dark:text-white font-mono">
-            {geometry.volume.toFixed(1)} <span className="text-[10px] font-normal text-[#86868b]">m³</span>
+        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+          <span className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider block">Volumen (V)</span>
+          <span className="text-lg font-black text-[#1d1d1f] dark:text-white font-mono">
+            {geometry.volume.toFixed(1)} <span className="text-xs font-normal text-[#86868b]">m³</span>
           </span>
         </div>
 
-        <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-          <span className="text-[9.5px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider block">Superficie Total (S)</span>
-          <span className="text-base font-black text-[#1d1d1f] dark:text-white font-mono">
-            {geometry.totalSurfaceArea.toFixed(1)} <span className="text-[10px] font-normal text-[#86868b]">m²</span>
+        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+          <span className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider block">Superficie Total (S)</span>
+          <span className="text-lg font-black text-[#1d1d1f] dark:text-white font-mono">
+            {geometry.totalSurfaceArea.toFixed(1)} <span className="text-xs font-normal text-[#86868b]">m²</span>
           </span>
         </div>
 
-        <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-          <span className="text-[9.5px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider block">Recorrido Libre (l)</span>
-          <span className="text-base font-black text-[#1d1d1f] dark:text-white font-mono">
-            {geometry.meanFreePath.toFixed(2)} <span className="text-[10px] font-normal text-[#86868b]">m</span>
+        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+          <span className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider block">Recorrido Libre (l)</span>
+          <span className="text-lg font-black text-[#1d1d1f] dark:text-white font-mono">
+            {geometry.meanFreePath.toFixed(2)} <span className="text-xs font-normal text-[#86868b]">m</span>
           </span>
         </div>
 
-        <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-          <span className="text-[9.5px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider block">Proporción Modal</span>
-          <span className="text-xs font-bold text-[#5833c7] dark:text-[#8767f9] font-mono mt-0.5 block">
+        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+          <span className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider block">Proporción Modal</span>
+          <span className="text-sm font-black text-[#5833c7] dark:text-[#a78bfa] font-mono mt-0.5 block">
             1 : {ratioW} : {ratioL}
           </span>
         </div>
@@ -86,7 +95,7 @@ export default function RoomDimensions({
         <button
           type="button"
           onClick={() => setShowMathValidation(!showMathValidation)}
-          className="w-full flex items-center justify-between text-xs text-[#5833c7] dark:text-[#8767f9] hover:opacity-80 py-1 font-bold transition"
+          className="w-full flex items-center justify-between text-xs text-[#5833c7] dark:text-[#a78bfa] hover:opacity-80 py-1.5 font-bold transition"
         >
           <span className="flex items-center gap-1.5">
             <Calculator className="w-3.5 h-3.5" />
@@ -96,21 +105,21 @@ export default function RoomDimensions({
         </button>
 
         {showMathValidation && (
-          <div className="p-3 bg-[#fbfbfd] dark:bg-[#18192a] rounded-xl border border-black/[0.06] dark:border-white/[0.06] text-xs space-y-2 mt-2 animate-fadeIn font-mono">
+          <div className="p-3 bg-[#fbfbfd] dark:bg-[#0A0C14] rounded-2xl border border-black/[0.06] dark:border-white/[0.06] text-xs space-y-2 mt-2 animate-fadeIn font-mono">
             <div className="flex items-center justify-between text-[11px] pb-1 border-b border-black/[0.04] dark:border-white/[0.04]">
               <span className="text-[#86868b]">Método de Área:</span>
-              <strong className="text-emerald-600 dark:text-emerald-400">Algoritmo Shoelace (Gauss) ✓</strong>
+              <strong className="text-emerald-500 dark:text-emerald-400">Algoritmo Shoelace (Gauss) ✓</strong>
             </div>
-            <div className="text-[10.5px] text-[#86868b] leading-relaxed">
+            <div className="text-[11px] text-[#86868b] leading-relaxed">
               Área de Planta = <strong className="text-[#1d1d1f] dark:text-white">{(geometry.floorArea || 0).toFixed(2)} m²</strong>
               <br />
-              Volumen = Área × {height.toFixed(1)}m = <strong className="text-[#5833c7] dark:text-[#8767f9]">{geometry.volume.toFixed(2)} m³</strong>
+              Volumen = Área × {height.toFixed(1)}m = <strong className="text-[#5833c7] dark:text-[#a78bfa]">{geometry.volume.toFixed(2)} m³</strong>
               <br />
               Paredes = {vertices.length} caras verticales ({geometry.wallLengths?.reduce((s, l) => s + l, 0).toFixed(1)} m de perímetro)
               <br />
               Superficie Total S = <strong className="text-[#1d1d1f] dark:text-white">{geometry.totalSurfaceArea.toFixed(2)} m²</strong>
             </div>
-            <div className="pt-1 text-[10px] text-emerald-700 dark:text-emerald-400 font-sans flex items-center gap-1">
+            <div className="pt-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-sans flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Rigurosamente verificado para modelos de Sabine, Eyring y Millington.</span>
             </div>
@@ -130,24 +139,24 @@ export default function RoomDimensions({
         </button>
 
         {showSurfaceDetails && (
-          <div className="grid grid-cols-2 gap-1.5 pt-2 max-h-48 overflow-y-auto pr-1 animate-fadeIn">
+          <div className="grid grid-cols-2 gap-1.5 pt-2 max-h-48 overflow-y-auto pr-1 animate-fadeIn no-scrollbar">
             {surfacesList.map((surf) => {
               const area = geometry.surfaceAreas[surf.id] || 0;
               const dimLabel = geometry.surfaceDimensionsLabels?.[surf.id] || '';
               return (
                 <div
                   key={surf.id}
-                  className="bg-[#fbfbfd] dark:bg-[#18192a] p-2 rounded-lg border border-black/[0.06] dark:border-white/[0.06] text-xs"
+                  className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-2.5 rounded-xl border border-black/[0.06] dark:border-white/[0.06] text-xs"
                 >
-                  <div className="text-[9.5px] font-medium text-[#86868b] dark:text-slate-400 truncate" title={surf.name}>
+                  <div className="text-[10px] font-medium text-[#86868b] dark:text-slate-400 truncate" title={surf.name}>
                     {surf.name}
                   </div>
                   {dimLabel && (
-                    <div className="text-[8.5px] text-[#5833c7] dark:text-[#8767f9] font-mono truncate">
+                    <div className="text-[9px] text-[#5833c7] dark:text-[#a78bfa] font-mono truncate">
                       {dimLabel}
                     </div>
                   )}
-                  <div className="text-[11px] font-bold font-mono text-[#1d1d1f] dark:text-white mt-0.5">
+                  <div className="text-xs font-bold font-mono text-[#1d1d1f] dark:text-white mt-0.5">
                     {area.toFixed(1)} m²
                   </div>
                 </div>
@@ -160,30 +169,30 @@ export default function RoomDimensions({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 animate-fadeIn">
       
       {/* Encabezado Superior de Sección */}
-      <div className="bg-white dark:bg-[#121322] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] p-3 px-5 shadow-apple-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold">
-            <Box className="w-4 h-4" />
+      <div className="bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-5 px-6 shadow-apple-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa] flex items-center justify-center font-bold">
+            <Box className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-[#1d1d1f] dark:text-white tracking-tight">
+            <h2 className="text-lg font-black text-[#1d1d1f] dark:text-white tracking-tight">
               1. Geometría y Sala Acústica
             </h2>
             <p className="text-xs text-[#86868b] dark:text-slate-400">
-              Dibuja la planta del recinto · Arrastra vértices o edita paredes · Vista 3D sincronizada
+              Dibuja la planta del recinto &bull; Arrastra vértices o edita paredes &bull; Vista 3D sincronizada
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1 rounded-lg bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] text-[10px] font-bold flex items-center gap-1">
-            <PenTool className="w-3 h-3" />
+          <span className="px-3 py-1.5 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa] text-xs font-bold flex items-center gap-1.5 font-mono">
+            <PenTool className="w-3.5 h-3.5" />
             Editor 2D / 3D
           </span>
-          <span className="px-3 py-1 rounded-lg bg-[#f5f5f7] dark:bg-[#181a28] text-[#86868b] dark:text-slate-300 text-[10px] font-bold border border-black/[0.04] dark:border-white/[0.06]">
+          <span className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#0A0C14] text-[#86868b] dark:text-slate-300 text-xs font-bold border border-black/[0.04] dark:border-white/10 font-mono">
             {vertices.length} paredes
           </span>
         </div>

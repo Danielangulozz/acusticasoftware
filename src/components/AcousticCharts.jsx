@@ -178,16 +178,16 @@ export default function AcousticCharts({
   };
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 sm:p-8 shadow-apple-sm transition-colors">
+    <div className="bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado con Pestañas de Gráficas */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-black/[0.06] dark:border-white/[0.06] mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-black/[0.06] dark:border-white/10">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa] flex items-center justify-center font-bold">
             <LineChartIcon className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#1d1d1f] dark:text-white tracking-tight">
+            <h2 className="text-lg font-black text-[#1d1d1f] dark:text-white tracking-tight">
               5. Visualización Gráfica Interactiva
             </h2>
             <p className="text-xs text-[#86868b] dark:text-slate-400">
@@ -196,13 +196,13 @@ export default function AcousticCharts({
           </div>
         </div>
 
-        {/* Selector de Pestaña Estilo Píldora Apple */}
-        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#181a28] p-1 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] self-start md:self-auto">
+        {/* Selector de Pestaña Estilo Píldora */}
+        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#0A0C14] p-1.5 rounded-2xl border border-black/[0.04] dark:border-white/10 self-start md:self-auto">
           <button
             onClick={() => setActiveChartTab('rt_vs_freq')}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition ${
               activeChartTab === 'rt_vs_freq'
-                ? 'bg-white dark:bg-[#25283e] text-[#5833c7] dark:text-[#8767f9] shadow-sm font-bold'
+                ? 'bg-[#5833c7] text-white shadow-sm font-bold'
                 : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
@@ -212,7 +212,7 @@ export default function AcousticCharts({
             onClick={() => setActiveChartTab('lp_vs_dist')}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition ${
               activeChartTab === 'lp_vs_dist'
-                ? 'bg-white dark:bg-[#25283e] text-[#5833c7] dark:text-[#8767f9] shadow-sm font-bold'
+                ? 'bg-[#5833c7] text-white shadow-sm font-bold'
                 : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
@@ -222,7 +222,7 @@ export default function AcousticCharts({
             onClick={() => setActiveChartTab('abs_breakdown')}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition ${
               activeChartTab === 'abs_breakdown'
-                ? 'bg-white dark:bg-[#25283e] text-[#5833c7] dark:text-[#8767f9] shadow-sm font-bold'
+                ? 'bg-[#5833c7] text-white shadow-sm font-bold'
                 : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
@@ -325,7 +325,7 @@ export default function AcousticCharts({
             <div className="text-xs text-[#1d1d1f] dark:text-white font-medium">
               Atenuación espacial de presión sonora a <strong>{selectedBand} Hz</strong> (Lw={currentLw}dB, Q={currentQ})
             </div>
-            <div className="text-xs font-mono text-[#5833c7] dark:text-[#8767f9] flex items-center gap-2">
+            <div className="text-xs font-mono text-[#5833c7] dark:text-[#a78bfa] flex items-center gap-2">
               <span>Distancia Crítica Dc: <strong>{criticalDistance} m</strong></span>
             </div>
           </div>
@@ -359,12 +359,12 @@ export default function AcousticCharts({
                 {/* Línea vertical de Distancia Crítica Dc */}
                 <ReferenceLine 
                   x={criticalDistance} 
-                  stroke="#ff9500" 
+                  stroke="#f59e0b" 
                   strokeDasharray="4 4" 
                   strokeWidth={1.5}
                   label={{ 
                     value: `Dc = ${criticalDistance}m`, 
-                    fill: '#ff9500', 
+                    fill: '#f59e0b', 
                     fontSize: 10, 
                     position: 'top',
                     fontFamily: 'monospace'
@@ -374,7 +374,7 @@ export default function AcousticCharts({
                 {/* Línea horizontal del nivel de campo reverberado puro */}
                 <ReferenceLine 
                   y={revLevel} 
-                  stroke="#34c759" 
+                  stroke="#10b981" 
                   strokeDasharray="2 2" 
                   strokeWidth={1}
                 />
@@ -383,7 +383,7 @@ export default function AcousticCharts({
                   type="monotone" 
                   dataKey="lpTotal" 
                   name="Nivel Total Lp" 
-                  stroke="#ff9500" 
+                  stroke="#f59e0b" 
                   strokeWidth={3} 
                   dot={false}
                 />
@@ -400,7 +400,7 @@ export default function AcousticCharts({
                   type="monotone" 
                   dataKey="lpReverberant" 
                   name="Sonido Reverberado" 
-                  stroke="#34c759" 
+                  stroke="#10b981" 
                   strokeWidth={1.5} 
                   strokeDasharray="3 3"
                   dot={false}
@@ -443,8 +443,10 @@ export default function AcousticCharts({
                   wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace' }}
                   contentStyle={{ 
                     borderRadius: '1rem', 
-                    border: '1px solid rgba(0,0,0,0.08)',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    backgroundColor: '#141622',
+                    color: '#fff',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
                   }}
                 />
                 <Legend 

@@ -5,8 +5,7 @@ import {
   BarChart3,
   ShieldCheck,
   Eye,
-  MapPin,
-  GitCompare,
+  Activity,
   Ruler,
   AlertTriangle,
   Sliders,
@@ -17,9 +16,8 @@ import ModesTable from './ModesTable';
 import ModesHistogram from './ModesHistogram';
 import ModalDensityChart from './ModalDensityChart';
 import BonelloAnalysis from './BonelloAnalysis';
+import TimeDomainResponse from './TimeDomainResponse';
 import PressureFieldViewer from './PressureFieldViewer';
-import MeasurementPanel from './MeasurementPanel';
-import ModesComparison from './ModesComparison';
 import BoltProportions from './BoltProportions';
 import { speedOfSoundFromTemperature } from '../../utils/modalCalculations';
 
@@ -68,12 +66,11 @@ export default function ModesModule({
   };
 
   const tabs = [
-    { id: 'table', label: 'Modos y Tabla', icon: TableProperties },
-    { id: 'histogram', label: 'Histograma y Densidad', icon: BarChart3 },
-    { id: 'bonello', label: 'Criterio de Bonello', icon: ShieldCheck, badge: bonelloResult.complies ? 'CUMPLE' : 'FALLA' },
-    { id: 'pressure', label: 'Campo de Presión 2D', icon: Eye },
-    { id: 'measurement', label: 'Medición In Situ', icon: MapPin },
-    { id: 'comparison', label: 'Comparativa REW / FEM', icon: GitCompare },
+    { id: 'table', label: '1. Modos de Vibración (x,y,z)', icon: TableProperties },
+    { id: 'histogram', label: '2. Repeticiones vs Frecuencia', icon: BarChart3 },
+    { id: 'bonello', label: '3. Criterio de Bonello', icon: ShieldCheck, badge: bonelloResult.complies ? 'CUMPLE' : 'FALLA' },
+    { id: 'time', label: '4. Presión Libre en el Tiempo p(t)', icon: Activity },
+    { id: 'pressure', label: '5. Distribución Espacial 2D', icon: Eye },
     { id: 'bolt', label: 'Proporciones de Bolt', icon: Ruler },
   ];
 
@@ -243,6 +240,10 @@ export default function ModesModule({
             setSelectedMode(m);
             setActiveTab('pressure');
           }}
+          onSelectModeTime={(m) => {
+            setSelectedMode(m);
+            setActiveTab('time');
+          }}
           schroederFreq={schroederFreq}
         />
       )}
@@ -276,29 +277,21 @@ export default function ModesModule({
         />
       )}
 
+      {activeTab === 'time' && (
+        <TimeDomainResponse
+          modes={modes}
+          selectedMode={selectedMode}
+          dimensions={dimensions}
+          t60={schroederData?.T60 || modalSettings?.t60Override || 1.0}
+        />
+      )}
+
       {activeTab === 'pressure' && (
         <PressureFieldViewer
           modes={modes}
           selectedMode={selectedMode}
           onSelectMode={setSelectedMode}
           dimensions={dimensions}
-        />
-      )}
-
-      {activeTab === 'measurement' && (
-        <MeasurementPanel
-          dimensions={dimensions}
-          modes={modes}
-          measurementData={measurementData}
-          onUpdateMeasurementData={onUpdateMeasurementData}
-        />
-      )}
-
-      {activeTab === 'comparison' && (
-        <ModesComparison
-          theoreticalModes={modes}
-          schroederFreq={schroederFreq}
-          measurementData={measurementData}
         />
       )}
 

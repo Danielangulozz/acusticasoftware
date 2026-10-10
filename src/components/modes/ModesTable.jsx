@@ -7,6 +7,7 @@ import {
   Layers,
   ChevronDown,
   Eye,
+  Activity,
   Sparkles,
   Info
 } from 'lucide-react';
@@ -19,6 +20,7 @@ export default function ModesTable({
   modes = [],
   selectedMode = null,
   onSelectMode = () => {},
+  onSelectModeTime = () => {},
   schroederFreq = 385,
 }) {
   const [filterType, setFilterType] = useState('all'); // 'all' | 'axial' | 'tangential' | 'oblique'
@@ -278,20 +280,32 @@ export default function ModesTable({
                       {m.weight === 1.0 ? '1.0 (0 dB)' : m.weight === 0.5 ? '0.5 (-3 dB)' : '0.25 (-6 dB)'}
                     </td>
                     <td className="py-2.5 px-3 text-center font-sans">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectMode(m);
-                        }}
-                        className={`p-1.5 rounded-lg transition-all ${
-                          isSelected
-                            ? 'bg-[#5833c7] text-white shadow-sm'
-                            : 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                        }`}
-                        title="Ver en Visor de Presión 2D"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectMode(m);
+                          }}
+                          className={`p-1.5 rounded-lg transition-all ${
+                            isSelected
+                              ? 'bg-[#5833c7] text-white shadow-sm'
+                              : 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-[#5833c7]/10'
+                          }`}
+                          title="Ver en Visor Espacial 2D"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectModeTime(m);
+                          }}
+                          className="p-1.5 rounded-lg bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] hover:text-[#5833c7] hover:bg-[#5833c7]/10 transition-all"
+                          title="Ver en Dominio del Tiempo p(t)"
+                        >
+                          <Activity className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
