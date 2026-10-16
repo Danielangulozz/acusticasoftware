@@ -36,10 +36,25 @@ export function speedOfSoundFromTemperature(tempC = 20) {
 }
 
 /**
- * Obtiene las dimensiones rectangulares Lx, Ly, Lz a partir del polígono de la sala
- * y verifica si la planta es estrictamente rectangular ortogonal.
+ * Calcula el área de un polígono 2D mediante la fórmula de Gauss (Shoelace).
  */
-export function getRectangularDims(roomPolygon, fallbackHeight = 3.0) {
+export function calcPolygonArea(vertices) {
+  if (!vertices || vertices.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < vertices.length; i++) {
+    const j = (i + 1) % vertices.length;
+    area += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y;
+  }
+  return Math.abs(area) / 2;
+}
+
+/**
+ * Obtiene las dimensiones rectangulares Lx, Ly, Lz a partir del polígono de la sala.
+ * Soporta dos modos para recintos irregulares:
+ * - 'equivalent': Rectángulo de Área/Volumen Equivalente (Lx_eq * Ly_eq = S_suelo, aspect = ΔX/ΔY)
+ * - 'bounding': Caja Envolvente Máxima (Bounding Box: Lx = ΔX, Ly = ΔY)
+ */
+export function getRectangularDims(roomPolygon, fallbackHeight = 3.0, floorArea = null, dimensionMode = 'equivalent') {
   const vertices = roomPolygon?.vertices || [];
   const H = Math.max(0.1, Number(roomPolygon?.height || fallbackHeight || 3.0));
 
@@ -50,6 +65,11 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0) {
       Lz: H,
       isRectangular: true,
       hasCurvatures: false,
+      dimensionMode: 'bounding',
+      floorArea: 60.0,
+      volume: 60.0 * H,
+      boundingBox: { minX: 0, maxX: 10, minY: 0, maxY: 6, width: 10, length: 6, height: H, area: 60, volume: 60 * H },
+      equivalentBox: { Lx: 10, Ly: 6, Lz: H, area: 60, volume: 60 * H },
     };
   }
 
@@ -58,9 +78,10 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0) {
   const minX = Math.min(...xs), maxX = Math.max(...xs);
   const minY = Math.min(...ys), maxY = Math.max(...ys);
 
-  const Lx = Math.max(0.1, Number((maxX - minX).toFixed(3)));
-  const Ly = Math.max(0.1, Number((maxY - minY).toFixed(3)));
-  const Lz = H;
+  const bbWidth = Math.max(0.1, Number((maxX - minX).toFixed(3)));
+  const bbLength = Math.max(0.1, Number((maxY - minY).toFixed(3)));
+  const bbArea = Number((bbWidth * bbLength).toFixed(2));
+  const bbVolume = Number((bbArea * H).toFixed(2));
 
   // Verificación de rectangularidad estricta (4 vértices ortogonales alineados a ejes sin arcos)
   const curvatures = roomPolygon?.curvatures || {};
@@ -72,7 +93,6 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0) {
       const j = (i + 1) % 4;
       const dx = Math.abs(vertices[j].x - vertices[i].x);
       const dy = Math.abs(vertices[j].y - vertices[i].y);
-      // Cada lado debe ser o casi horizontal o casi vertical
       const isOrthogonal = (dx < 0.01 && dy > 0.01) || (dy < 0.01 && dx > 0.01);
       if (!isOrthogonal) {
         isRectangular = false;
@@ -81,13 +101,57 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0) {
     }
   }
 
+  // Área física real del suelo (S_suelo)
+  const realFloorArea = (floorArea !== null && !isNaN(floorArea) && floorArea > 0)
+    ? Number(floorArea)
+    : Math.max(0.1, calcPolygonArea(vertices));
+  const realVolume = Number((realFloorArea * H).toFixed(2));
+
+  // Dimensiones de Área Equivalente:
+  // aspect = ΔX / ΔY
+  // Lx_eq = sqrt(S_suelo * aspect)
+  // Ly_eq = sqrt(S_suelo / aspect)
+  // Lx_eq * Ly_eq = S_suelo exactamente!
+  const aspect = bbWidth / Math.max(0.001, bbLength);
+  const Lx_eq = Number(Math.sqrt(realFloorArea * aspect).toFixed(3));
+  const Ly_eq = Number(Math.sqrt(realFloorArea / aspect).toFixed(3));
+  const Lz_eq = H;
+
+  // Si no es rectangular, por defecto se usa el modelo de Área Equivalente
+  const effectiveMode = isRectangular ? 'bounding' : (dimensionMode || 'equivalent');
+  const useEquivalent = effectiveMode === 'equivalent';
+
+  const finalLx = useEquivalent ? Lx_eq : bbWidth;
+  const finalLy = useEquivalent ? Ly_eq : bbLength;
+  const finalLz = Lz_eq;
+
   return {
-    Lx,
-    Ly,
-    Lz,
+    Lx: finalLx,
+    Ly: finalLy,
+    Lz: finalLz,
     isRectangular,
     hasCurvatures,
-    boundingBox: { minX, maxX, minY, maxY, width: Lx, length: Ly },
+    dimensionMode: effectiveMode,
+    floorArea: realFloorArea,
+    volume: useEquivalent ? realVolume : bbVolume,
+    boundingBox: {
+      minX,
+      maxX,
+      minY,
+      maxY,
+      width: bbWidth,
+      length: bbLength,
+      height: H,
+      area: bbArea,
+      volume: bbVolume,
+    },
+    equivalentBox: {
+      Lx: Lx_eq,
+      Ly: Ly_eq,
+      Lz: Lz_eq,
+      area: realFloorArea,
+      volume: realVolume,
+    },
   };
 }
 
@@ -204,14 +268,26 @@ export function computeModes({
   c = 343.0,
   nMax = 4,
   fMax = null,
+  dynamicNMax = false,
 }) {
-  const validNMax = Math.min(12, Math.max(1, parseInt(nMax, 10) || 4));
   const maxF = fMax !== null && !isNaN(fMax) && fMax > 0 ? Number(fMax) : null;
+  const userNMax = Math.min(25, Math.max(1, parseInt(nMax, 10) || 4));
+
+  const nxLimit = (maxF && dynamicNMax)
+    ? Math.min(35, Math.max(userNMax, Math.ceil((2 * maxF * Lx) / c)))
+    : userNMax;
+  const nyLimit = (maxF && dynamicNMax)
+    ? Math.min(35, Math.max(userNMax, Math.ceil((2 * maxF * Ly) / c)))
+    : userNMax;
+  const nzLimit = (maxF && dynamicNMax)
+    ? Math.min(35, Math.max(userNMax, Math.ceil((2 * maxF * Lz) / c)))
+    : userNMax;
+
   const modes = [];
 
-  for (let nx = 0; nx <= validNMax; nx++) {
-    for (let ny = 0; ny <= validNMax; ny++) {
-      for (let nz = 0; nz <= validNMax; nz++) {
+  for (let nx = 0; nx <= nxLimit; nx++) {
+    for (let ny = 0; ny <= nyLimit; ny++) {
+      for (let nz = 0; nz <= nzLimit; nz++) {
         if (nx === 0 && ny === 0 && nz === 0) continue; // Excluir (0,0,0)
 
         const f = modeFrequency(nx, ny, nz, Lx, Ly, Lz, c);
@@ -248,6 +324,32 @@ export function computeModes({
     ...m,
     index: idx + 1,
   }));
+}
+
+/**
+ * Calcula exhaustivamente todas las frecuencias modales hasta fMax
+ * sin truncamiento de índices por eje (n_max_x = ceil(2*fMax*Lx/c), etc.)
+ */
+export function computeAllModesUpToFreq(Lx, Ly, Lz, fMax = 400, c = 343.0) {
+  const maxF = Math.max(10, Number(fMax) || 400);
+  const nxLimit = Math.min(45, Math.ceil((2 * maxF * Lx) / c));
+  const nyLimit = Math.min(45, Math.ceil((2 * maxF * Ly) / c));
+  const nzLimit = Math.min(45, Math.ceil((2 * maxF * Lz) / c));
+
+  const freqs = [];
+  for (let nx = 0; nx <= nxLimit; nx++) {
+    for (let ny = 0; ny <= nyLimit; ny++) {
+      for (let nz = 0; nz <= nzLimit; nz++) {
+        if (nx === 0 && ny === 0 && nz === 0) continue;
+        const f = modeFrequency(nx, ny, nz, Lx, Ly, Lz, c);
+        if (f <= maxF) {
+          freqs.push(f);
+        }
+      }
+    }
+  }
+  freqs.sort((a, b) => a - b);
+  return freqs;
 }
 
 /**
@@ -345,9 +447,13 @@ export function countModesByBand(modes = [], maxBandFreq = 1000) {
       fHigh: Number(fHigh.toFixed(1)),
       count,
       cumulative,
+      cumulativeCount: cumulative,
       axial,
+      axialCount: axial,
       tangential,
+      tangentialCount: tangential,
       oblique,
+      obliqueCount: oblique,
       modes: modesInBand,
     };
   });

@@ -16,7 +16,11 @@ import {
   nudgeVertex,
   getEdgeNormal,
   centerPolygonAtOrigin,
+  findSmartStrokeSnap,
+  getAdaptiveGridStep,
   round2,
+  pointInPolygon,
+  findSafeInteriorPoint,
 } from '../sketchGeometry';
 
 describe('sketchGeometry utils', () => {
@@ -243,6 +247,164 @@ describe('sketchGeometry utils', () => {
       expect(centered[1]).toEqual({ x: 4, y: 0 });
       expect(centered[2]).toEqual({ x: 4, y: 4 });
       expect(centered[3]).toEqual({ x: 0, y: 4 });
+    });
+  });
+
+  describe('findSmartStrokeSnap (Seguir lo recto del trazo sin saltar a esquinas de cuadrante)', () => {
+    const from = { x: 3.4, y: 5.5 };
+
+    it('engancha trazo vertical hacia arriba manteniendo X exactamente recto', () => {
+      // El cursor se mueve hacia arriba (Y menor en pantalla) con una leve desviación en X
+      const cursor = { x: 3.46, y: 2.1 };
+      const res = findSmartStrokeSnap(cursor, from, { gridStep: 0.5 });
+      expect(res).not.toBeNull();
+      expect(res.isStraight).toBe(true);
+      expect(res.axis).toBe('v');
+      // Debe mantener X exactamente en from.x (3.4), no desviarse a la esquina de cuadrícula 3.5
+      expect(res.point.x).toBe(3.4);
+      // La coordenada Y debe avanzar limpiamente
+      expect(res.point.y).toBeLessThan(from.y);
+      expect(res.angle).toBe(90);
+    });
+
+    it('engancha trazo horizontal hacia la derecha manteniendo Y exactamente recto', () => {
+      const cursor = { x: 8.2, y: 5.56 };
+      const res = findSmartStrokeSnap(cursor, from, { gridStep: 0.5 });
+      expect(res).not.toBeNull();
+      expect(res.isStraight).toBe(true);
+      expect(res.axis).toBe('h');
+      // Debe mantener Y exactamente en from.y (5.5)
+      expect(res.point.y).toBe(5.5);
+      expect(res.point.x).toBeGreaterThan(from.x);
+      expect(res.angle).toBe(0);
+    });
+
+    it('alinea con el eje X de un vértice de referencia existente (Smart Alignment)', () => {
+      const p1 = { x: 0, y: 0 };
+      const fromPt = { x: 6, y: 4 };
+      // El cursor se mueve horizontalmente hacia la izquierda y se acerca a la vertical de p1
+      const cursor = { x: 0.12, y: 4.04 };
+      const res = findSmartStrokeSnap(cursor, fromPt, {
+        referencePoints: [p1],
+        gridStep: 0.5,
+        alignTolerance: 0.35,
+      });
+      expect(res).not.toBeNull();
+      expect(res.type).toBe('aligned-x');
+      expect(res.point.x).toBe(0);
+      expect(res.point.y).toBe(4);
+    });
+
+    it('engancha a 90° perpendicular relativo de la pared anterior (tomar direccion del trazo)', () => {
+      // Supongamos un muro previo inclinado de P0 a P1 con vector a 45°
+      // P0 = (0, 0), P1 = (2, -2) -> en pantalla screenAngleDeg es 45°
+      const p0 = { x: 0, y: 0 };
+      const fromPt = { x: 2, y: -2 };
+      // La perpendicular a 45° es 45° + 90° = 135° (arriba a la izquierda)
+      // Situamos el cursor cerca de 135°
+      const cursor = { x: 0.65, y: -3.45 };
+      const res = findSmartStrokeSnap(cursor, fromPt, {
+        previousPoint: p0,
+        gridStep: 0.10,
+        angleToleranceDeg: 9.5,
+      });
+      expect(res).not.toBeNull();
+      expect(res.isStraight).toBe(true);
+      expect(res.axis).toBe('relative-perp');
+      expect(res.type).toBe('perp-prev');
+      expect(res.angle).toBe(135);
+    });
+
+    it('engancha a extensión colineal relativa (0°) de la pared anterior', () => {
+      const p0 = { x: 0, y: 0 };
+      const fromPt = { x: 3, y: -3 }; // 45°
+      // Cursor continuando en la misma dirección a 45°
+      const cursor = { x: 5.8, y: -5.9 };
+      const res = findSmartStrokeSnap(cursor, fromPt, {
+        previousPoint: p0,
+        gridStep: 0.10,
+        angleToleranceDeg: 9.5,
+      });
+      expect(res).not.toBeNull();
+      expect(res.isStraight).toBe(true);
+      expect(res.axis).toBe('relative-parallel');
+      expect(res.type).toBe('parallel-prev');
+      expect(res.angle).toBe(45);
+    });
+  });
+
+  describe('getAdaptiveGridStep (resolución adaptativa según zoom)', () => {
+    it('retorna resolución quirúrgica de 2 cm (0.02m) en zoom muy cercano (>= 3.5)', () => {
+      expect(getAdaptiveGridStep(4.0)).toBe(0.02);
+      expect(getAdaptiveGridStep(3.5)).toBe(0.02);
+    });
+
+    it('retorna 5 cm (0.05m) en zoom >= 2.2', () => {
+      expect(getAdaptiveGridStep(2.5)).toBe(0.05);
+      expect(getAdaptiveGridStep(2.2)).toBe(0.05);
+    });
+
+    it('retorna 10 cm (0.10m) en zoom >= 1.5', () => {
+      expect(getAdaptiveGridStep(1.8)).toBe(0.10);
+      expect(getAdaptiveGridStep(1.5)).toBe(0.10);
+    });
+
+    it('retorna 20 cm (0.20m) en zoom >= 1.1', () => {
+      expect(getAdaptiveGridStep(1.2)).toBe(0.20);
+    });
+
+    it('retorna 50 cm (0.50m) en zoom estándar (0.7 a 1.0)', () => {
+      expect(getAdaptiveGridStep(1.0)).toBe(0.50);
+      expect(getAdaptiveGridStep(0.8)).toBe(0.50);
+    });
+
+    it('retorna 1.00m en zoom alejado (< 0.7)', () => {
+      expect(getAdaptiveGridStep(0.5)).toBe(1.00);
+      expect(getAdaptiveGridStep(0.25)).toBe(1.00);
+    });
+  });
+
+  describe('findSafeInteriorPoint', () => {
+    it('retorna el punto preferido si ya se encuentra dentro del polígono', () => {
+      const rect = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 6 }, { x: 0, y: 6 }];
+      const pref = { x: 3, y: 3, z: 1.5 };
+      const safe = findSafeInteriorPoint(rect, pref);
+      expect(safe.x).toBe(3);
+      expect(safe.y).toBe(3);
+      expect(safe.z).toBe(1.5);
+    });
+
+    it('ubica un punto interior seguro en un polígono en forma de L si el centroide o punto previo está fuera', () => {
+      // Forma L donde (4, 4) está en el hueco recortado exterior
+      const lShape = [
+        { x: 0, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 2 },
+        { x: 2, y: 2 }, { x: 2, y: 6 }, { x: 0, y: 6 }
+      ];
+      const outsidePoint = { x: 4, y: 4, z: 1.5 };
+      expect(pointInPolygon(outsidePoint, lShape)).toBe(false);
+
+      const safe = findSafeInteriorPoint(lShape, outsidePoint);
+      expect(pointInPolygon(safe, lShape)).toBe(true);
+      expect(safe.z).toBe(1.5);
+    });
+
+    it('garantiza que el punto generado en una sala irregular de 12 paredes siempre esté dentro', () => {
+      const irregular12 = [
+        { x: -0.5, y: 5.5 },
+        { x: 0.5, y: 2.5 },
+        { x: 1.5, y: 2.5 },
+        { x: 1.2, y: 0.0 },
+        { x: 2.4, y: 0.0 },
+        { x: 3.2, y: 2.2 },
+        { x: 3.5, y: 2.2 },
+        { x: 4.8, y: 2.2 },
+        { x: 5.3, y: 2.6 },
+        { x: 5.8, y: 2.6 },
+        { x: 6.8, y: 5.8 },
+        { x: 3.2, y: 6.2 }
+      ];
+      const safe = findSafeInteriorPoint(irregular12);
+      expect(pointInPolygon(safe, irregular12)).toBe(true);
     });
   });
 });

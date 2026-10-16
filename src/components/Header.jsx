@@ -30,6 +30,7 @@ export default function Header({
   selectedPresetId,
   isDarkMode,
   onToggleDarkMode,
+  saveStatus = 'saved',
 }) {
   // Título según la sección activa
   const sectionTitles = {
@@ -87,6 +88,15 @@ export default function Header({
             <h2 className="text-xs sm:text-sm font-bold text-[#1d1d1f] dark:text-white tracking-tight truncate max-w-[100px] xs:max-w-[160px] sm:max-w-none">
               {sectionTitles[activeSection] || 'Simulador'}
             </h2>
+
+            {/* Indicador de persistencia automática (LocalStorage) */}
+            <div
+              className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold border border-emerald-500/20 ml-1 select-none"
+              title="Todos los cambios (geometría, materiales, modos, cuadrícula in situ y curvas REW) se guardan automáticamente en tu navegador"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${saveStatus === 'saving' ? 'bg-amber-500 animate-ping' : 'bg-emerald-500'}`}></span>
+              <span>{saveStatus === 'saving' ? 'Guardando...' : 'Guardado automáticamente'}</span>
+            </div>
           </div>
         </div>
 
@@ -154,11 +164,15 @@ export default function Header({
             )}
           </button>
 
-          {/* Restablecer Sala */}
+          {/* Restablecer Sala con Confirmación */}
           <button
-            onClick={onReset}
+            onClick={() => {
+              if (window.confirm('¿Deseas restablecer todos los parámetros del proyecto a los valores iniciales? Esta acción eliminará los datos guardados en la memoria del navegador.')) {
+                onReset();
+              }
+            }}
             className="p-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[#86868b] dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-black/[0.06] dark:border-white/[0.08] transition"
-            title="Restablecer valores originales"
+            title="Restablecer valores originales y limpiar memoria"
           >
             <RotateCcw className="w-4 h-4" />
           </button>

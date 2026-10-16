@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { 
   Eye, RotateCcw, ZoomIn, ZoomOut, Play, Pause, 
   Layers, Radio, Info, Ruler, Compass, Volume2, Mic, Maximize2,
-  Grid3X3
+  Grid3X3, X, Sparkles, Check
 } from 'lucide-react';
-import { getMaterialById, getMaterialColor } from '../utils/defaultMaterials';
+import { getMaterialById, getMaterialColor, DEFAULT_MATERIALS_DATABASE } from '../utils/defaultMaterials';
 import { polygonCentroid, getEdgeArcPoints, isPolygonCCW } from '../utils/acousticCalculations';
 import RoomVisualizerModal from './RoomVisualizerModal';
 
@@ -21,6 +21,7 @@ export default function RoomVisualizer({
   criticalDistance, 
   onChangeSourceReceiver,
   materials = {},
+  onChangeMaterials,
   selectedBand = 1000,
   isReportGraphic = false, // Modo sin controles UI para informe técnico imprimible
 }) {
@@ -46,6 +47,10 @@ export default function RoomVisualizer({
 
   // Estados de cámara
   const [hoveredFace, setHoveredFace] = useState(null);
+  const [selectedFaceId, setSelectedFaceId] = useState(null);
+  const [isHoveringCard, setIsHoveringCard] = useState(false);
+  const [copiedAllNotification, setCopiedAllNotification] = useState(false);
+
   const [rotX, setRotX] = useState(28);
   const [rotY, setRotY] = useState(42);
   const [zoom, setZoom] = useState(1.0);
@@ -59,6 +64,9 @@ export default function RoomVisualizer({
   const containerRef = useRef(null);
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+  const hasDraggedRef = useRef(false);
+  const hoverTimeoutRef = useRef(null);
   const animFrameRef = useRef(null);
 
   // Auto-rotación
@@ -83,6 +91,8 @@ export default function RoomVisualizer({
     if (e.button !== 0 && e.button !== 1) return;
     isDraggingRef.current = true;
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+    hasDraggedRef.current = false;
     if (autoRotate) setAutoRotate(false);
   };
 
@@ -91,6 +101,10 @@ export default function RoomVisualizer({
     const deltaX = e.clientX - lastMousePosRef.current.x;
     const deltaY = e.clientY - lastMousePosRef.current.y;
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+
+    if (Math.hypot(e.clientX - dragStartPosRef.current.x, e.clientY - dragStartPosRef.current.y) > 4) {
+      hasDraggedRef.current = true;
+    }
 
     pendingDeltaRef.current.x += deltaX;
     pendingDeltaRef.current.y += deltaY;
@@ -462,33 +476,86 @@ export default function RoomVisualizer({
     return points.join(' ');
   }, [sourceWorld, Dc, project3D]);
 
-  // Estilo cromático para cada cara
+  // Base de datos de materiales agrupada por categoría
+  const groupedMaterials = useMemo(() => {
+    const groups = {};
+    DEFAULT_MATERIALS_DATABASE.forEach((mat) => {
+      const cat = mat.category || 'Otros';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(mat);
+    });
+    return groups;
+  }, []);
+
+  // Handlers para cambiar material y aplicar a todas las paredes
+  const handleSelectMaterial = useCallback((surfaceId, materialId) => {
+    if (!onChangeMaterials) return;
+    const selectedMat = getMaterialById(materialId);
+    if (!selectedMat) return;
+
+    onChangeMaterials({
+      ...materials,
+      [surfaceId]: {
+        ...materials[surfaceId],
+        materialId: selectedMat.id,
+        coefficients: { ...selectedMat.coefficients },
+      },
+    });
+  }, [onChangeMaterials, materials]);
+
+  const handleApplyToAllWalls = useCallback((materialId) => {
+    if (!onChangeMaterials) return;
+    const selectedMat = getMaterialById(materialId);
+    if (!selectedMat) return;
+
+    const updated = { ...materials };
+    Object.keys(materials).forEach((key) => {
+      if (key.startsWith('wall')) {
+        updated[key] = {
+          ...updated[key],
+          materialId: selectedMat.id,
+          coefficients: { ...selectedMat.coefficients },
+        };
+      }
+    });
+
+    onChangeMaterials(updated);
+    setCopiedAllNotification(true);
+    setTimeout(() => setCopiedAllNotification(false), 2000);
+  }, [onChangeMaterials, materials]);
+
+  // Estilo cromático para cada cara (con soporte de superficie seleccionada)
   const getFaceStyle = (face) => {
+    const isSelected = selectedFaceId === face.id;
     const isHovered = hoveredFace === face.id;
     const matConfig = materials?.[face.id];
     const matColor = matConfig ? getMaterialColor(matConfig.materialId) : null;
 
     if (face.type === 'floor') {
       return {
-        fill: isHovered ? 'rgba(88, 51, 199, 0.18)' : 'rgba(88, 51, 199, 0.08)',
-        stroke: isHovered ? '#5833c7' : 'rgba(88, 51, 199, 0.5)',
-        strokeWidth: isHovered ? 2.5 : 1.5,
+        fill: isSelected
+          ? 'rgba(88, 51, 199, 0.28)'
+          : isHovered ? 'rgba(88, 51, 199, 0.18)' : 'rgba(88, 51, 199, 0.08)',
+        stroke: isSelected ? '#f59e0b' : isHovered ? '#5833c7' : 'rgba(88, 51, 199, 0.5)',
+        strokeWidth: isSelected ? 3 : isHovered ? 2.5 : 1.5,
       };
     }
 
     if (face.type === 'ceiling') {
       if (ceilingMode === 'wireframe') {
         return {
-          fill: 'none',
-          stroke: isHovered ? '#8767f9' : 'rgba(88, 51, 199, 0.7)',
-          strokeWidth: isHovered ? 2.5 : 1.5,
-          strokeDasharray: '4,4',
+          fill: isSelected ? 'rgba(135, 103, 249, 0.2)' : 'none',
+          stroke: isSelected ? '#f59e0b' : isHovered ? '#8767f9' : 'rgba(88, 51, 199, 0.7)',
+          strokeWidth: isSelected ? 3 : isHovered ? 2.5 : 1.5,
+          strokeDasharray: isSelected ? 'none' : '4,4',
         };
       }
       return {
-        fill: isHovered ? 'rgba(135, 103, 249, 0.25)' : 'rgba(88, 51, 199, 0.12)',
-        stroke: isHovered ? '#8767f9' : 'rgba(88, 51, 199, 0.75)',
-        strokeWidth: isHovered ? 2.5 : 1.5,
+        fill: isSelected
+          ? 'rgba(135, 103, 249, 0.38)'
+          : isHovered ? 'rgba(135, 103, 249, 0.25)' : 'rgba(88, 51, 199, 0.12)',
+        stroke: isSelected ? '#f59e0b' : isHovered ? '#8767f9' : 'rgba(88, 51, 199, 0.75)',
+        strokeWidth: isSelected ? 3 : isHovered ? 2.5 : 1.5,
       };
     }
 
@@ -502,33 +569,43 @@ export default function RoomVisualizer({
     }
 
     return {
-      fill: isHovered
+      fill: isSelected
+        ? `rgba(${r_},${g_},${b_},0.60)`
+        : isHovered
         ? `rgba(${r_},${g_},${b_},0.45)`
         : `rgba(${r_},${g_},${b_},0.15)`,
-      stroke: isHovered
+      stroke: isSelected
+        ? '#f59e0b'
+        : isHovered
         ? `rgba(${r_},${g_},${b_},0.95)`
         : `rgba(${r_},${g_},${b_},0.6)`,
-      strokeWidth: isHovered ? 2.5 : 1.2,
+      strokeWidth: isSelected ? 3 : isHovered ? 2.5 : 1.2,
     };
   };
 
-  // Tooltip HUD
-  const tooltipInfo = useMemo(() => {
-    if (!hoveredFace) return null;
-    const face = faces.find(f => f.id === hoveredFace);
-    if (!face) return null;
-    const matConfig = materials?.[face.id];
-    const matInfo = matConfig ? getMaterialById(matConfig.materialId) : null;
+  // Cara activa para inspección / cambio de material
+  const activeFace = useMemo(() => {
+    const targetId = selectedFaceId || hoveredFace;
+    if (!targetId) return null;
+    return faces.find((f) => f.id === targetId) || null;
+  }, [selectedFaceId, hoveredFace, faces]);
+
+  const activeFaceDetails = useMemo(() => {
+    if (!activeFace) return null;
+    const matConfig = materials?.[activeFace.id];
+    const matId = matConfig?.materialId || 'custom';
+    const matInfo = getMaterialById(matId);
+    const matColor = getMaterialColor(matId);
     const alpha = matConfig?.coefficients?.[selectedBand] ?? '—';
     return {
-      name: face.name,
-      material: matInfo?.name || 'Manual / Personalizado',
-      area: (face.area || 0).toFixed(1),
-      dims: face.dimLabel,
-      alpha: typeof alpha === 'number' ? alpha.toFixed(2) : alpha,
-      type: face.type,
+      face: activeFace,
+      matConfig,
+      matId,
+      matInfo,
+      matColor,
+      alpha,
     };
-  }, [hoveredFace, faces, materials, selectedBand]);
+  }, [activeFace, materials, selectedBand]);
 
   if (isReportGraphic) {
     return (
@@ -769,7 +846,16 @@ export default function RoomVisualizer({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ aspectRatio: `${SVG_W}/${SVG_H}` }}>
+        <svg
+          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+          className="w-full"
+          style={{ aspectRatio: `${SVG_W}/${SVG_H}` }}
+          onClick={() => {
+            if (!hasDraggedRef.current) {
+              setSelectedFaceId(null);
+            }
+          }}
+        >
           <defs>
             {/* Trama técnica para piso en modo claro */}
             <pattern id="lightFloorTiles3d" width="18" height="18" patternUnits="userSpaceOnUse">
@@ -825,14 +911,33 @@ export default function RoomVisualizer({
                 )}
                 <polygon
                   points={face.points}
-                  fill={isFloor ? 'none' : style.fill}
+                  fill={isFloor ? style.fill : style.fill}
                   stroke={style.stroke}
                   strokeWidth={style.strokeWidth}
                   strokeDasharray={style.strokeDasharray || 'none'}
                   strokeLinejoin="round"
-                  style={{ cursor: 'pointer', transition: 'all 0.1s ease' }}
-                  onMouseEnter={() => setHoveredFace(face.id)}
-                  onMouseLeave={() => setHoveredFace(null)}
+                  style={{ cursor: 'pointer', transition: 'all 0.1s ease', pointerEvents: 'all' }}
+                  onMouseEnter={() => {
+                    if (hoverTimeoutRef.current) {
+                      clearTimeout(hoverTimeoutRef.current);
+                      hoverTimeoutRef.current = null;
+                    }
+                    setHoveredFace(face.id);
+                  }}
+                  onMouseLeave={() => {
+                    if (hoverTimeoutRef.current) {
+                      clearTimeout(hoverTimeoutRef.current);
+                    }
+                    hoverTimeoutRef.current = setTimeout(() => {
+                      setHoveredFace(null);
+                    }, 250);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!hasDraggedRef.current) {
+                      setSelectedFaceId((prev) => (prev === face.id ? null : face.id));
+                    }
+                  }}
                 />
               </g>
             );
@@ -969,27 +1074,6 @@ export default function RoomVisualizer({
             );
           })()}
 
-          {/* Tooltip HUD al pasar el ratón */}
-          {tooltipInfo && (
-            <g style={{ pointerEvents: 'none' }}>
-              <rect
-                x={14} y={SVG_H - 74} width={200} height={62} rx={10}
-                fill="rgba(255,255,255,0.96)" stroke="#5833c7" strokeWidth={1}
-                className="dark:fill-[#121424] dark:stroke-[#8767f9]"
-              />
-              <circle cx={26} cy={SVG_H - 58} r={3} fill="#5833c7" />
-              <text x={34} y={SVG_H - 55} fill="#1d1d1f" fontSize="9.5" fontWeight="800" className="dark:fill-white" fontFamily="Inter, system-ui">
-                {tooltipInfo.name}
-              </text>
-              <text x={26} y={SVG_H - 42} fill="#5833c7" fontSize="8" fontWeight="600" className="dark:fill-[#8767f9]" fontFamily="Inter, system-ui">
-                {tooltipInfo.material}
-              </text>
-              <text x={26} y={SVG_H - 29} fill="#86868b" fontSize="7.5" fontWeight="500" fontFamily="'JetBrains Mono', monospace">
-                {tooltipInfo.dims} · {tooltipInfo.area} m² · α({selectedBand}Hz)={tooltipInfo.alpha}
-              </text>
-            </g>
-          )}
-
           {/* Orientación */}
           <text
             x={SVG_W - 10} y={SVG_H - 10}
@@ -1001,6 +1085,130 @@ export default function RoomVisualizer({
             θ {rotX.toFixed(0)}° φ {rotY.toFixed(0)}° · H={H.toFixed(1)}m
           </text>
         </svg>
+
+        {/* Tarjeta HUD flotante interactiva: inspeccionar y cambiar material */}
+        {activeFaceDetails && (selectedFaceId || hoveredFace || isHoveringCard) && (
+          <div
+            className="absolute bottom-3 left-3 z-30 w-72 sm:w-80 bg-white/95 dark:bg-[#121424]/95 backdrop-blur-md rounded-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-xl p-3 transition-all animate-fadeIn select-text"
+            onMouseEnter={() => {
+              if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+                hoverTimeoutRef.current = null;
+              }
+              setIsHoveringCard(true);
+            }}
+            onMouseLeave={() => {
+              setIsHoveringCard(false);
+              setHoveredFace(null);
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Cabecera */}
+            <div className="flex items-start justify-between gap-2 pb-2 border-b border-black/[0.05] dark:border-white/[0.06]">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className="w-3.5 h-3.5 rounded-full shrink-0 shadow-2xs"
+                  style={{ backgroundColor: activeFaceDetails.matColor?.hex || '#5833c7' }}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-[#1d1d1f] dark:text-white truncate">
+                      {activeFaceDetails.face.name}
+                    </span>
+                    {selectedFaceId === activeFaceDetails.face.id ? (
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9px] font-bold font-mono">
+                        Fijado
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-slate-400 font-sans hidden sm:inline">
+                        (Clic para fijar)
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-[#86868b] dark:text-slate-400 font-mono block truncate">
+                    {activeFaceDetails.face.dimLabel} · {(activeFaceDetails.face.area || 0).toFixed(1)} m²
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="px-1.5 py-0.5 rounded bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[10px] font-mono font-bold text-[#5833c7] dark:text-[#8767f9]">
+                  α={typeof activeFaceDetails.alpha === 'number' ? activeFaceDetails.alpha.toFixed(2) : activeFaceDetails.alpha}
+                </span>
+                {selectedFaceId && (
+                  <button
+                    onClick={() => setSelectedFaceId(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition"
+                    title="Cerrar fijado"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Selector interactivo de material */}
+            <div className="mt-2 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] font-semibold text-[#86868b] dark:text-slate-400">
+                <span className="flex items-center gap-1 text-[#5833c7] dark:text-[#8767f9]">
+                  <Sparkles className="w-3 h-3" />
+                  Cambiar material acústico:
+                </span>
+                <span className="text-[9px] font-mono text-slate-400">
+                  ISO 354
+                </span>
+              </div>
+
+              {onChangeMaterials ? (
+                <select
+                  value={activeFaceDetails.matId}
+                  onChange={(e) => {
+                    setSelectedFaceId(activeFaceDetails.face.id);
+                    handleSelectMaterial(activeFaceDetails.face.id, e.target.value);
+                  }}
+                  className="w-full text-xs font-semibold bg-slate-50 dark:bg-[#1a1c30] text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5833c7] transition cursor-pointer shadow-2xs"
+                >
+                  {Object.entries(groupedMaterials).map(([category, mats]) => (
+                    <optgroup key={category} label={category}>
+                      {mats.map((mat) => (
+                        <option key={mat.id} value={mat.id}>
+                          {mat.name} (α={mat.coefficients[selectedBand]?.toFixed(2) || '—'})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                  {activeFaceDetails.matId === 'custom' && (
+                    <option value="custom">Manual / Personalizado</option>
+                  )}
+                </select>
+              ) : (
+                <div className="text-xs font-semibold text-[#5833c7] dark:text-[#8767f9]">
+                  {activeFaceDetails.matInfo?.name || 'Personalizado'}
+                </div>
+              )}
+
+              {/* Botón Aplicar a todas las paredes si es una pared */}
+              {onChangeMaterials && activeFaceDetails.face.type === 'wall' && (
+                <div className="pt-0.5 flex items-center justify-between">
+                  <button
+                    onClick={() => handleApplyToAllWalls(activeFaceDetails.matId)}
+                    className="text-[10px] text-[#5833c7] dark:text-[#8767f9] hover:text-[#4323a0] dark:hover:text-[#a78bfa] font-bold flex items-center gap-1 transition group"
+                    title="Asignar este mismo material a todas las paredes del recinto"
+                  >
+                    <Layers className="w-3 h-3 transition group-hover:scale-110" />
+                    <span>Aplicar a todas las paredes</span>
+                  </button>
+                  {copiedAllNotification && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5 animate-fadeIn">
+                      <Check className="w-3 h-3" />
+                      ¡Aplicado!
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Info bar inferior compacta */}
@@ -1024,6 +1232,7 @@ export default function RoomVisualizer({
         criticalDistance={criticalDistance}
         onChangeSourceReceiver={onChangeSourceReceiver}
         materials={materials}
+        onChangeMaterials={onChangeMaterials}
         selectedBand={selectedBand}
       />
 

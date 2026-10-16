@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, FileSpreadsheet, Download, Copy, Check, Sparkles, FileText, CheckCircle2 } from 'lucide-react';
 import { OCTAVE_BANDS } from '../utils/acousticCalculations';
 import { getMaterialById } from '../utils/defaultMaterials';
+import { parseSpectralPeaks } from '../utils/measurementUtils';
 
 /**
  * Modal de Exportación Avanzada para Excel y Software de Análisis
@@ -207,6 +208,62 @@ export default function ExportModal({
             b.count,
             b.complies ? 'CONFORME' : 'FALLA',
             b.failures?.map(f => f.message).join(' | ') || 'Ninguna'
+          ]);
+        });
+      }
+
+      // 6. Medición Experimental In Situ (ISO / Cuadrícula)
+      if (modalData?.measurementData?.points?.length > 0) {
+        const bands = [20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200];
+        rows.push([]);
+        rows.push(['6. MEDICIÓN EXPERIMENTAL IN SITU (PROTOCOLO ISO / CUADRÍCULA)']);
+        rows.push(['Punto', 'X (m)', 'Y (m)', 'Z (m)', 'Tipo', ...bands.map(b => `${b} Hz (dB)`)]);
+
+        modalData.measurementData.points.forEach(pt => {
+          rows.push([
+            pt.label || `P${pt.id}`,
+            pt.x,
+            pt.y,
+            pt.z || 1.2,
+            pt.isCorner ? 'Esquina' : 'Interior',
+            ...bands.map(b => pt.spl?.[b] !== undefined ? pt.spl[b] : '—')
+          ]);
+        });
+      }
+
+      // 7. Comparativa Cuádruple (Teórico vs Exp vs REW vs FEM)
+      if (modalData?.comparisonData) {
+        rows.push([]);
+        rows.push(['7. COMPARATIVA MULTIMÉTODO DE AUTOFRECUENCIAS (TEÓRICO vs EXP vs REW vs FEM)']);
+        rows.push(['Modo (nx,ny,nz)', 'Tipo', 'f_Teórica (Hz)', 'f_Exp (Hz)', 'f_REW_Sim (Hz)', 'f_FEM (Hz)', 'Max Desviación (Hz)', 'Max Error (%)']);
+
+        const expList = parseSpectralPeaks(modalData.comparisonData.expText || '');
+        const rewList = parseSpectralPeaks(modalData.comparisonData.rewText || '');
+        const femList = parseSpectralPeaks(modalData.comparisonData.femText || '');
+        const tol = modalData.comparisonData.tolerance || 2.0;
+
+        modes.slice(0, 40).forEach(m => {
+          const expMatch = expList.find(f => Math.abs(f - m.frequency) <= tol);
+          const rewMatch = rewList.find(f => Math.abs(f - m.frequency) <= tol);
+          const femMatch = femList.find(f => Math.abs(f - m.frequency) <= tol);
+
+          const diffs = [
+            expMatch ? Math.abs(expMatch - m.frequency) : 0,
+            rewMatch ? Math.abs(rewMatch - m.frequency) : 0,
+            femMatch ? Math.abs(femMatch - m.frequency) : 0,
+          ];
+          const maxDiff = Math.max(...diffs);
+          const maxErr = (maxDiff / m.frequency) * 100;
+
+          rows.push([
+            `(${m.nx}, ${m.ny}, ${m.nz})`,
+            m.label,
+            m.frequency.toFixed(2),
+            expMatch ? expMatch.toFixed(2) : '—',
+            rewMatch ? rewMatch.toFixed(2) : '—',
+            femMatch ? femMatch.toFixed(2) : '—',
+            maxDiff > 0 ? maxDiff.toFixed(2) : '—',
+            maxDiff > 0 ? maxErr.toFixed(2) : '—'
           ]);
         });
       }

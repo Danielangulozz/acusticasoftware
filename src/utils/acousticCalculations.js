@@ -488,7 +488,7 @@ export function calculateRoomGeometry(lengthOrDimensions, width, height) {
  * @param {Object} materials - Configuración de coeficientes α por superficie y sub-elementos
  * @returns {Object} Resultados de absorción por banda
  */
-export function calculateRoomAbsorption(surfaceAreas, totalSurface, materials) {
+export function calculateRoomAbsorption(surfaceAreas, totalSurface, materials, occupancyAbsorption = null) {
   const result = {};
   // Iterar sobre las claves reales de surfaceAreas (funciona con 6 caras fijas o N dinámicas)
   const surfaceIds = Object.keys(surfaceAreas);
@@ -525,10 +525,16 @@ export function calculateRoomAbsorption(surfaceAreas, totalSurface, materials) {
       equivalentAbsorption += surfaceAbs;
     });
 
+    const surfaceAbsorptionOnly = equivalentAbsorption;
+    const occAbs = (occupancyAbsorption && occupancyAbsorption[freq]) ? Number(occupancyAbsorption[freq]) : 0;
+    equivalentAbsorption += occAbs;
+
     const alphaMean = totalSurface > 0 ? equivalentAbsorption / totalSurface : 0;
 
     result[freq] = {
       equivalentAbsorption,
+      surfaceAbsorptionOnly,
+      occupancyAbsorption: occAbs,
       alphaMean: Math.min(0.9999, alphaMean),
       absorptionBySurface,
       effectiveAlphaBySurface,
@@ -571,7 +577,8 @@ export function calculateReverberationTimes(
   surfaceAreas,
   absorptionData,
   materials,
-  includeAirAbsorption = true
+  includeAirAbsorption = true,
+  occupancyAbsorption = null
 ) {
   const results = {};
 
@@ -579,6 +586,7 @@ export function calculateReverberationTimes(
     const { equivalentAbsorption: A, alphaMean } = absorptionData[freq];
     const m = includeAirAbsorption ? (AIR_ABSORPTION_COEFFS[freq] || 0) : 0;
     const airDissipationTerm = 4 * m * volume; // 4mV [m²]
+    const occAbs = (occupancyAbsorption && occupancyAbsorption[freq]) ? Number(occupancyAbsorption[freq]) : 0;
 
     // -------------------------------------------------------------
     // 1. Modelo de Sabine
@@ -598,7 +606,7 @@ export function calculateReverberationTimes(
 
     // -------------------------------------------------------------
     // 3. Modelo de Millington-Sette
-    // RT_mil = 0.161 · V / (-∑ [S_k · ln(1 - α_k)] + 4mV)
+    // RT_mil = 0.161 · V / (-∑ [S_k · ln(1 - α_k)] + A_occ + 4mV)
     // Desglosa tanto el material base como cada sub-elemento incrustado
     // -------------------------------------------------------------
     let millingtonAbsorptionTerm = 0;
@@ -628,7 +636,7 @@ export function calculateReverberationTimes(
       });
     });
 
-    const denomMillington = millingtonAbsorptionTerm + airDissipationTerm;
+    const denomMillington = millingtonAbsorptionTerm + occAbs + airDissipationTerm;
     const rtMillington = denomMillington > 0 ? (0.161 * volume) / denomMillington : 0;
 
     // Recorrido libre medio l = 4V/S y reflexiones durante el tiempo de reverberación

@@ -275,4 +275,58 @@ export const ROOM_PRESETS = [
       tolerance: 0.5,
     },
   },
+  {
+    id: 'usb_medellin_example',
+    name: 'Ejemplo USB Medellín (3×4×2.5 m)',
+    category: 'Docencia / Inteligibilidad',
+    description: 'Sala de clase oficial de la Univ. San Buenaventura: V = 30 m³, Stot = 59 m², Q = 2, Baldosa, Drywall 1/2", Ladrillo pintado, Puerta de madera y Vidrio. R = 1.58 m² a 2000 Hz, cálculo de %ALcons y acondicionamiento.',
+    icon: 'GraduationCap',
+    dimensions: { length: 4.0, width: 3.0, height: 2.5 },
+    source: { lw: 85, directivity: 2, distance: 3.0, name: 'Profesor / Orador en Tarima' },
+    materials: {
+      floor: {
+        materialId: 'baldosa_usb',
+        coefficients: { 125: 0.01, 250: 0.01, 500: 0.01, 1000: 0.02, 2000: 0.02, 4000: 0.01 },
+      },
+      ceiling: {
+        materialId: 'drywall_usb',
+        coefficients: { 125: 0.29, 250: 0.10, 500: 0.06, 1000: 0.04, 2000: 0.04, 4000: 0.04 },
+      },
+      wallNorth: {
+        materialId: 'ladrillo_pintado_usb',
+        coefficients: { 125: 0.01, 250: 0.01, 500: 0.02, 1000: 0.02, 2000: 0.02, 4000: 0.02 },
+        subElements: [
+          {
+            id: 'sub_usb_door',
+            type: 'door_wood',
+            name: 'Puerta de madera sólida',
+            area: 2.0,
+            coefficients: { 125: 0.10, 250: 0.07, 500: 0.05, 1000: 0.04, 2000: 0.04, 4000: 0.04 },
+          }
+        ],
+      },
+      wallSouth: {
+        materialId: 'ladrillo_pintado_usb',
+        coefficients: { 125: 0.01, 250: 0.01, 500: 0.02, 1000: 0.02, 2000: 0.02, 4000: 0.02 },
+        subElements: [
+          {
+            id: 'sub_usb_window',
+            type: 'window_single',
+            name: 'Ventana Vidrio 3 mm',
+            area: 1.5,
+            coefficients: { 125: 0.35, 250: 0.25, 500: 0.18, 1000: 0.12, 2000: 0.07, 4000: 0.04 },
+          }
+        ],
+      },
+      wallEast: {
+        materialId: 'ladrillo_pintado_usb',
+        coefficients: { 125: 0.01, 250: 0.01, 500: 0.02, 1000: 0.02, 2000: 0.02, 4000: 0.02 },
+      },
+      wallWest: {
+        materialId: 'ladrillo_pintado_usb',
+        coefficients: { 125: 0.01, 250: 0.01, 500: 0.02, 1000: 0.02, 2000: 0.02, 4000: 0.02 },
+      },
+    },
+    roomType: 'speech',
+  },
 ];

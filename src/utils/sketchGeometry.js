@@ -201,6 +201,70 @@ export function pointInPolygon(p, vertices) {
 }
 
 /**
+ * Encuentra una posición segura en el interior de cualquier polígono (convexo o irregular),
+ * optimizando la distancia mínima a los muros para evitar que nodos acústicos caigan fuera.
+ *
+ * @param {Array<{x:number, y:number}>} vertices - Vértices 2D de la sala
+ * @param {{x:number, y:number, z?:number}|null} preferredPt - Punto deseado si ya está dentro
+ * @returns {{x:number, y:number, z:number}} Punto 2D/3D garantizado en el interior
+ */
+export function findSafeInteriorPoint(vertices, preferredPt = null) {
+  const defaultZ = preferredPt?.z ?? 1.5;
+  if (!vertices || vertices.length < 3) {
+    return preferredPt ? { ...preferredPt, z: defaultZ } : { x: 2, y: 2, z: defaultZ };
+  }
+
+  // 1. Si el punto preferido ya está dentro con holgura aceptable, conservarlo
+  if (preferredPt && pointInPolygon(preferredPt, vertices)) {
+    return { x: round2(preferredPt.x), y: round2(preferredPt.y), z: defaultZ };
+  }
+
+  // 2. Probar el centroide geométrico simple
+  let cx = 0, cy = 0;
+  vertices.forEach(v => { cx += v.x; cy += v.y; });
+  cx /= vertices.length;
+  cy /= vertices.length;
+  const centroidPt = { x: cx, y: cy };
+  if (pointInPolygon(centroidPt, vertices)) {
+    return { x: round2(cx), y: round2(cy), z: defaultZ };
+  }
+
+  // 3. Si el polígono es no convexo (forma de L, U, o irregular como la sala de 12 paredes)
+  // realizar una búsqueda discreta en rejilla para hallar el punto interior con mayor holgura a las paredes
+  const xs = vertices.map(v => v.x);
+  const ys = vertices.map(v => v.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+  let best = { x: round2((minX + maxX) / 2), y: round2((minY + maxY) / 2), z: defaultZ };
+  let maxClearance = -1;
+
+  const N = 16;
+  for (let ix = 1; ix < N; ix++) {
+    const x = minX + (ix / N) * (maxX - minX);
+    for (let iy = 1; iy < N; iy++) {
+      const y = minY + (iy / N) * (maxY - minY);
+      const cand = { x, y };
+      if (pointInPolygon(cand, vertices)) {
+        let minDist = Infinity;
+        for (let i = 0; i < vertices.length; i++) {
+          const j = (i + 1) % vertices.length;
+          const { point: proj } = projectOnSegment(cand, vertices[i], vertices[j]);
+          const d = dist(cand, proj);
+          if (d < minDist) minDist = d;
+        }
+        if (minDist > maxClearance) {
+          maxClearance = minDist;
+          best = { x: round2(x), y: round2(y), z: defaultZ };
+        }
+      }
+    }
+  }
+
+  return best;
+}
+
+/**
  * Imanes (OSNAP). Devuelve el punto "imantado" más relevante cerca del cursor.
  * Prioridad: extremo > punto medio > perpendicular > cuadrícula.
  *
@@ -344,6 +408,217 @@ export function centerPolygonAtOrigin(vertices) {
   const minX = Math.min(...vertices.map((v) => v.x));
   const minY = Math.min(...vertices.map((v) => v.y));
   return vertices.map((v) => cleanPoint({ x: v.x - minX, y: v.y - minY }));
+}
+
+/**
+ * Calcula la resolución de cuadrícula/imanes en metros de forma adaptativa según el zoom.
+ * A mayor zoom (acercamiento), mayor precisión (hasta 2 decimales: 0.02 m, 0.05 m, 0.10 m).
+ */
+export function getAdaptiveGridStep(zoom = 1.0) {
+  if (zoom >= 3.5) return 0.02; // 2 cm de precisión quirúrgica
+  if (zoom >= 2.2) return 0.05; // 5 cm de precisión
+  if (zoom >= 1.5) return 0.10; // 10 cm de precisión
+  if (zoom >= 1.1) return 0.20; // 20 cm de precisión
+  if (zoom >= 0.7) return 0.50; // 50 cm de precisión
+  return 1.00; // 1 metro
+}
+
+/**
+ * Rastreo inteligente ortogonal y polar ("seguir lo recto del trazo").
+ * Soporta alineación con ejes globales (H/V), alineación con vértices de referencia
+ * y rastreo de dirección relativo a la pared anterior (perpendicular a 90° o extensión continua).
+ *
+ * @param {{x:number, y:number}} cursor - Coordenadas actuales del cursor en mundo
+ * @param {{x:number, y:number}} from - Vértice de origen del tramo en curso
+ * @param {object} opts
+ *   @param {{x:number, y:number}|null} previousPoint - Vértice anterior a `from` (para rastrear perpendicular 90°)
+ *   @param {Array<{x:number, y:number}>} referencePoints - Puntos clave de la sala para alineación de ejes
+ *   @param {boolean} forceOrtho - Si el modo ortogonal estricto está forzado (F8 / Shift)
+ *   @param {number} gridStep - Paso de cuantización limpia a lo largo de la recta (ej: 0.5 m)
+ *   @param {number} angleToleranceDeg - Tolerancia angular para enganchar ortogonalidad (ej: 9.5°)
+ *   @param {number} alignTolerance - Tolerancia espacial para enganchar con ejes de otros vértices
+ * @returns {null | {
+ *   point: {x:number, y:number},
+ *   type: 'ortho-h' | 'ortho-v' | 'polar-45' | 'aligned-x' | 'aligned-y' | 'perp-prev' | 'parallel-prev' | 'clean-length',
+ *   axis: 'h' | 'v' | 'diagonal' | 'relative-perp' | 'relative-parallel' | 'free',
+ *   angle: number,
+ *   isStraight: boolean,
+ *   relAngle?: number,
+ *   alignedWith?: {x:number, y:number},
+ *   distance: number
+ * }}
+ */
+export function findSmartStrokeSnap(cursor, from, {
+  previousPoint = null,
+  referencePoints = [],
+  forceOrtho = false,
+  gridStep = 0.5,
+  angleToleranceDeg = 9.5,
+  alignTolerance = 0.35,
+} = {}) {
+  if (!from || !cursor) return null;
+
+  const dx = cursor.x - from.x;
+  const dy = cursor.y - from.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 0.05) return null; // Umbral mínimo para definir dirección
+
+  // Ángulo en convención de pantalla (0° der, 90° arr, 180° izq, 270° aba)
+  const deg = screenAngleDeg(from, cursor);
+
+  // 1. PRIORIDAD RELATIVA: ¿Es perpendicular o extensión recta de la pared anterior?
+  if (previousPoint && dist(previousPoint, from) > 0.05) {
+    const prevAngle = screenAngleDeg(previousPoint, from);
+    const candidateRelativeAngles = [
+      { angle: (prevAngle + 90) % 360, isPerp: true, relAngle: 90 },
+      { angle: (prevAngle - 90 + 360) % 360, isPerp: true, relAngle: -90 },
+      { angle: prevAngle, isPerp: false, relAngle: 0 },
+      { angle: (prevAngle + 180) % 360, isPerp: false, relAngle: 180 },
+    ];
+
+    for (const rel of candidateRelativeAngles) {
+      const diff = Math.min(
+        Math.abs(deg - rel.angle),
+        Math.abs(deg - rel.angle + 360),
+        Math.abs(deg - rel.angle - 360)
+      );
+      if (diff <= angleToleranceDeg) {
+        const cleanLen = gridStep > 0 ? Math.max(gridStep, roundTo(d, gridStep)) : d;
+        const snappedPt = cleanPoint(polarPoint(from, cleanLen, rel.angle));
+        return {
+          point: snappedPt,
+          type: rel.isPerp ? 'perp-prev' : 'parallel-prev',
+          axis: rel.isPerp ? 'relative-perp' : 'relative-parallel',
+          angle: rel.angle,
+          relAngle: rel.relAngle,
+          isStraight: true,
+          distance: cleanLen,
+        };
+      }
+    }
+  }
+
+  // 2. Detección de cercanía a los 4 ejes ortogonales globales
+  const isNearRight = Math.abs(deg - 0) <= angleToleranceDeg || Math.abs(deg - 360) <= angleToleranceDeg;
+  const isNearLeft = Math.abs(deg - 180) <= angleToleranceDeg;
+  const isNearUp = Math.abs(deg - 90) <= angleToleranceDeg;
+  const isNearDown = Math.abs(deg - 270) <= angleToleranceDeg;
+
+  let isOrthoH = isNearRight || isNearLeft;
+  let isOrthoV = isNearUp || isNearDown;
+
+  if (forceOrtho) {
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      isOrthoH = true;
+      isOrthoV = false;
+    } else {
+      isOrthoH = false;
+      isOrthoV = true;
+    }
+  }
+
+  // --- CASO 1: EJE HORIZONTAL (RECTO Y = from.y) ---
+  if (isOrthoH) {
+    const signX = dx >= 0 ? 1 : -1;
+    const targetAngle = signX > 0 ? 0 : 180;
+    let targetX = cursor.x;
+    let alignedRef = null;
+
+    // Comprobar si X se alinea con la coordenada X de algún vértice de referencia (ej. P1 para cerrar rectángulo)
+    for (const ref of referencePoints) {
+      if (ref && Math.abs(cursor.x - ref.x) <= alignTolerance && Math.abs(ref.x - from.x) > 0.05) {
+        targetX = ref.x;
+        alignedRef = ref;
+        break;
+      }
+    }
+
+    if (!alignedRef && gridStep > 0) {
+      // Cuantizar longitud limpia en múltiplos del gridStep a lo largo de la recta horizontal
+      const cleanLen = Math.max(gridStep, roundTo(Math.abs(dx), gridStep));
+      targetX = from.x + signX * cleanLen;
+    }
+
+    const snappedPt = cleanPoint({ x: targetX, y: from.y });
+    return {
+      point: snappedPt,
+      type: alignedRef ? 'aligned-x' : 'ortho-h',
+      axis: 'h',
+      angle: targetAngle,
+      isStraight: true,
+      alignedWith: alignedRef,
+      distance: dist(from, snappedPt),
+    };
+  }
+
+  // --- CASO 2: EJE VERTICAL (RECTO X = from.x) ---
+  if (isOrthoV) {
+    const signY = dy >= 0 ? 1 : -1;
+    const targetAngle = signY > 0 ? 270 : 90; // en pantalla Y crece hacia abajo: +dy es abajo (270°), -dy es arriba (90°)
+    let targetY = cursor.y;
+    let alignedRef = null;
+
+    // Comprobar si Y se alinea con la coordenada Y de algún vértice de referencia
+    for (const ref of referencePoints) {
+      if (ref && Math.abs(cursor.y - ref.y) <= alignTolerance && Math.abs(ref.y - from.y) > 0.05) {
+        targetY = ref.y;
+        alignedRef = ref;
+        break;
+      }
+    }
+
+    if (!alignedRef && gridStep > 0) {
+      // Cuantizar longitud limpia en múltiplos del gridStep a lo largo de la recta vertical
+      const cleanLen = Math.max(gridStep, roundTo(Math.abs(dy), gridStep));
+      targetY = from.y + signY * cleanLen;
+    }
+
+    const snappedPt = cleanPoint({ x: from.x, y: targetY });
+    return {
+      point: snappedPt,
+      type: alignedRef ? 'aligned-y' : 'ortho-v',
+      axis: 'v',
+      angle: targetAngle,
+      isStraight: true,
+      alignedWith: alignedRef,
+      distance: dist(from, snappedPt),
+    };
+  }
+
+  // --- CASO 3: DIAGONALES A 45° (45°, 135°, 225°, 315°) ---
+  const diagonals = [45, 135, 225, 315];
+  for (const diag of diagonals) {
+    if (Math.abs(deg - diag) <= 5.0) {
+      const cleanLen = gridStep > 0 ? Math.max(gridStep, roundTo(d, gridStep)) : d;
+      const snappedPt = cleanPoint(polarPoint(from, cleanLen, diag));
+      return {
+        point: snappedPt,
+        type: 'polar-45',
+        axis: 'diagonal',
+        angle: diag,
+        isStraight: false,
+        distance: cleanLen,
+      };
+    }
+  }
+
+  // --- CASO 4: TRAZO LIBRE CON LONGITUD CUANTIZADA LIMPIA ---
+  // Si no está en un eje ortogonal o diagonal, mantener el ángulo libre exacto pero
+  // evitar que salte a esquinas de cuadrante: cuantizar suavemente la distancia
+  if (gridStep > 0) {
+    const cleanLen = Math.max(0.2, roundTo(d, gridStep));
+    const snappedPt = cleanPoint(polarPoint(from, cleanLen, deg));
+    return {
+      point: snappedPt,
+      type: 'clean-length',
+      axis: 'free',
+      angle: deg,
+      isStraight: false,
+      distance: cleanLen,
+    };
+  }
+
+  return null;
 }
 
 

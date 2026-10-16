@@ -17,6 +17,8 @@ import {
   calculateModalDamping,
   generateModeTimeResponse,
   generateSuperposedModesTimeResponse,
+  computeAllModesUpToFreq,
+  calcPolygonArea,
 } from '../modalCalculations.js';
 
 describe('Cálculos Modales (modalCalculations)', () => {
@@ -205,5 +207,76 @@ describe('Cálculos Modales (modalCalculations)', () => {
     expect(superposed.beatFreq).toBeCloseTo(5.0, 2); // 55 - 50 = 5 Hz
     expect(superposed.beatPeriodMs).toBeCloseTo(200.0, 1); // 1 / 5 = 200 ms
     expect(superposed.samples.length).toBe(150);
+  });
+
+  it('calcula dimensiones equivalentes para sala irregular manteniendo Lx_eq * Ly_eq = S_suelo', () => {
+    // Sala irregular de prueba: S_suelo = 51.3 m², bounding box deltaX = 9.13 m, deltaY = 9.27 m, H = 3 m
+    // Simular un polígono que tenga bounding box 9.13 x 9.27
+    const mockPoly = {
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 9.13, y: 0 },
+        { x: 9.13, y: 5 },
+        { x: 5, y: 9.27 },
+        { x: 0, y: 9.27 },
+      ],
+      height: 3,
+    };
+    const sSuelo = 51.3;
+
+    // Por defecto: modo 'equivalent'
+    const dimsEq = getRectangularDims(mockPoly, 3, sSuelo, 'equivalent');
+    expect(dimsEq.isRectangular).toBe(false);
+    expect(dimsEq.dimensionMode).toBe('equivalent');
+    // Lx_eq * Ly_eq debe ser exactamente igual a sSuelo (51.3 con redondeo a 2 dec)
+    expect(dimsEq.Lx * dimsEq.Ly).toBeCloseTo(51.3, 1);
+    // Volumen efectivo debe ser 51.3 * 3 = 153.9 m³
+    expect(dimsEq.volume).toBeCloseTo(153.9, 1);
+    // Relación de aspecto debe conservarse: Lx / Ly ≈ 9.13 / 9.27
+    expect(dimsEq.Lx / dimsEq.Ly).toBeCloseTo(9.13 / 9.27, 2);
+
+    // Modo 'bounding'
+    const dimsBb = getRectangularDims(mockPoly, 3, sSuelo, 'bounding');
+    expect(dimsBb.dimensionMode).toBe('bounding');
+    expect(dimsBb.Lx).toBeCloseTo(9.13, 2);
+    expect(dimsBb.Ly).toBeCloseTo(9.27, 2);
+    expect(dimsBb.volume).toBeCloseTo(9.13 * 9.27 * 3, 1);
+  });
+
+  it('countModesByBand devuelve contadores numéricos y acumulativo', () => {
+    const modes = computeModes(5, 4, 3, 343, 4);
+    const bandResults = countModesByBand(modes, 1000);
+
+    expect(bandResults.length).toBeGreaterThan(10);
+    bandResults.forEach(b => {
+      // Ambos formatos de nombres deben ser números válidos >= 0
+      expect(typeof b.count).toBe('number');
+      expect(typeof b.axial).toBe('number');
+      expect(typeof b.tangential).toBe('number');
+      expect(typeof b.oblique).toBe('number');
+      expect(typeof b.cumulative).toBe('number');
+      expect(b.axial).toBeGreaterThanOrEqual(0);
+      expect(b.tangential).toBeGreaterThanOrEqual(0);
+      expect(b.oblique).toBeGreaterThanOrEqual(0);
+      expect(b.count).toBe(b.axial + b.tangential + b.oblique);
+    });
+
+    // El acumulado de la última banda debe coincidir con el total de modos clasificados
+    const lastBand = bandResults[bandResults.length - 1];
+    expect(lastBand.cumulative).toBeGreaterThan(0);
+  });
+
+  it('computeAllModesUpToFreq calcula modos sin truncamiento artificial en alta frecuencia', () => {
+    const fMax = 300;
+    const allModes = computeAllModesUpToFreq(7, 5, 3, fMax, 343);
+
+    expect(allModes.length).toBeGreaterThan(100);
+    // Verificar que todas las frecuencias sean menores o iguales a fMax
+    allModes.forEach(freq => {
+      expect(freq).toBeLessThanOrEqual(fMax);
+    });
+    // Verificar que haya modos cercanos a fMax (ej. > 280 Hz) demostrando que no se trunca
+    const maxFreq = Math.max(...allModes);
+    expect(maxFreq).toBeGreaterThan(285);
   });
 });

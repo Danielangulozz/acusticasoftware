@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { 
   X, RotateCcw, ZoomIn, ZoomOut, Play, Pause, 
   Layers, Radio, Ruler, Compass, Volume2, Mic, Maximize2, Sparkles,
-  Grid3X3, Eye, ShieldCheck, Info
+  Grid3X3, Eye, ShieldCheck, Info, Check
 } from 'lucide-react';
-import { getMaterialById, getMaterialColor } from '../utils/defaultMaterials';
+import { getMaterialById, getMaterialColor, DEFAULT_MATERIALS_DATABASE } from '../utils/defaultMaterials';
 import { polygonCentroid, getEdgeArcPoints, isPolygonCCW } from '../utils/acousticCalculations';
 
 /**
@@ -22,6 +22,7 @@ export default function RoomVisualizerModal({
   criticalDistance,
   onChangeSourceReceiver,
   materials = {},
+  onChangeMaterials,
   selectedBand = 1000,
 }) {
   if (!isOpen) return null;
@@ -60,10 +61,15 @@ export default function RoomVisualizerModal({
   const [ceilingMode, setCeilingMode] = useState('translucent'); // 'translucent' | 'wireframe' | 'hidden' | 'solid'
   const [viewPreset, setViewPreset] = useState('3d');
   const [showInspector, setShowInspector] = useState(true);
+  const [isHoveringCard, setIsHoveringCard] = useState(false);
+  const [copiedAllNotification, setCopiedAllNotification] = useState(false);
 
   const containerRef = useRef(null);
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+  const hasDraggedRef = useRef(false);
+  const hoverTimeoutRef = useRef(null);
   const animFrameRef = useRef(null);
   const dragRafRef = useRef(null);
   const pendingDeltaRef = useRef({ x: 0, y: 0, isShift: false });
@@ -95,6 +101,8 @@ export default function RoomVisualizerModal({
     if (e.button !== 0 && e.button !== 1) return;
     isDraggingRef.current = true;
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+    hasDraggedRef.current = false;
     if (autoRotate) setAutoRotate(false);
   };
 
@@ -103,6 +111,10 @@ export default function RoomVisualizerModal({
     const deltaX = e.clientX - lastMousePosRef.current.x;
     const deltaY = e.clientY - lastMousePosRef.current.y;
     lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+
+    if (Math.hypot(e.clientX - dragStartPosRef.current.x, e.clientY - dragStartPosRef.current.y) > 4) {
+      hasDraggedRef.current = true;
+    }
 
     pendingDeltaRef.current.x += deltaX;
     pendingDeltaRef.current.y += deltaY;
@@ -492,18 +504,67 @@ export default function RoomVisualizerModal({
     };
   };
 
+  // Base de datos de materiales agrupada por categoría
+  const groupedMaterials = useMemo(() => {
+    const groups = {};
+    DEFAULT_MATERIALS_DATABASE.forEach((mat) => {
+      const cat = mat.category || 'Otros';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(mat);
+    });
+    return groups;
+  }, []);
+
+  const handleSelectMaterial = useCallback((surfaceId, materialId) => {
+    if (!onChangeMaterials) return;
+    const selectedMat = getMaterialById(materialId);
+    if (!selectedMat) return;
+
+    onChangeMaterials({
+      ...materials,
+      [surfaceId]: {
+        ...materials[surfaceId],
+        materialId: selectedMat.id,
+        coefficients: { ...selectedMat.coefficients },
+      },
+    });
+  }, [onChangeMaterials, materials]);
+
+  const handleApplyToAllWalls = useCallback((materialId) => {
+    if (!onChangeMaterials) return;
+    const selectedMat = getMaterialById(materialId);
+    if (!selectedMat) return;
+
+    const updated = { ...materials };
+    Object.keys(materials).forEach((key) => {
+      if (key.startsWith('wall')) {
+        updated[key] = {
+          ...updated[key],
+          materialId: selectedMat.id,
+          coefficients: { ...selectedMat.coefficients },
+        };
+      }
+    });
+
+    onChangeMaterials(updated);
+    setCopiedAllNotification(true);
+    setTimeout(() => setCopiedAllNotification(false), 2000);
+  }, [onChangeMaterials, materials]);
+
   const activeFaceInfo = useMemo(() => {
     const targetId = selectedFaceId || hoveredFace;
     if (!targetId) return null;
     const face = faces.find(f => f.id === targetId);
     if (!face) return null;
     const matConfig = materials?.[face.id];
+    const matId = matConfig?.materialId || 'custom';
     const matInfo = matConfig ? getMaterialById(matConfig.materialId) : null;
     const matColor = matConfig ? getMaterialColor(matConfig.materialId) : null;
     const alpha = matConfig?.coefficients?.[selectedBand] ?? '—';
     return {
       id: face.id,
       name: face.name,
+      materialId: matId,
       material: matInfo?.name || 'Manual / Personalizado',
       color: matColor?.hex || '#5833c7',
       area: (face.area || 0).toFixed(1),
@@ -744,9 +805,27 @@ export default function RoomVisualizerModal({
                     strokeDasharray={style.strokeDasharray || 'none'}
                     strokeLinejoin="round"
                     style={{ cursor: 'pointer', transition: 'all 0.12s ease' }}
-                    onMouseEnter={() => setHoveredFace(face.id)}
-                    onMouseLeave={() => setHoveredFace(null)}
-                    onClick={() => setSelectedFaceId(prev => prev === face.id ? null : face.id)}
+                    onMouseEnter={() => {
+                      if (hoverTimeoutRef.current) {
+                        clearTimeout(hoverTimeoutRef.current);
+                        hoverTimeoutRef.current = null;
+                      }
+                      setHoveredFace(face.id);
+                    }}
+                    onMouseLeave={() => {
+                      if (hoverTimeoutRef.current) {
+                        clearTimeout(hoverTimeoutRef.current);
+                      }
+                      hoverTimeoutRef.current = setTimeout(() => {
+                        setHoveredFace(null);
+                      }, 250);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!hasDraggedRef.current) {
+                        setSelectedFaceId(prev => prev === face.id ? null : face.id);
+                      }
+                    }}
                   />
                 );
               })}
@@ -845,6 +924,109 @@ export default function RoomVisualizerModal({
                 </g>
               )}
             </svg>
+
+            {/* Tarjeta HUD flotante interactiva en el viewport 3D del Modal */}
+            {activeFaceInfo && (selectedFaceId || hoveredFace || isHoveringCard) && (
+              <div
+                className="absolute bottom-4 left-4 z-20 w-72 sm:w-80 bg-white/95 dark:bg-[#121424]/95 backdrop-blur-md rounded-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-2xl p-3 transition-all animate-fadeIn select-text"
+                onMouseEnter={() => {
+                  if (hoverTimeoutRef.current) {
+                    clearTimeout(hoverTimeoutRef.current);
+                    hoverTimeoutRef.current = null;
+                  }
+                  setIsHoveringCard(true);
+                }}
+                onMouseLeave={() => {
+                  setIsHoveringCard(false);
+                  setHoveredFace(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-2 pb-2 border-b border-black/[0.05] dark:border-white/[0.06]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full shrink-0 shadow-2xs"
+                      style={{ backgroundColor: activeFaceInfo.color }}
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-[#1d1d1f] dark:text-white truncate">
+                          {activeFaceInfo.name}
+                        </span>
+                        {selectedFaceId === activeFaceInfo.id && (
+                          <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9px] font-bold font-mono">
+                            Fijado
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-[#86868b] dark:text-slate-400 font-mono block truncate">
+                        {activeFaceInfo.dims} · {activeFaceInfo.area} m²
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="px-1.5 py-0.5 rounded bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[10px] font-mono font-bold text-[#5833c7] dark:text-[#8767f9]">
+                      α={activeFaceInfo.alpha}
+                    </span>
+                    {selectedFaceId && (
+                      <button
+                        onClick={() => setSelectedFaceId(null)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {onChangeMaterials && (
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-semibold text-[#86868b] dark:text-slate-400">
+                      <span className="flex items-center gap-1 text-[#5833c7] dark:text-[#8767f9]">
+                        <Sparkles className="w-3 h-3" />
+                        Cambiar material acústico:
+                      </span>
+                    </div>
+                    <select
+                      value={activeFaceInfo.materialId}
+                      onChange={(e) => {
+                        setSelectedFaceId(activeFaceInfo.id);
+                        handleSelectMaterial(activeFaceInfo.id, e.target.value);
+                      }}
+                      className="w-full text-xs font-semibold bg-slate-50 dark:bg-[#1a1c30] text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5833c7] transition cursor-pointer shadow-2xs"
+                    >
+                      {Object.entries(groupedMaterials).map(([category, mats]) => (
+                        <optgroup key={category} label={category}>
+                          {mats.map((mat) => (
+                            <option key={mat.id} value={mat.id}>
+                              {mat.name} (α={mat.coefficients[selectedBand]?.toFixed(2) || '—'})
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+
+                    {activeFaceInfo.type === 'wall' && (
+                      <div className="pt-0.5 flex items-center justify-between">
+                        <button
+                          onClick={() => handleApplyToAllWalls(activeFaceInfo.materialId)}
+                          className="text-[10px] text-[#5833c7] dark:text-[#8767f9] hover:underline font-bold flex items-center gap-1 transition"
+                        >
+                          <Layers className="w-3 h-3" />
+                          <span>Aplicar a todas las paredes</span>
+                        </button>
+                        {copiedAllNotification && (
+                          <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                            <Check className="w-3 h-3" /> ¡Aplicado!
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Panel Lateral: Inspector de Superficies y Características (Colapsable / Slide-over en móviles) */}
@@ -925,16 +1107,58 @@ export default function RoomVisualizerModal({
 
               {/* Ficha Detallada de la Superficie Activa */}
               {activeFaceInfo && (
-                <div className="p-3 shrink-0 bg-white dark:bg-[#141628] border-t border-black/[0.06] dark:border-white/[0.08] text-xs space-y-1.5 animate-fadeIn">
+                <div className="p-3 shrink-0 bg-white dark:bg-[#141628] border-t border-black/[0.06] dark:border-white/[0.08] text-xs space-y-2 animate-fadeIn">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-[#1d1d1f] dark:text-white text-[11px] flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeFaceInfo.color }} />
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeFaceInfo.color }} />
                       {activeFaceInfo.name}
                     </span>
                     <span className="text-[10px] text-[#86868b] font-mono">
-                      {activeFaceInfo.dims}
+                      {activeFaceInfo.dims} · {activeFaceInfo.area} m²
                     </span>
                   </div>
+
+                  {/* Selector interactivo de material en Inspector */}
+                  {onChangeMaterials && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-[#5833c7] dark:text-[#8767f9]" />
+                        Material acústico:
+                      </label>
+                      <select
+                        value={activeFaceInfo.materialId}
+                        onChange={(e) => handleSelectMaterial(activeFaceInfo.id, e.target.value)}
+                        className="w-full text-xs font-semibold bg-slate-50 dark:bg-[#1a1c30] text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5833c7] transition cursor-pointer"
+                      >
+                        {Object.entries(groupedMaterials).map(([category, mats]) => (
+                          <optgroup key={category} label={category}>
+                            {mats.map((mat) => (
+                              <option key={mat.id} value={mat.id}>
+                                {mat.name} (α={mat.coefficients[selectedBand]?.toFixed(2) || '—'})
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+
+                      {activeFaceInfo.type === 'wall' && (
+                        <div className="pt-0.5 flex items-center justify-between">
+                          <button
+                            onClick={() => handleApplyToAllWalls(activeFaceInfo.materialId)}
+                            className="text-[10px] text-[#5833c7] dark:text-[#8767f9] hover:underline font-bold flex items-center gap-1"
+                          >
+                            <Layers className="w-3 h-3" />
+                            <span>Aplicar a todas las paredes</span>
+                          </button>
+                          {copiedAllNotification && (
+                            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                              <Check className="w-3 h-3" /> ¡Listo!
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Espectro de coeficientes de absorción */}
                   <div className="pt-0.5">

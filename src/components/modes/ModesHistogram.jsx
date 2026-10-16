@@ -28,10 +28,29 @@ export default function ModesHistogram({
   // Conteo de modos agrupados por banda de 1/3 de octava
   const bandData = useMemo(() => {
     const rawBands = countModesByBand(modes, Math.max(fMax, schroederFreq * 1.2));
+    const processed = rawBands.map(b => {
+      const axial = Number(b.axial ?? b.axialCount ?? 0);
+      const tangential = Number(b.tangential ?? b.tangentialCount ?? 0);
+      const oblique = Number(b.oblique ?? b.obliqueCount ?? 0);
+      const count = Number(b.count ?? (axial + tangential + oblique));
+      const cumulative = Number(b.cumulative ?? b.cumulativeCount ?? 0);
+      return {
+        ...b,
+        axial,
+        axialCount: axial,
+        tangential,
+        tangentialCount: tangential,
+        oblique,
+        obliqueCount: oblique,
+        count,
+        cumulative,
+        cumulativeCount: cumulative,
+      };
+    });
     if (onlyActiveBands) {
-      return rawBands.filter(b => b.count > 0 || b.fc <= schroederFreq);
+      return processed.filter(b => b.count > 0 || b.fc <= schroederFreq);
     }
-    return rawBands;
+    return processed;
   }, [modes, schroederFreq, fMax, onlyActiveBands]);
 
   const handleExportCsv = () => {
@@ -51,11 +70,11 @@ export default function ModesHistogram({
         b.fc,
         b.fLow.toFixed(2),
         b.fHigh.toFixed(2),
-        b.axialCount,
-        b.tangentialCount,
-        b.obliqueCount,
+        b.axial,
+        b.tangential,
+        b.oblique,
         b.count,
-        b.cumulativeCount
+        b.cumulative
       ]);
     });
     downloadCsv(rows, `POZOLE_Histograma_Modos_1-3_Octava.csv`, ';');
@@ -79,21 +98,21 @@ export default function ModesHistogram({
                 <span className="w-2.5 h-2.5 rounded-sm bg-[#5833c7]"></span>
                 Axiales:
               </span>
-              <span className="font-bold font-mono text-[#1d1d1f] dark:text-white">{data.axialCount}</span>
+              <span className="font-bold font-mono text-[#1d1d1f] dark:text-white">{data.axial}</span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-1.5 text-[#10b981] dark:text-emerald-400 font-medium">
                 <span className="w-2.5 h-2.5 rounded-sm bg-[#10b981]"></span>
                 Tangenciales:
               </span>
-              <span className="font-bold font-mono text-[#1d1d1f] dark:text-white">{data.tangentialCount}</span>
+              <span className="font-bold font-mono text-[#1d1d1f] dark:text-white">{data.tangential}</span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-1.5 text-[#f59e0b] dark:text-amber-400 font-medium">
                 <span className="w-2.5 h-2.5 rounded-sm bg-[#f59e0b]"></span>
                 Oblicuos:
               </span>
-              <span className="font-bold font-mono text-[#1d1d1f] dark:text-white">{data.obliqueCount}</span>
+              <span className="font-bold font-mono text-[#1d1d1f] dark:text-white">{data.oblique}</span>
             </div>
             <div className="pt-1.5 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between font-bold">
               <span className="text-[#1d1d1f] dark:text-white">Total Banda:</span>
@@ -101,7 +120,7 @@ export default function ModesHistogram({
             </div>
             <div className="flex items-center justify-between text-[11px] text-[#86868b]">
               <span>Acumulados hasta banda:</span>
-              <span className="font-mono">{data.cumulativeCount}</span>
+              <span className="font-mono">{data.cumulative}</span>
             </div>
           </div>
         </div>
@@ -166,6 +185,7 @@ export default function ModesHistogram({
               textAnchor="end"
             />
             <YAxis
+              domain={[0, 'auto']}
               tick={{ fontSize: 11, fill: '#86868b', fontFamily: 'monospace' }}
               tickLine={false}
               allowDecimals={false}
@@ -191,9 +211,9 @@ export default function ModesHistogram({
                 fontWeight: 'bold',
               }}
             />
-            <Bar dataKey="axialCount" name="Axial" stackId="a" fill="#5833c7" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="tangentialCount" name="Tangencial" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="obliqueCount" name="Oblicuo" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="axial" name="Axial" stackId="a" fill="#5833c7" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="tangential" name="Tangencial" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="oblique" name="Oblicuo" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -234,13 +254,13 @@ export default function ModesHistogram({
                       {b.fLow.toFixed(1)} – {b.fHigh.toFixed(1)} Hz
                     </td>
                     <td className="py-2 px-3 text-center font-semibold text-[#5833c7]">
-                      {b.axialCount || '—'}
+                      {b.axial}
                     </td>
                     <td className="py-2 px-3 text-center font-semibold text-[#10b981]">
-                      {b.tangentialCount || '—'}
+                      {b.tangential}
                     </td>
                     <td className="py-2 px-3 text-center font-semibold text-[#f59e0b]">
-                      {b.obliqueCount || '—'}
+                      {b.oblique}
                     </td>
                     <td className="py-2 px-3 text-center font-bold text-[#1d1d1f] dark:text-white">
                       <span className={`px-2 py-0.5 rounded-full text-[11px] ${
@@ -250,7 +270,7 @@ export default function ModesHistogram({
                       </span>
                     </td>
                     <td className="py-2 px-3 text-center font-bold text-[#0071e3] dark:text-sky-400">
-                      {b.cumulativeCount}
+                      {b.cumulative}
                     </td>
                   </tr>
                 );

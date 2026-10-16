@@ -28,12 +28,29 @@ import {
 import { getDefaultPolygonMaterials } from './utils/defaultMaterials';
 import { ROOM_PRESETS } from './utils/roomPresets';
 import ModesModule from './components/modes/ModesModule';
+import IntelligibilityModule from './components/IntelligibilityModule';
+import ActiveRoom3DPreview from './components/ActiveRoom3DPreview';
 import {
   getRectangularDims,
   computeModes,
   schroederFrequency,
   evaluateBonello,
 } from './utils/modalCalculations';
+
+const STORAGE_KEY_V3 = 'pozole_project_state_v3';
+
+// Carga segura del estado inicial persistente
+function loadSavedProjectState() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_V3);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('No se pudo restaurar estado de pozole_project_state_v3:', err);
+    return null;
+  }
+}
 
 /**
  * Componente Principal de la Suite Acústica — POZOLE v3.0
@@ -64,20 +81,31 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Carga única inicial de estado previo guardado
+  const savedState = useMemo(() => loadSavedProjectState(), []);
+
   // 1. Polígono de planta libre + altura + curvaturas
-  const [roomPolygon, setRoomPolygon] = useState({
-    vertices: [
-      { x: 0, y: 0 },
-      { x: 10, y: 0 },
-      { x: 10, y: 6 },
-      { x: 0, y: 6 },
-    ],
-    height: 3.0,
-    curvatures: {},
+  const [roomPolygon, setRoomPolygon] = useState(() => {
+    return savedState?.roomPolygon || {
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 6 },
+        { x: 0, y: 6 },
+      ],
+      height: 3.0,
+      curvatures: {},
+    };
   });
 
   // 2. Materiales y coeficientes de absorción (dinámicos según el número de paredes)
-  const [materials, setMaterials] = useState(() => getDefaultPolygonMaterials(4));
+  const [materials, setMaterials] = useState(() => {
+    if (savedState?.materials && Object.keys(savedState.materials).length > 0) {
+      return savedState.materials;
+    }
+    const count = savedState?.roomPolygon?.vertices?.length || 4;
+    return getDefaultPolygonMaterials(count);
+  });
 
   // Sincronizar materiales cuando cambia el número de vértices
   const prevVertexCount = useRef(roomPolygon.vertices.length);
@@ -90,47 +118,108 @@ export default function App() {
   }, [roomPolygon.vertices.length]);
 
   // 3. Fuente Sonora y Receptor
-  const [sourceReceiver, setSourceReceiver] = useState({
-    lw: 90.0,
-    directivity: 1,
-    distance: 3.0,
-    name: 'Fuente Omnidireccional',
+  const [sourceReceiver, setSourceReceiver] = useState(() => {
+    return savedState?.sourceReceiver || {
+      lw: 90.0,
+      directivity: 1,
+      distance: 3.0,
+      name: 'Fuente Omnidireccional',
+    };
   });
 
   // 4. Parámetros de Simulación
-  const [includeAirAbsorption, setIncludeAirAbsorption] = useState(true);
-  const [roomType, setRoomType] = useState('speech');
-  const [selectedBand, setSelectedBand] = useState(1000);
-  const [selectedPresetId, setSelectedPresetId] = useState('');
+  const [includeAirAbsorption, setIncludeAirAbsorption] = useState(() => {
+    return savedState?.includeAirAbsorption !== undefined ? savedState.includeAirAbsorption : true;
+  });
+  const [roomType, setRoomType] = useState(() => savedState?.roomType || 'speech');
+  const [selectedBand, setSelectedBand] = useState(() => savedState?.selectedBand || 1000);
+  const [selectedPresetId, setSelectedPresetId] = useState(() => savedState?.selectedPresetId || '');
 
   // 5. Parámetros de Acústica Ondulatoria y Modos Propios
-  const [modalSettings, setModalSettings] = useState({
-    c: 343,
-    tempC: 20,
-    nMax: 5,
-    fMax: 400,
-    t60Source: 'sabine',
-    t60Override: 1.0,
-    tolerance: 0.5,
+  const [modalSettings, setModalSettings] = useState(() => {
+    return savedState?.modalSettings || {
+      c: 343,
+      tempC: 20,
+      nMax: 5,
+      fMax: 400,
+      t60Source: 'sabine',
+      t60Override: 1.0,
+      tolerance: 0.5,
+    };
   });
 
+  // 6. Mediciones In Situ (Pestaña 7)
   const [measurementData, setMeasurementData] = useState(() => {
+    if (savedState?.measurementData) return savedState.measurementData;
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('pozole_measurement_data');
-        if (saved) return JSON.parse(saved);
+        const legacy = localStorage.getItem('pozole_measurement_data');
+        if (legacy) return JSON.parse(legacy);
       } catch (e) {}
     }
     return null;
   });
 
+  // 7. Comparativa Multimétodo (Pestaña 8: Teórico vs Exp vs REW vs FEM)
+  const [comparisonData, setComparisonData] = useState(() => {
+    return savedState?.comparisonData || null;
+  });
+
+  // Estado del indicador visual de autoguardado ('saved' | 'saving')
+  const [saveStatus, setSaveStatus] = useState('saved');
+  const isInitialMount = useRef(true);
+
+  // Sincronización automática a LocalStorage (pozole_project_state_v3)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    setSaveStatus('saving');
+    const timer = setTimeout(() => {
+      try {
+        const payload = {
+          version: 3,
+          savedAt: new Date().toISOString(),
+          roomPolygon,
+          materials,
+          sourceReceiver,
+          includeAirAbsorption,
+          roomType,
+          selectedBand,
+          selectedPresetId,
+          modalSettings,
+          measurementData,
+          comparisonData,
+        };
+        localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(payload));
+        // Mantener compatibilidad con módulo de medición
+        if (measurementData) {
+          localStorage.setItem('pozole_measurement_data', JSON.stringify(measurementData));
+        }
+        setSaveStatus('saved');
+      } catch (err) {
+        console.error('Error al guardar en localStorage:', err);
+        setSaveStatus('saved');
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [
+    roomPolygon,
+    materials,
+    sourceReceiver,
+    includeAirAbsorption,
+    roomType,
+    selectedBand,
+    selectedPresetId,
+    modalSettings,
+    measurementData,
+    comparisonData,
+  ]);
+
   const handleUpdateMeasurementData = useCallback((data) => {
     setMeasurementData(data);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('pozole_measurement_data', JSON.stringify(data));
-      } catch (e) {}
-    }
   }, []);
 
   // Modales
@@ -227,8 +316,13 @@ export default function App() {
 
   // 6. Cálculos de Acústica Ondulatoria / Modos Propios
   const modalDimensions = useMemo(() => {
-    return getRectangularDims(roomPolygon, dimensions.height);
-  }, [roomPolygon, dimensions.height]);
+    return getRectangularDims(
+      roomPolygon,
+      dimensions.height,
+      geometry.floorArea,
+      modalSettings.dimensionMode || 'equivalent'
+    );
+  }, [roomPolygon, dimensions.height, geometry.floorArea, modalSettings.dimensionMode]);
 
   const t60ForSchroeder = useMemo(() => {
     if (modalSettings.t60Source === 'override') {
@@ -245,7 +339,7 @@ export default function App() {
   }, [modalSettings.t60Source, modalSettings.t60Override, reverberationData]);
 
   const schroederData = useMemo(() => {
-    const v = geometry.volume || (modalDimensions.Lx * modalDimensions.Ly * modalDimensions.Lz);
+    const v = modalDimensions.volume || geometry.volume || (modalDimensions.Lx * modalDimensions.Ly * modalDimensions.Lz);
     return schroederFrequency(t60ForSchroeder, v, modalSettings.c);
   }, [t60ForSchroeder, geometry.volume, modalDimensions, modalSettings.c]);
 
@@ -331,6 +425,15 @@ export default function App() {
   }, []);
 
   const handleReset = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEY_V3);
+        localStorage.removeItem('pozole_measurement_data');
+      } catch (e) {
+        console.warn('Error clearing localStorage:', e);
+      }
+    }
+
     setRoomPolygon({
       vertices: [
         { x: 0, y: 0 },
@@ -339,6 +442,7 @@ export default function App() {
         { x: 0, y: 6 },
       ],
       height: 3.0,
+      curvatures: {},
     });
     setMaterials(getDefaultPolygonMaterials(4));
     setSourceReceiver({
@@ -347,9 +451,22 @@ export default function App() {
       distance: 3.0,
       name: 'Fuente Omnidireccional',
     });
+    setModalSettings({
+      c: 343,
+      tempC: 20,
+      nMax: 5,
+      fMax: 400,
+      t60Source: 'sabine',
+      t60Override: 1.0,
+      tolerance: 0.5,
+    });
+    setMeasurementData(null);
+    setComparisonData(null);
     setRoomType('speech');
     setSelectedPresetId('');
     setSelectedBand(1000);
+    setIncludeAirAbsorption(true);
+    setSaveStatus('saved');
   }, []);
 
   return (
@@ -393,10 +510,26 @@ export default function App() {
           selectedPresetId={selectedPresetId}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(prev => !prev)}
+          saveStatus={saveStatus}
         />
 
         {/* Contenido Dinámico según la Sección Seleccionada */}
         <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+          {/* Mini-Visor 3D persistente de sala para módulos 2 al 7 */}
+          {['materials', 'source', 'results', 'charts', 'intelligibility'].includes(activeSection) && (
+            <div className="animate-fadeIn">
+              <ActiveRoom3DPreview
+                dimensions={modalDimensions}
+                geometry={geometry}
+                roomPolygon={roomPolygon}
+                activeRt60={reverberationData?.[500]?.sabine}
+                isCollapsible={true}
+                defaultOpen={false}
+                onNavigateToGeometry={() => setActiveSection('geometry')}
+              />
+            </div>
+          )}
 
           {/* 0. Pantalla de Bienvenida / Hero */}
           {activeSection === 'welcome' && (
@@ -428,6 +561,7 @@ export default function App() {
               setActiveSection={setActiveSection}
               onOpenReport={() => setIsReportOpen(true)}
               materials={materials}
+              onChangeMaterials={setMaterials}
               selectedBand={selectedBand}
               onChangeSourceReceiver={setSourceReceiver}
               schroederData={schroederData}
@@ -436,7 +570,6 @@ export default function App() {
             />
           )}
 
-          {/* 2. Geometría y Sala */}
           {/* 2. Geometría y Sala (Estudio Compacto 2D + 3D Sincronizado) */}
           {activeSection === 'geometry' && (
             <div className="animate-fadeIn">
@@ -458,6 +591,7 @@ export default function App() {
                     criticalDistance={activeCriticalDistance}
                     onChangeSourceReceiver={setSourceReceiver}
                     materials={materials}
+                    onChangeMaterials={setMaterials}
                     selectedBand={selectedBand}
                   />
                 }
@@ -496,6 +630,7 @@ export default function App() {
                 roomPolygon={roomPolygon}
                 geometry={geometry}
                 materials={materials}
+                onChangeMaterials={setMaterials}
                 selectedBand={selectedBand}
                 soundFieldData={soundFieldData}
               />
@@ -545,6 +680,7 @@ export default function App() {
               <ModesModule
                 dimensions={modalDimensions}
                 geometry={geometry}
+                roomPolygon={roomPolygon}
                 modes={calculatedModes}
                 schroederData={schroederData}
                 bonelloResult={bonelloResult}
@@ -552,12 +688,34 @@ export default function App() {
                 onUpdateModalSettings={setModalSettings}
                 measurementData={measurementData}
                 onUpdateMeasurementData={handleUpdateMeasurementData}
+                comparisonData={comparisonData}
+                onUpdateComparisonData={setComparisonData}
+                sourceReceiver={sourceReceiver}
+                onChangeSourceReceiver={setSourceReceiver}
                 onApplyProportions={handleApplyProportions}
+                onNavigateToGeometry={() => setActiveSection('geometry')}
               />
             </div>
           )}
 
-          {/* 7. Vista Completa (Todo el Estudio) */}
+          {/* 7. Inteligibilidad de la Palabra (%ALcons / Peutz / Logátomos) */}
+          {activeSection === 'intelligibility' && (
+            <div className="animate-fadeIn">
+              <IntelligibilityModule
+                geometry={geometry}
+                absorptionData={absorptionData}
+                reverberationData={reverberationData}
+                soundFieldData={soundFieldData}
+                materials={materials}
+                onChangeMaterials={setMaterials}
+                sourceReceiver={sourceReceiver}
+                onLoadUsbPreset={() => handleLoadPreset('usb_medellin_example')}
+                isDarkMode={isDarkMode}
+              />
+            </div>
+          )}
+
+          {/* 8. Vista Completa (Todo el Estudio) */}
           {activeSection === 'all' && (
             <div className="space-y-8 animate-fadeIn">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -582,6 +740,7 @@ export default function App() {
                     criticalDistance={activeCriticalDistance}
                     onChangeSourceReceiver={setSourceReceiver}
                     materials={materials}
+                    onChangeMaterials={setMaterials}
                     selectedBand={selectedBand}
                   />
                 </div>
@@ -645,6 +804,7 @@ export default function App() {
                 <ModesModule
                   dimensions={modalDimensions}
                   geometry={geometry}
+                  roomPolygon={roomPolygon}
                   modes={calculatedModes}
                   schroederData={schroederData}
                   bonelloResult={bonelloResult}
@@ -652,7 +812,27 @@ export default function App() {
                   onUpdateModalSettings={setModalSettings}
                   measurementData={measurementData}
                   onUpdateMeasurementData={handleUpdateMeasurementData}
+                  comparisonData={comparisonData}
+                  onUpdateComparisonData={setComparisonData}
+                  sourceReceiver={sourceReceiver}
+                  onChangeSourceReceiver={setSourceReceiver}
                   onApplyProportions={handleApplyProportions}
+                  onNavigateToGeometry={() => setActiveSection('geometry')}
+                />
+              </div>
+
+              {/* Módulo de Inteligibilidad en la vista completa */}
+              <div className="pt-6 border-t border-black/[0.08] dark:border-white/[0.08]">
+                <IntelligibilityModule
+                  geometry={geometry}
+                  absorptionData={absorptionData}
+                  reverberationData={reverberationData}
+                  soundFieldData={soundFieldData}
+                  materials={materials}
+                  onChangeMaterials={setMaterials}
+                  sourceReceiver={sourceReceiver}
+                  onLoadUsbPreset={() => handleLoadPreset('usb_medellin_example')}
+                  isDarkMode={isDarkMode}
                 />
               </div>
             </div>
@@ -686,6 +866,7 @@ export default function App() {
           bonelloResult,
           modalSettings,
           measurementData,
+          comparisonData,
         }}
       />
 
@@ -714,6 +895,7 @@ export default function App() {
           bonelloResult,
           modalSettings,
           measurementData,
+          comparisonData,
         }}
       />
 

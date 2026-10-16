@@ -82,4 +82,32 @@ describe('RoomSketcher component mount & render test', () => {
       expect(html).toContain('svg');
     }).not.toThrow();
   });
+
+  it('renders RoomSketcher with CAD tools and buttons for selection, wall, and shortcuts', () => {
+    const props = {
+      roomPolygon: {
+        vertices: [
+          { x: 0, y: 0 },
+          { x: 6, y: 0 },
+          { x: 6, y: 4 },
+          { x: 0, y: 4 },
+        ],
+        height: 2.8,
+        curvatures: {},
+        guides: [],
+      },
+      onChangePolygon: () => {},
+      geometry: { boundingBox: { width: 6, length: 4, height: 2.8 } },
+      materials: {},
+      sourceReceiver: { sourcePos: { x: 1, y: 1, z: 1.5 }, receiverPos: { x: 3, y: 2, z: 1.2 }, distance: 2.2 },
+      onChangeSourceReceiver: () => {},
+    };
+
+    const html = renderToString(<RoomSketcher {...props} />);
+    expect(html).toContain('Muro');
+    expect(html).toContain('Selección');
+    expect(html).toContain('Comandos');
+    expect(html).toContain('Atajos');
+  });
 });
+

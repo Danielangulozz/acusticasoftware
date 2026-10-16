@@ -5,6 +5,11 @@ import {
   matchToTheoreticalModes,
   parseSplCsv,
   interpolateIdw2D,
+  parseRewMeasurementText,
+  mapCurveToThirdOctaveBands,
+  detectSpectralPeaks,
+  isPointInPolygon,
+  minDistanceToWalls,
 } from '../measurementUtils.js';
 
 describe('Utilidades de Medición In Situ (measurementUtils.js)', () => {
@@ -74,5 +79,94 @@ describe('Utilidades de Medición In Situ (measurementUtils.js)', () => {
     expect(res.grid.length).toBe(10 * 10);
     expect(res.minVal).toBeGreaterThanOrEqual(70);
     expect(res.maxVal).toBeLessThanOrEqual(80);
+  });
+
+  it('parsea texto exportado de mediciones de REW (Room EQ Wizard) e ignora cabeceras', () => {
+    const rewText = `
+* Room EQ Wizard V5.20
+* Dated: 15-Oct-2024
+* Measurement: Mic Corner E1
+Freq(Hz)  SPL(dB)  Phase(degrees)
+20.00     65.4     12.3
+25.10     72.8     -5.1
+31.50     84.2     180.0
+40.00     68.1     -90.2
+    `;
+    const parsed = parseRewMeasurementText(rewText);
+    expect(parsed.length).toBe(4);
+    expect(parsed[0]).toEqual({ freq: 20.0, spl: 65.4 });
+    expect(parsed[2]).toEqual({ freq: 31.5, spl: 84.2 });
+  });
+
+  it('mapea curvas continuas a bandas de 1/3 de octava ISO', () => {
+    const curve = [
+      { freq: 60, spl: 75 },
+      { freq: 63, spl: 77 },
+      { freq: 66, spl: 76 },
+      { freq: 125, spl: 82 },
+    ];
+    const bands = mapCurveToThirdOctaveBands(curve, [63, 125]);
+    expect(bands[63]).toBeCloseTo(76.1, 1);
+    expect(bands[125]).toBe(82);
+  });
+
+  it('detecta picos espectrales locales prominentes', () => {
+    const freqs = [30, 35, 40, 45, 50, 55, 60];
+    const spls = [70, 72, 85, 71, 68, 88, 70];
+    const peaks = detectSpectralPeaks(freqs, spls, 5.0);
+    expect(peaks.length).toBe(2);
+    expect(peaks[0].freq).toBe(40);
+    expect(peaks[0].spl).toBe(85);
+    expect(peaks[1].freq).toBe(55);
+    expect(peaks[1].spl).toBe(88);
+  });
+
+  it('evalúa correctamente si un punto está dentro de un polígono arbitrario (Ray-Casting)', () => {
+    // Polígono en L
+    const lShape = [
+      { x: 0, y: 0 },
+      { x: 6, y: 0 },
+      { x: 6, y: 3 },
+      { x: 3, y: 3 },
+      { x: 3, y: 6 },
+      { x: 0, y: 6 },
+    ];
+    // Puntos interiores
+    expect(isPointInPolygon({ x: 1, y: 1 }, lShape)).toBe(true);
+    expect(isPointInPolygon({ x: 4, y: 1 }, lShape)).toBe(true);
+    expect(isPointInPolygon({ x: 1, y: 5 }, lShape)).toBe(true);
+
+    // Puntos exteriores (en el recorte de la L o fuera de la caja)
+    expect(isPointInPolygon({ x: 5, y: 5 }, lShape)).toBe(false);
+    expect(isPointInPolygon({ x: -1, y: 2 }, lShape)).toBe(false);
+    expect(isPointInPolygon({ x: 7, y: 1 }, lShape)).toBe(false);
+  });
+
+  it('genera cuadrícula de medición para recinto poligonal no rectangular garantizando que ningún punto esté fuera', () => {
+    // Sala con forma de L (6 vértices)
+    const lShape = [
+      { x: 0, y: 0 },
+      { x: 8, y: 0 },
+      { x: 8, y: 4 },
+      { x: 4, y: 4 },
+      { x: 4, y: 8 },
+      { x: 0, y: 8 },
+    ];
+
+    const grid = generateMeasurementGrid(8, 8, 1.5, 0.7, 1.2, lShape);
+    expect(grid.points.length).toBeGreaterThan(0);
+
+    // 1. ABSOLUTAMENTE TODOS los puntos deben estar dentro del polígono
+    grid.points.forEach(p => {
+      const inside = isPointInPolygon({ x: p.x, y: p.y }, lShape);
+      expect(inside).toBe(true);
+      // Separación a las paredes
+      const distWall = minDistanceToWalls(p.x, p.y, lShape);
+      expect(distWall).toBeGreaterThanOrEqual(0.2);
+    });
+
+    // 2. La fuente S0 debe estar estrictamente dentro del polígono
+    const sourceInside = isPointInPolygon({ x: grid.source.x, y: grid.source.y }, lShape);
+    expect(sourceInside).toBe(true);
   });
 });

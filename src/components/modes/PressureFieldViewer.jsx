@@ -11,6 +11,9 @@ import {
   Activity,
   Maximize2,
   Sparkles,
+  Box,
+  Compass,
+  Grid3X3,
 } from 'lucide-react';
 import {
   LineChart,
@@ -28,7 +31,6 @@ import { modePressureShape } from '../../utils/modalCalculations';
  * Colormap Jet clásico: t en [-1, 1] -> [R, G, B]
  */
 function getJetColor(val) {
-  // Normalizar de [-1, 1] a [0, 1]
   const t = Math.max(0, Math.min(1, (val + 1) / 2));
   let r = 0, g = 0, b = 0;
 
@@ -55,9 +57,6 @@ function getJetColor(val) {
   ];
 }
 
-/**
- * Visor de Campo de Presión Sonora 2D en Tiempo Real (Canvas + requestAnimationFrame)
- */
 export default function PressureFieldViewer({
   modes = [],
   selectedMode = null,
@@ -66,8 +65,11 @@ export default function PressureFieldViewer({
 }) {
   const { Lx = 10, Ly = 6, Lz = 3 } = dimensions;
 
-  // Modo actual
-  const currentMode = selectedMode || modes[0] || { nx: 1, ny: 0, nz: 0, frequency: 50, label: 'Axial' };
+  // Modo actual seleccionado
+  const currentMode = selectedMode || modes[0] || { id: '1-0-0', nx: 1, ny: 0, nz: 0, frequency: 50, label: 'Axial' };
+
+  // Modo de renderizado: '2d_slice' (Corte 2D) | '3d_surface' (Superficie MATLAB) | '3d_box' (Caja FEM/COMSOL)
+  const [renderView, setRenderView] = useState('2d_slice');
 
   // Estados de control de vista
   const [slicePlane, setSlicePlane] = useState('XY'); // 'XY' | 'XZ' | 'YZ'
@@ -75,15 +77,30 @@ export default function PressureFieldViewer({
   const [showNodeLines, setShowNodeLines] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [slowMoFactor, setSlowMoFactor] = useState(0.0005); // Factor para cámara lenta visible
-  const [probePoint, setProbePoint] = useState({ x: Lx / 2, y: Ly / 2, z: 1.2 });
   const [superposeModes, setSuperposeModes] = useState(false);
 
-  const canvasRef = useRef(null);
+  // Cámara 3D (para Vista B y Vista C)
+  const [rotX, setRotX] = useState(32); // Pitch
+  const [rotY, setRotY] = useState(45); // Yaw
+  const [zoom3D, setZoom3D] = useState(1.0);
+  const [showInternalSlice3D, setShowInternalSlice3D] = useState(true);
+
+  // FIX DEL BUG DE LA SONDA:
+  // No inicializar en (Lx/2, Ly/2) porque para el modo (1,0,0) cae exactamente en un nodo (ψ = 0),
+  // resultando en una gráfica de p(t) plana en cero. Inicializamos en esquina próxima.
+  const [probePoint, setProbePoint] = useState(() => ({
+    x: Math.max(0.4, Number((Lx * 0.15).toFixed(2))),
+    y: Math.max(0.4, Number((Ly * 0.15).toFixed(2))),
+    z: Math.min(1.5, Number((Lz * 0.5).toFixed(2))),
+  }));
+
+  const canvas2DRef = useRef(null);
+  const canvas3DRef = useRef(null);
   const animFrameRef = useRef(null);
   const timeRef = useRef(0);
   const lastTimestampRef = useRef(null);
 
-  // Dimensiones del plano actual
+  // Dimensiones del plano actual para 2D
   const { dimU, dimV, uLabel, vLabel, maxSlice } = useMemo(() => {
     if (slicePlane === 'XY') {
       return { dimU: Lx, dimV: Ly, uLabel: 'X (m)', vLabel: 'Y (m)', maxSlice: Lz };
@@ -94,14 +111,12 @@ export default function PressureFieldViewer({
     return { dimU: Ly, dimV: Lz, uLabel: 'Y (m)', vLabel: 'Z (m)', maxSlice: Lx };
   }, [slicePlane, Lx, Ly, Lz]);
 
-  // Resolución de renderizado
+  // Resolución de renderizado 2D
   const resX = 180;
   const resY = Math.max(60, Math.round(resX * (dimV / dimU)));
-
-  // Matriz espacial precalculada (Float32Array) para evitar recalcular funciones trigonométricas en cada frame
   const spatialFieldRef = useRef(null);
 
-  // Recalcular la matriz espacial únicamente cuando cambia el modo, plano o posición de corte
+  // Recalcular la matriz espacial 2D
   useEffect(() => {
     const grid = new Float32Array(resX * resY);
     const activeModes = superposeModes ? modes.slice(0, 3) : [currentMode];
@@ -125,7 +140,6 @@ export default function PressureFieldViewer({
           totalShape += modePressureShape(x, y, z, m, Lx, Ly, Lz) * (m.weight || 1);
         });
 
-        // Normalizar si se superponen
         if (superposeModes && activeModes.length > 1) {
           totalShape /= activeModes.length;
         }
@@ -135,19 +149,20 @@ export default function PressureFieldViewer({
     }
 
     spatialFieldRef.current = grid;
-    renderCanvasFrame(timeRef.current);
-  }, [currentMode, slicePlane, slicePos, dimU, dimV, Lx, Ly, Lz, resX, resY, superposeModes, modes]);
+    if (renderView === '2d_slice') {
+      render2DFrame(timeRef.current);
+    }
+  }, [currentMode, slicePlane, slicePos, dimU, dimV, Lx, Ly, Lz, resX, resY, superposeModes, modes, renderView]);
 
-  // Función de renderizado directo sobre el canvas sin re-renderizado de React
-  const renderCanvasFrame = useCallback((tSec) => {
-    const canvas = canvasRef.current;
+  // Renderizado del Corte 2D
+  const render2DFrame = useCallback((tSec) => {
+    const canvas = canvas2DRef.current;
     if (!canvas || !spatialFieldRef.current) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const f = currentMode.frequency || 50;
-    // Factor temporal cos(2*pi*f*t)
     const timeFactor = isPlaying ? Math.cos(2 * Math.PI * f * tSec) : 1.0;
 
     const grid = spatialFieldRef.current;
@@ -165,7 +180,6 @@ export default function PressureFieldViewer({
       data[pIdx + 3] = 255;
     }
 
-    // Dibujar datos interpolados en canvas temporal y escalar con smooth
     const offCanvas = document.createElement('canvas');
     offCanvas.width = resX;
     offCanvas.height = resY;
@@ -176,13 +190,12 @@ export default function PressureFieldViewer({
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(offCanvas, 0, 0, canvas.width, canvas.height);
 
-    // Dibujar líneas nodales (p = 0) si está activo
+    // Dibujar líneas nodales (p = 0)
     if (showNodeLines) {
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
       ctx.setLineDash([4, 4]);
 
-      // Nodos en X
       const nx = currentMode.nx || 0;
       if (nx > 0 && (slicePlane === 'XY' || slicePlane === 'XZ')) {
         for (let k = 1; k <= nx; k++) {
@@ -194,7 +207,6 @@ export default function PressureFieldViewer({
         }
       }
 
-      // Nodos en Y
       const ny = currentMode.ny || 0;
       if (ny > 0 && slicePlane === 'XY') {
         for (let k = 1; k <= ny; k++) {
@@ -206,7 +218,6 @@ export default function PressureFieldViewer({
         }
       }
 
-      // Nodos en Z
       const nz = currentMode.nz || 0;
       if (nz > 0 && (slicePlane === 'XZ' || slicePlane === 'YZ')) {
         for (let k = 1; k <= nz; k++) {
@@ -220,13 +231,11 @@ export default function PressureFieldViewer({
       ctx.setLineDash([]);
     }
 
-    // Dibujar punto de sonda (probe)
-    let probeU = 0, probeV = 0;
-    if (slicePlane === 'XY') {
-      probeU = probePoint.x; probeV = probePoint.y;
-    } else if (slicePlane === 'XZ') {
+    // Dibujar sonda receptora
+    let probeU = probePoint.x, probeV = probePoint.y;
+    if (slicePlane === 'XZ') {
       probeU = probePoint.x; probeV = probePoint.z;
-    } else {
+    } else if (slicePlane === 'YZ') {
       probeU = probePoint.y; probeV = probePoint.z;
     }
 
@@ -242,11 +251,238 @@ export default function PressureFieldViewer({
     ctx.stroke();
   }, [currentMode, isPlaying, resX, resY, showNodeLines, slicePlane, dimU, dimV, probePoint]);
 
-  // Bucle de animación con requestAnimationFrame
+  // ============================================================================
+  // RENDERIZADO 3D (VISTA B: Superficie MATLAB y VISTA C: Caja Volumétrica FEM)
+  // ============================================================================
+  const render3DFrame = useCallback((tSec) => {
+    const canvas = canvas3DRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const f = currentMode.frequency || 50;
+    const timeFactor = isPlaying ? Math.cos(2 * Math.PI * f * tSec) : 1.0;
+
+    const radX = (rotX * Math.PI) / 180;
+    const radY = (rotY * Math.PI) / 180;
+    const cosY = Math.cos(radY), sinY = Math.sin(radY);
+    const cosX = Math.cos(radX), sinX = Math.sin(radX);
+
+    // Centro del recinto
+    const cx = Lx / 2, cy = Ly / 2, cz = Lz / 2;
+    const maxDim = Math.max(Lx, Ly, Lz, 8);
+    const baseScale = (Math.min(w, h) * 0.42 / maxDim) * zoom3D;
+
+    // Función de proyección 3D a 2D Canvas
+    const project = (x, y, z) => {
+      const dx = x - cx;
+      const dy = y - cy;
+      const dz = z - cz;
+
+      // Rotación Yaw (eje vertical Z en física acústica)
+      const x1 = dx * cosY - dy * sinY;
+      const y1 = dx * sinY + dy * cosY;
+      const z1 = dz;
+
+      // Rotación Pitch (inclinación)
+      const x2 = x1;
+      const y2 = y1 * cosX - z1 * sinX;
+      const z2 = y1 * sinX + z1 * cosX;
+
+      const scrX = w / 2 + x2 * baseScale;
+      const scrY = h / 2 - z2 * baseScale; // Invertir vertical
+
+      return { x: scrX, y: scrY, depth: y2 };
+    };
+
+    // --------------------------------------------------------------------------
+    // VISTA B: SUPERFICIE 3D ESTILO MATLAB
+    // --------------------------------------------------------------------------
+    if (renderView === '3d_surface') {
+      const Nu = 40;
+      const Nv = 28;
+      const quads = [];
+
+      for (let j = 0; j < Nv - 1; j++) {
+        const v0 = (j / (Nv - 1)) * Ly;
+        const v1 = ((j + 1) / (Nv - 1)) * Ly;
+
+        for (let i = 0; i < Nu - 1; i++) {
+          const u0 = (i / (Nu - 1)) * Lx;
+          const u1 = ((i + 1) / (Nu - 1)) * Lx;
+
+          const zSlice = Math.min(Lz, Math.max(0, slicePos));
+          const p00 = modePressureShape(u0, v0, zSlice, currentMode, Lx, Ly, Lz) * timeFactor;
+          const p10 = modePressureShape(u1, v0, zSlice, currentMode, Lx, Ly, Lz) * timeFactor;
+          const p11 = modePressureShape(u1, v1, zSlice, currentMode, Lx, Ly, Lz) * timeFactor;
+          const p01 = modePressureShape(u0, v1, zSlice, currentMode, Lx, Ly, Lz) * timeFactor;
+
+          const avgP = (p00 + p10 + p11 + p01) / 4;
+          const elevScale = (Lz * 0.8);
+
+          const pt00 = project(u0, v0, cz + p00 * elevScale);
+          const pt10 = project(u1, v0, cz + p10 * elevScale);
+          const pt11 = project(u1, v1, cz + p11 * elevScale);
+          const pt01 = project(u0, v1, cz + p01 * elevScale);
+
+          const depth = (pt00.depth + pt10.depth + pt11.depth + pt01.depth) / 4;
+          quads.push({ pts: [pt00, pt10, pt11, pt01], val: avgP, depth });
+        }
+      }
+
+      // Ordenar por profundidad (Painter's Algorithm)
+      quads.sort((a, b) => b.depth - a.depth);
+
+      // Dibujar quads
+      quads.forEach(q => {
+        const [r, g, b] = getJetColor(q.val);
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.lineWidth = 0.6;
+
+        ctx.beginPath();
+        ctx.moveTo(q.pts[0].x, q.pts[0].y);
+        ctx.lineTo(q.pts[1].x, q.pts[1].y);
+        ctx.lineTo(q.pts[2].x, q.pts[2].y);
+        ctx.lineTo(q.pts[3].x, q.pts[3].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Dibujar caja de referencia base
+      ctx.strokeStyle = 'rgba(120, 120, 140, 0.4)';
+      ctx.lineWidth = 1;
+      const b0 = project(0, 0, cz);
+      const b1 = project(Lx, 0, cz);
+      const b2 = project(Lx, Ly, cz);
+      const b3 = project(0, Ly, cz);
+
+      ctx.beginPath();
+      ctx.moveTo(b0.x, b0.y); ctx.lineTo(b1.x, b1.y); ctx.lineTo(b2.x, b2.y); ctx.lineTo(b3.x, b3.y); ctx.closePath();
+      ctx.stroke();
+    }
+
+    // --------------------------------------------------------------------------
+    // VISTA C: CAJA VOLUMÉTRICA 3D ESTILO FEM / COMSOL
+    // --------------------------------------------------------------------------
+    if (renderView === '3d_box') {
+      const faces = [];
+      const N = 16;
+
+      // 1. Pared Piso (Z = 0)
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const x0 = (i / N) * Lx, x1 = ((i + 1) / N) * Lx;
+          const y0 = (j / N) * Ly, y1 = ((j + 1) / N) * Ly;
+          const val = modePressureShape((x0 + x1) / 2, (y0 + y1) / 2, 0, currentMode, Lx, Ly, Lz) * timeFactor;
+          const p0 = project(x0, y0, 0), p1 = project(x1, y0, 0), p2 = project(x1, y1, 0), p3 = project(x0, y1, 0);
+          faces.push({ pts: [p0, p1, p2, p3], val, depth: (p0.depth + p1.depth + p2.depth + p3.depth) / 4, type: 'boundary' });
+        }
+      }
+
+      // 2. Pared Techo (Z = Lz)
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const x0 = (i / N) * Lx, x1 = ((i + 1) / N) * Lx;
+          const y0 = (j / N) * Ly, y1 = ((j + 1) / N) * Ly;
+          const val = modePressureShape((x0 + x1) / 2, (y0 + y1) / 2, Lz, currentMode, Lx, Ly, Lz) * timeFactor;
+          const p0 = project(x0, y0, Lz), p1 = project(x1, y0, Lz), p2 = project(x1, y1, Lz), p3 = project(x0, y1, Lz);
+          faces.push({ pts: [p0, p1, p2, p3], val, depth: (p0.depth + p1.depth + p2.depth + p3.depth) / 4, type: 'boundary' });
+        }
+      }
+
+      // 3. Pared Lateral Oeste (X = 0)
+      for (let j = 0; j < N; j++) {
+        for (let k = 0; k < N; k++) {
+          const y0 = (j / N) * Ly, y1 = ((j + 1) / N) * Ly;
+          const z0 = (k / N) * Lz, z1 = ((k + 1) / N) * Lz;
+          const val = modePressureShape(0, (y0 + y1) / 2, (z0 + z1) / 2, currentMode, Lx, Ly, Lz) * timeFactor;
+          const p0 = project(0, y0, z0), p1 = project(0, y1, z0), p2 = project(0, y1, z1), p3 = project(0, y0, z1);
+          faces.push({ pts: [p0, p1, p2, p3], val, depth: (p0.depth + p1.depth + p2.depth + p3.depth) / 4, type: 'boundary' });
+        }
+      }
+
+      // 4. Pared Lateral Este (X = Lx)
+      for (let j = 0; j < N; j++) {
+        for (let k = 0; k < N; k++) {
+          const y0 = (j / N) * Ly, y1 = ((j + 1) / N) * Ly;
+          const z0 = (k / N) * Lz, z1 = ((k + 1) / N) * Lz;
+          const val = modePressureShape(Lx, (y0 + y1) / 2, (z0 + z1) / 2, currentMode, Lx, Ly, Lz) * timeFactor;
+          const p0 = project(Lx, y0, z0), p1 = project(Lx, y1, z0), p2 = project(Lx, y1, z1), p3 = project(Lx, y0, z1);
+          faces.push({ pts: [p0, p1, p2, p3], val, depth: (p0.depth + p1.depth + p2.depth + p3.depth) / 4, type: 'boundary' });
+        }
+      }
+
+      // 5. Plano de corte interno (si está habilitado)
+      if (showInternalSlice3D) {
+        const sliceZ = Math.min(Lz, Math.max(0, slicePos));
+        for (let i = 0; i < N; i++) {
+          for (let j = 0; j < N; j++) {
+            const x0 = (i / N) * Lx, x1 = ((i + 1) / N) * Lx;
+            const y0 = (j / N) * Ly, y1 = ((j + 1) / N) * Ly;
+            const val = modePressureShape((x0 + x1) / 2, (y0 + y1) / 2, sliceZ, currentMode, Lx, Ly, Lz) * timeFactor;
+            const p0 = project(x0, y0, sliceZ), p1 = project(x1, y0, sliceZ), p2 = project(x1, y1, sliceZ), p3 = project(x0, y1, sliceZ);
+            faces.push({ pts: [p0, p1, p2, p3], val, depth: (p0.depth + p1.depth + p2.depth + p3.depth) / 4, type: 'internal' });
+          }
+        }
+      }
+
+      // Ordenar por profundidad
+      faces.sort((a, b) => b.depth - a.depth);
+
+      // Dibujar quads con transparencia para apreciar el volumen
+      faces.forEach(f => {
+        const [r, g, b] = getJetColor(f.val);
+        const alpha = f.type === 'internal' ? 0.85 : 0.45;
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        ctx.strokeStyle = f.type === 'internal' ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.08)';
+        ctx.lineWidth = 0.5;
+
+        ctx.beginPath();
+        ctx.moveTo(f.pts[0].x, f.pts[0].y);
+        ctx.lineTo(f.pts[1].x, f.pts[1].y);
+        ctx.lineTo(f.pts[2].x, f.pts[2].y);
+        ctx.lineTo(f.pts[3].x, f.pts[3].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Dibujar aristas de la caja
+      const corners = [
+        project(0, 0, 0), project(Lx, 0, 0), project(Lx, Ly, 0), project(0, Ly, 0),
+        project(0, 0, Lz), project(Lx, 0, Lz), project(Lx, Ly, Lz), project(0, Ly, Lz),
+      ];
+
+      ctx.strokeStyle = '#5833c7';
+      ctx.lineWidth = 1.8;
+      const edges = [
+        [0, 1], [1, 2], [2, 3], [3, 0],
+        [4, 5], [5, 6], [6, 7], [7, 4],
+        [0, 4], [1, 5], [2, 6], [3, 7]
+      ];
+
+      edges.forEach(([i, j]) => {
+        ctx.beginPath();
+        ctx.moveTo(corners[i].x, corners[i].y);
+        ctx.lineTo(corners[j].x, corners[j].y);
+        ctx.stroke();
+      });
+    }
+
+  }, [currentMode, isPlaying, Lx, Ly, Lz, rotX, rotY, zoom3D, renderView, slicePos, showInternalSlice3D]);
+
+  // Bucle de animación global
   useEffect(() => {
     if (!isPlaying) {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      renderCanvasFrame(timeRef.current);
+      if (renderView === '2d_slice') render2DFrame(timeRef.current);
+      else render3DFrame(timeRef.current);
       return;
     }
 
@@ -256,7 +492,8 @@ export default function PressureFieldViewer({
       lastTimestampRef.current = timestamp;
 
       timeRef.current += delta * slowMoFactor;
-      renderCanvasFrame(timeRef.current);
+      if (renderView === '2d_slice') render2DFrame(timeRef.current);
+      else render3DFrame(timeRef.current);
 
       animFrameRef.current = requestAnimationFrame(animate);
     };
@@ -267,11 +504,11 @@ export default function PressureFieldViewer({
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       lastTimestampRef.current = null;
     };
-  }, [isPlaying, slowMoFactor, renderCanvasFrame]);
+  }, [isPlaying, slowMoFactor, renderView, render2DFrame, render3DFrame]);
 
-  // Click en el canvas para mover el punto de sonda
-  const handleCanvasClick = (e) => {
-    const canvas = canvasRef.current;
+  // Click en el canvas 2D para mover sonda
+  const handleCanvas2DClick = (e) => {
+    const canvas = canvas2DRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -290,7 +527,7 @@ export default function PressureFieldViewer({
     }
   };
 
-  // Curva de presión p(t) en el punto de sonda durante 2 periodos
+  // Curva de presión p(t) en la sonda durante 2 periodos
   const probeCurve = useMemo(() => {
     const f = currentMode.frequency || 50;
     const period = 1 / f;
@@ -300,7 +537,7 @@ export default function PressureFieldViewer({
     const shape = modePressureShape(probePoint.x, probePoint.y, probePoint.z, currentMode, Lx, Ly, Lz);
 
     for (let i = 0; i <= numPoints; i++) {
-      const t = (i / numPoints) * (2 * period); // 2 periodos
+      const t = (i / numPoints) * (2 * period);
       const p = shape * Math.cos(2 * Math.PI * f * t);
       curve.push({
         timeMs: Number((t * 1000).toFixed(2)),
@@ -326,11 +563,11 @@ export default function PressureFieldViewer({
               <Eye className="w-5 h-5" />
             </span>
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
-              Visor de Distribución de Presión Acústica 2D
+              Pestaña 5: Distribución Espacial de Presión (2D y 3D)
             </h3>
           </div>
           <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
-            Visualización analítica del campo escalar ψ(x,y,z) y oscilación temporal p(t) con líneas nodales (p=0).
+            Visualización analítica del campo escalar ψ(x,y,z), cortes 2D, superficie 3D tipo MATLAB y volumen FEM/COMSOL.
           </p>
         </div>
 
@@ -354,198 +591,261 @@ export default function PressureFieldViewer({
         </div>
       </div>
 
-      {/* Controles de Vista y Plano de Corte */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] text-xs">
+      {/* SELECTOR DE VISTA (3 MODOS: 2D SLICE, 3D SURFACE MATLAB, 3D BOX FEM) */}
+      <div className="flex items-center justify-between flex-wrap gap-3 bg-[#fbfbfd] dark:bg-[#18192a] p-2.5 rounded-2xl border border-black/[0.05] dark:border-white/[0.06]">
         
-        {/* Selector de Plano */}
-        <div>
-          <label className="block text-[#86868b] font-semibold mb-1.5">Plano de Sección:</label>
-          <div className="flex gap-1">
-            {['XY', 'XZ', 'YZ'].map((plane) => (
-              <button
-                key={plane}
-                onClick={() => { setSlicePlane(plane); setSlicePos(1.2); }}
-                className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${
-                  slicePlane === plane
-                    ? 'bg-[#5833c7] text-white shadow-sm'
-                    : 'bg-white dark:bg-[#25263a] text-[#86868b] border border-black/[0.05] dark:border-white/[0.05]'
-                }`}
-              >
-                {plane === 'XY' ? 'Planta (XY)' : plane === 'XZ' ? 'Alzado (XZ)' : 'Alzado (YZ)'}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setRenderView('2d_slice')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              renderView === '2d_slice'
+                ? 'bg-[#5833c7] text-white shadow-xs'
+                : 'bg-white dark:bg-[#25263a] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+            }`}
+          >
+            <Grid3X3 className="w-3.5 h-3.5" />
+            <span>Vista A: Corte 2D (Planta / Alzado)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setRenderView('3d_surface')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              renderView === '3d_surface'
+                ? 'bg-[#5833c7] text-white shadow-xs'
+                : 'bg-white dark:bg-[#25263a] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Vista B: Superficie 3D (Estilo MATLAB)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setRenderView('3d_box')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              renderView === '3d_box'
+                ? 'bg-[#5833c7] text-white shadow-xs'
+                : 'bg-white dark:bg-[#25263a] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+            }`}
+          >
+            <Box className="w-3.5 h-3.5" />
+            <span>Vista C: Prisma 3D (Estilo FEM / COMSOL)</span>
+          </button>
         </div>
 
-        {/* Slider de Posición de Corte */}
-        <div>
-          <div className="flex items-center justify-between text-[#86868b] font-semibold mb-1.5">
-            <span>Posición de Corte:</span>
-            <span className="font-mono text-[#1d1d1f] dark:text-white font-bold">{slicePos.toFixed(2)} m</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max={maxSlice}
-            step="0.05"
-            value={slicePos}
-            onChange={(e) => setSlicePos(parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#5833c7]"
-          />
-          <div className="flex justify-between text-[10px] text-[#86868b] mt-1 font-mono">
-            <span>0.0 m</span>
-            <span>{(maxSlice / 2).toFixed(1)} m</span>
-            <span>{maxSlice.toFixed(1)} m</span>
-          </div>
-        </div>
-
-        {/* Controles de Animación Temporal */}
-        <div>
-          <label className="block text-[#86868b] font-semibold mb-1.5">Oscilación Temporal:</label>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl font-bold transition-all ${
-                isPlaying
-                  ? 'bg-[#f59e0b] text-white shadow-sm'
-                  : 'bg-[#5833c7] text-white shadow-sm'
-              }`}
-            >
-              {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{isPlaying ? 'Pausar' : 'Animar (p(t))'}</span>
-            </button>
-            <button
-              onClick={() => { timeRef.current = 0; renderCanvasFrame(0); }}
-              className="p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.05] dark:border-white/[0.05] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
-              title="Reiniciar t = 0"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Toggles Adicionales */}
-        <div className="flex flex-col justify-center gap-2">
-          <label className="flex items-center gap-2 cursor-pointer select-none text-[#1d1d1f] dark:text-slate-300">
-            <input
-              type="checkbox"
-              checked={showNodeLines}
-              onChange={(e) => setShowNodeLines(e.target.checked)}
-              className="rounded border-gray-400 text-[#5833c7] focus:ring-[#5833c7]"
-            />
-            <span>Mostrar líneas nodales (p=0)</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer select-none text-[#1d1d1f] dark:text-slate-300">
-            <input
-              type="checkbox"
-              checked={superposeModes}
-              onChange={(e) => setSuperposeModes(e.target.checked)}
-              className="rounded border-gray-400 text-[#5833c7] focus:ring-[#5833c7]"
-            />
-            <span>Superponer 3 primeros modos</span>
-          </label>
+        {/* Botón de Animación Temporal */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsPlaying(!isPlaying)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              isPlaying
+                ? 'bg-[#ef4444] text-white shadow-xs'
+                : 'bg-[#10b981] text-white shadow-xs'
+            }`}
+          >
+            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            <span>{isPlaying ? 'Pausar p(t)' : 'Animar p(t)'}</span>
+          </button>
         </div>
 
       </div>
 
-      {/* Área del Canvas y Barra de Color */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+      {/* ÁREA DE RENDERIZADO PRINCIPAL */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
-        {/* Canvas de Presión (Ocupa 3 columnas) */}
-        <div className="lg:col-span-3 space-y-2">
-          <div className="flex items-center justify-between text-xs text-[#86868b] px-1 font-mono">
-            <span>Origen (0, 0)</span>
-            <span>Haz clic para situar la sonda de medición</span>
-            <span>{uLabel}: {dimU.toFixed(1)}m, {vLabel}: {dimV.toFixed(1)}m</span>
+        {/* Visor Canvas (2 columnas) */}
+        <div className="lg:col-span-2 space-y-3">
+          
+          {renderView === '2d_slice' ? (
+            /* VISTA A: Canvas 2D */
+            <div className="relative aspect-[16/10] bg-[#0c0d18] rounded-2xl overflow-hidden border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center shadow-inner">
+              <canvas
+                ref={canvas2DRef}
+                width={resX}
+                height={resY}
+                onClick={handleCanvas2DClick}
+                className="w-full h-full object-contain cursor-crosshair"
+              />
+              <div className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[11px] font-mono">
+                Corte {slicePlane} en {slicePos.toFixed(2)} m &bull; Sonda ({probePoint.x}, {probePoint.y}, {probePoint.z})m
+              </div>
+            </div>
+          ) : (
+            /* VISTA B y C: Canvas 3D Interactivo */
+            <div className="relative aspect-[16/10] bg-[#0c0d18] rounded-2xl overflow-hidden border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center shadow-inner">
+              <canvas
+                ref={canvas3DRef}
+                width={700}
+                height={440}
+                className="w-full h-full object-contain cursor-grab active:cursor-grabbing"
+                onMouseDown={(e) => {
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const origRotY = rotY;
+                  const origRotX = rotX;
+                  const onMove = (ev) => {
+                    setRotY((origRotY + (ev.clientX - startX) * 0.5) % 360);
+                    setRotX(Math.max(5, Math.min(85, origRotX - (ev.clientY - startY) * 0.3)));
+                  };
+                  const onUp = () => {
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onUp);
+                  };
+                  window.addEventListener('mousemove', onMove);
+                  window.addEventListener('mouseup', onUp);
+                }}
+              />
+              <div className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[11px] font-mono flex items-center gap-2">
+                <Compass className="w-3.5 h-3.5 text-[#5833c7]" />
+                <span>
+                  {renderView === '3d_surface'
+                    ? `Superficie MATLAB 3D • Campo Sonoro (${currentMode.nx},${currentMode.ny},${currentMode.nz})`
+                    : `Caja FEM 3D • Presión en Caras y Planos Internos`}
+                </span>
+              </div>
+              <div className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-black/50 text-[#86868b] text-[10px] font-mono">
+                Arrastra para orbitar 3D
+              </div>
+            </div>
+          )}
+
+          {/* Barra de Controles Inferior */}
+          <div className="p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3 text-xs">
+            
+            {/* Controles de Corte */}
+            <div className="flex items-center gap-3">
+              <span className="text-[#86868b] font-medium">Plano de Corte:</span>
+              <div className="flex items-center gap-1">
+                {['XY', 'XZ', 'YZ'].map(p => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => {
+                      setSlicePlane(p);
+                      setSlicePos(p === 'XY' ? Math.min(1.2, Lz) : p === 'XZ' ? Ly / 2 : Lx / 2);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg font-bold font-mono text-xs transition-colors ${
+                      slicePlane === p
+                        ? 'bg-[#5833c7] text-white shadow-xs'
+                        : 'bg-white dark:bg-[#25263a] text-[#86868b] border border-black/[0.06] dark:border-white/[0.06]'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1.5 ml-2">
+                <span className="text-[#86868b]">Posición:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max={maxSlice}
+                  step="0.05"
+                  value={slicePos}
+                  onChange={(e) => setSlicePos(parseFloat(e.target.value))}
+                  className="w-24 accent-[#5833c7]"
+                />
+                <span className="font-mono font-bold text-[#1d1d1f] dark:text-white">{slicePos.toFixed(2)}m</span>
+              </div>
+            </div>
+
+            {/* Opciones Adicionales */}
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-[#86868b] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showNodeLines}
+                  onChange={(e) => setShowNodeLines(e.target.checked)}
+                  className="rounded text-[#5833c7] focus:ring-[#5833c7]"
+                />
+                <span>Líneas Nodales (p=0)</span>
+              </label>
+
+              {renderView === '3d_box' && (
+                <label className="flex items-center gap-1.5 text-[#86868b] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showInternalSlice3D}
+                    onChange={(e) => setShowInternalSlice3D(e.target.checked)}
+                    className="rounded text-[#5833c7] focus:ring-[#5833c7]"
+                  />
+                  <span>Corte Interno</span>
+                </label>
+              )}
+            </div>
+
           </div>
 
-          <div className="relative w-full aspect-[16/10] bg-black rounded-2xl overflow-hidden border border-black/[0.1] dark:border-white/[0.1] shadow-inner cursor-crosshair">
-            <canvas
-              ref={canvasRef}
-              width={720}
-              height={450}
-              onClick={handleCanvasClick}
-              className="w-full h-full object-cover"
-            />
-          </div>
-
-          {/* Barra de Color Jet */}
-          <div className="flex items-center gap-3 pt-2">
-            <span className="text-[11px] font-mono text-[#86868b]">-1.0 (Mín)</span>
-            <div
-              className="flex-1 h-3 rounded-full border border-black/10 dark:border-white/10"
-              style={{
-                background: 'linear-gradient(to right, #00008f, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000, #800000)'
-              }}
-            />
-            <span className="text-[11px] font-mono text-[#86868b]">+1.0 (Máx)</span>
-          </div>
         </div>
 
-        {/* Panel Lateral: Sonda e Inspección de Punto (1 columna) */}
-        <div className="space-y-4 bg-[#fbfbfd] dark:bg-[#18192a] p-4 rounded-2xl border border-black/[0.05] dark:border-white/[0.06]">
-          <div className="flex items-center gap-2 pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
-            <Crosshair className="w-4 h-4 text-[#5833c7]" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
-              Sonda de Medición
+        {/* Panel Lateral: Sonda y Gráfica p(t) Temporal (1 columna) */}
+        <div className="space-y-4 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+          
+          <div className="pb-2 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
+              <Crosshair className="w-3.5 h-3.5 text-[#0071e3]" />
+              <span>Sonda Receptora en Vivo</span>
             </h4>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#0071e3]/15 text-[#0071e3] font-mono">
+              ψ = {probeCurve.shape}
+            </span>
           </div>
 
-          <div className="space-y-2 text-xs font-mono">
-            <div className="flex justify-between">
-              <span className="text-[#86868b]">Posición X:</span>
-              <span className="font-bold text-[#1d1d1f] dark:text-white">{probePoint.x.toFixed(2)} m</span>
+          {/* Coordenadas de la sonda */}
+          <div className="grid grid-cols-3 gap-2 font-mono text-center text-xs">
+            <div className="p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04]">
+              <span className="text-[10px] text-[#86868b] block">X</span>
+              <strong className="text-[#1d1d1f] dark:text-white">{probePoint.x}m</strong>
             </div>
-            <div className="flex justify-between">
-              <span className="text-[#86868b]">Posición Y:</span>
-              <span className="font-bold text-[#1d1d1f] dark:text-white">{probePoint.y.toFixed(2)} m</span>
+            <div className="p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04]">
+              <span className="text-[10px] text-[#86868b] block">Y</span>
+              <strong className="text-[#1d1d1f] dark:text-white">{probePoint.y}m</strong>
             </div>
-            <div className="flex justify-between">
-              <span className="text-[#86868b]">Posición Z:</span>
-              <span className="font-bold text-[#1d1d1f] dark:text-white">{probePoint.z.toFixed(2)} m</span>
-            </div>
-            <div className="pt-2 border-t border-black/[0.06] dark:border-white/[0.06] flex justify-between text-sm">
-              <span className="text-[#86868b]">Amplitud ψ:</span>
-              <span className={`font-bold ${Math.abs(probeCurve.shape) < 0.1 ? 'text-[#86868b]' : probeCurve.shape > 0 ? 'text-[#ef4444]' : 'text-[#0071e3]'}`}>
-                {probeCurve.shape > 0 ? `+${probeCurve.shape}` : probeCurve.shape}
-              </span>
-            </div>
-            <div className="text-[11px] text-[#86868b] font-sans">
-              {Math.abs(probeCurve.shape) < 0.15 ? 'Zona nodal (cancelación acústica)' : Math.abs(probeCurve.shape) > 0.8 ? 'Vientre de presión (máxima energía modal)' : 'Zona de transición'}
+            <div className="p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04]">
+              <span className="text-[10px] text-[#86868b] block">Z</span>
+              <strong className="text-[#1d1d1f] dark:text-white">{probePoint.z}m</strong>
             </div>
           </div>
 
-          {/* Gráfica Live de p(t) en la Sonda */}
-          <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.06] space-y-1">
-            <div className="text-[11px] font-bold text-[#1d1d1f] dark:text-white">
-              Presión Temporal p(t) [2 periodos]
+          {/* Gráfico Recharts p(t) en la Sonda */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-[#86868b]">
+              <span>Oscilación temporal p(t) en sonda:</span>
+              <span className="font-mono text-[#0071e3] font-bold">T = {probeCurve.periodMs} ms</span>
             </div>
-            <div className="h-28 w-full">
+
+            <div className="h-36 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={probeCurve.curve}
-                  margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="2 2" stroke="#888888" opacity={0.15} />
-                  <XAxis
-                    dataKey="timeMs"
-                    tick={{ fontSize: 9, fill: '#86868b', fontFamily: 'monospace' }}
-                    unit="ms"
-                  />
-                  <YAxis
-                    domain={[-1, 1]}
-                    tick={{ fontSize: 9, fill: '#86868b', fontFamily: 'monospace' }}
-                  />
-                  <ReferenceLine y={0} stroke="#888888" strokeDasharray="3 3" />
+                <LineChart data={probeCurve.curve} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke="rgba(128,128,128,0.15)" />
+                  <XAxis dataKey="timeMs" tick={{ fontSize: 9 }} stroke="#86868b" unit="ms" />
+                  <YAxis domain={[-1, 1]} tick={{ fontSize: 9 }} stroke="#86868b" />
+                  <ReferenceLine y={0} stroke="#86868b" strokeDasharray="3 3" opacity={0.6} />
                   <Line
                     type="monotone"
                     dataKey="pressure"
-                    stroke="#5833c7"
+                    stroke="#0071e3"
                     strokeWidth={2}
                     dot={false}
+                    isAnimationActive={false}
                   />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Escala Colormap Jet */}
+          <div className="pt-2 border-t border-black/[0.06] dark:border-white/[0.06] space-y-1.5">
+            <span className="text-[10px] uppercase font-bold text-[#86868b] block">Escala de Presión Sonora (Jet):</span>
+            <div className="h-3 rounded-full overflow-hidden bg-gradient-to-r from-blue-600 via-green-400 to-red-600 shadow-inner"></div>
+            <div className="flex items-center justify-between text-[10px] font-mono text-[#86868b]">
+              <span>-1 (Antinodo -)</span>
+              <span>0 (Nodo)</span>
+              <span>+1 (Antinodo +)</span>
             </div>
           </div>
 

@@ -20,6 +20,7 @@ import {
   Zap,
   Sun,
   Moon,
+  MessageSquare,
 } from 'lucide-react';
 import { ROOM_PRESETS } from '../utils/roomPresets';
 import { PozoleLogo } from './PozoleLogo';
@@ -95,10 +96,17 @@ export default function Sidebar({
     },
     {
       id: 'modes',
-      label: '6. Modos Propios',
+      label: '6. Acústica Ondulatoria (Modos)',
       subtitle: `fs ≈ ${schroederFreq || 385} Hz • ${modalCount || 0} modos`,
       icon: Waves,
-      badge: 'Ondulatoria',
+      badge: 'Módulo 6',
+    },
+    {
+      id: 'intelligibility',
+      label: '7. Inteligibilidad (%ALcons)',
+      subtitle: 'Peutz • Logátomos • ISO 9921',
+      icon: MessageSquare,
+      badge: 'Módulo 7',
     },
     {
       id: 'all',
@@ -303,9 +311,13 @@ export default function Sidebar({
             </button>
 
             <button
-              onClick={onReset}
+              onClick={() => {
+                if (window.confirm('¿Deseas restablecer todos los parámetros del proyecto a los valores iniciales? Esta acción eliminará los datos guardados en la memoria del navegador.')) {
+                  onReset();
+                }
+              }}
               className="flex items-center gap-1 text-[10px] font-medium text-[#86868b] dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition"
-              title="Restablecer sala a valores iniciales"
+              title="Restablecer sala a valores iniciales y limpiar memoria"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Restablecer</span>

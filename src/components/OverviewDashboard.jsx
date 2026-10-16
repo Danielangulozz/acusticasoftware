@@ -34,6 +34,7 @@ export default function OverviewDashboard({
   setActiveSection,
   onOpenReport,
   materials,
+  onChangeMaterials,
   selectedBand = 1000,
   onChangeSourceReceiver,
   schroederData = { fsApprox: 385, fsExact: 403 },
@@ -142,6 +143,7 @@ export default function OverviewDashboard({
             criticalDistance={criticalDistance}
             onChangeSourceReceiver={onChangeSourceReceiver}
             materials={materials}
+            onChangeMaterials={onChangeMaterials}
             selectedBand={selectedBand}
           />
         </div>

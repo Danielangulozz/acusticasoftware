@@ -13,6 +13,9 @@ export const MATERIAL_CATEGORIES = {
   TEXTILES: 'Textiles y Alfombras',
   ABSORBERS: 'Paneles y Fonoabsorbentes Especiales',
   OPENINGS: 'Vidrios y Aberturas',
+  EXCEL_USB: 'Materiales Ejemplo USB (Tabla Excel)',
+  PEOPLE: 'Personas y Audiencia',
+  OBJECTS: 'Mobiliario y Objetos',
 };
 
 export const DEFAULT_MATERIALS_DATABASE = [
@@ -171,6 +174,43 @@ export const DEFAULT_MATERIALS_DATABASE = [
     category: MATERIAL_CATEGORIES.OPENINGS,
     description: 'Puerta batiente de roble/cedro de 45mm de espesor.',
     coefficients: { 125: 0.14, 250: 0.10, 500: 0.08, 1000: 0.08, 2000: 0.08, 4000: 0.08 },
+  },
+
+  // --- MATERIALES OFICIALES EJEMPLO USB MEDELLÍN (TABLA EXCEL DE CLASE) ---
+  {
+    id: 'baldosa_usb',
+    name: 'Baldosa (Tabla Excel USB)',
+    category: MATERIAL_CATEGORIES.EXCEL_USB,
+    description: 'Piso de baldosa lisa según tabla oficial de clase USB Medellín.',
+    coefficients: { 125: 0.01, 250: 0.01, 500: 0.01, 1000: 0.02, 2000: 0.02, 4000: 0.01 },
+  },
+  {
+    id: 'drywall_usb',
+    name: 'Drywall 1/2" (Tabla Excel USB)',
+    category: MATERIAL_CATEGORIES.EXCEL_USB,
+    description: 'Cielo raso en placa de yeso 1/2" según tabla oficial de clase USB Medellín.',
+    coefficients: { 125: 0.29, 250: 0.10, 500: 0.06, 1000: 0.04, 2000: 0.04, 4000: 0.04 },
+  },
+  {
+    id: 'puerta_madera_usb',
+    name: 'Puerta de madera sólida (Tabla Excel USB)',
+    category: MATERIAL_CATEGORIES.EXCEL_USB,
+    description: 'Puerta de madera maciza según tabla oficial de clase USB Medellín.',
+    coefficients: { 125: 0.10, 250: 0.07, 500: 0.05, 1000: 0.04, 2000: 0.04, 4000: 0.04 },
+  },
+  {
+    id: 'ladrillo_pintado_usb',
+    name: 'Pared de ladrillo pintada (Tabla Excel USB)',
+    category: MATERIAL_CATEGORIES.EXCEL_USB,
+    description: 'Muro de ladrillo revocado y pintado según tabla oficial de clase USB Medellín.',
+    coefficients: { 125: 0.01, 250: 0.01, 500: 0.02, 1000: 0.02, 2000: 0.02, 4000: 0.02 },
+  },
+  {
+    id: 'vidrio_3mm_usb',
+    name: 'Vidrio 3 mm (Tabla Excel USB)',
+    category: MATERIAL_CATEGORIES.EXCEL_USB,
+    description: 'Ventana de vidrio simple 3mm según tabla oficial de clase USB Medellín.',
+    coefficients: { 125: 0.35, 250: 0.25, 500: 0.18, 1000: 0.12, 2000: 0.07, 4000: 0.04 },
   },
 ];
 
@@ -436,4 +476,138 @@ export function getDefaultPolygonMaterials(numWalls, existingMaterials = null) {
   }
 
   return materials;
+}
+
+/**
+ * ==============================================================================
+ * CATÁLOGO DE ABSORCIÓN POR PERSONAS Y AUDIENCIA (m² Sabine por unidad)
+ * ==============================================================================
+ * Fuente: ISO 354, Egan (Architectural Acoustics), Harris (Handbook of Acoustical Measurements)
+ */
+export const DEFAULT_PEOPLE_CATALOG = [
+  {
+    id: 'person_seated_wood',
+    name: 'Persona sentada en silla de madera / pupitre',
+    category: 'Personas',
+    unitLabel: 'personas',
+    description: 'Estudiante u oyente sentado en silla rígida de madera o plástico con ropa ligera.',
+    absorption: { 125: 0.16, 250: 0.35, 500: 0.46, 1000: 0.50, 2000: 0.50, 4000: 0.46 },
+  },
+  {
+    id: 'person_standing',
+    name: 'Persona de pie (ropa ordinaria)',
+    category: 'Personas',
+    unitLabel: 'personas',
+    description: 'Adulto de pie en la sala (profesor, orador o espectador de pie).',
+    absorption: { 125: 0.12, 250: 0.24, 500: 0.59, 1000: 0.98, 2000: 1.13, 4000: 1.12 },
+  },
+  {
+    id: 'person_seated_cushioned',
+    name: 'Persona sentada en butaca tapizada',
+    category: 'Personas',
+    unitLabel: 'personas',
+    description: 'Oyente en butaca con tapicería de tela fonoabsorbente (auditorio / teatro).',
+    absorption: { 125: 0.25, 250: 0.40, 500: 0.50, 1000: 0.65, 2000: 0.70, 4000: 0.65 },
+  },
+  {
+    id: 'student_child',
+    name: 'Estudiante joven / niño',
+    category: 'Personas',
+    unitLabel: 'estudiantes',
+    description: 'Niño o adolescente en aula de clase escolar.',
+    absorption: { 125: 0.10, 250: 0.20, 500: 0.35, 1000: 0.40, 2000: 0.42, 4000: 0.40 },
+  },
+];
+
+/**
+ * ==============================================================================
+ * CATÁLOGO DE ABSORCIÓN POR MOBILIARIO Y OBJETOS (m² Sabine por unidad)
+ * ==============================================================================
+ * Fuente: ISO 354, Egan, Vorländer (Auralization)
+ */
+export const DEFAULT_OBJECTS_CATALOG = [
+  {
+    id: 'chair_wood',
+    name: 'Silla de madera o plástico vacía',
+    category: 'Objetos',
+    unitLabel: 'sillas',
+    description: 'Silla individual de madera, metal o plástico sin tapicería.',
+    absorption: { 125: 0.02, 250: 0.02, 500: 0.03, 1000: 0.04, 2000: 0.04, 4000: 0.04 },
+  },
+  {
+    id: 'chair_cushioned',
+    name: 'Butaca tapizada vacía',
+    category: 'Objetos',
+    unitLabel: 'butacas',
+    description: 'Asiento de auditorio acolchado con tapicería textil porosa.',
+    absorption: { 125: 0.15, 250: 0.25, 500: 0.35, 1000: 0.40, 2000: 0.38, 4000: 0.35 },
+  },
+  {
+    id: 'desk_table_wood',
+    name: 'Mesa / Escritorio de madera (por unidad)',
+    category: 'Objetos',
+    unitLabel: 'mesas',
+    description: 'Mesa de trabajo, pupitre doble o escritorio de profesor.',
+    absorption: { 125: 0.05, 250: 0.06, 500: 0.08, 1000: 0.10, 2000: 0.12, 4000: 0.12 },
+  },
+  {
+    id: 'blackboard',
+    name: 'Pizarra / Tablero escolar (~3 m²)',
+    category: 'Objetos',
+    unitLabel: 'tableros',
+    description: 'Pizarra de tiza o tablero blanco acrílico instalado en pared.',
+    absorption: { 125: 0.15, 250: 0.15, 500: 0.15, 1000: 0.12, 2000: 0.09, 4000: 0.06 },
+  },
+  {
+    id: 'bookshelf_filled',
+    name: 'Estantería con libros (~2 m²)',
+    category: 'Objetos',
+    unitLabel: 'estanterías',
+    description: 'Librero con libros que aporta absorción porosa y difracción.',
+    absorption: { 125: 0.20, 250: 0.30, 500: 0.40, 1000: 0.50, 2000: 0.50, 4000: 0.40 },
+  },
+];
+
+/**
+ * Calcula la absorción acústica equivalente total (A_occ) aportada por personas y objetos
+ * para cada una de las 6 bandas de octava (125 a 4000 Hz).
+ * 
+ * @param {Object} peopleCounts - Conteo por id: { person_seated_wood: 20, ... }
+ * @param {Object} objectCounts - Conteo por id: { chair_wood: 20, desk_table_wood: 10, ... }
+ * @returns {Object} Absorción total en Sabines { 125, 250, 500, 1000, 2000, 4000 }
+ */
+export function calculateOccupancyAbsorption(peopleCounts = {}, objectCounts = {}) {
+  const total = { 125: 0, 250: 0, 500: 0, 1000: 0, 2000: 0, 4000: 0 };
+
+  // Sumar personas
+  Object.entries(peopleCounts || {}).forEach(([personId, count]) => {
+    const qty = Math.max(0, parseInt(count, 10) || 0);
+    if (qty <= 0) return;
+    const item = DEFAULT_PEOPLE_CATALOG.find(p => p.id === personId);
+    if (item && item.absorption) {
+      Object.keys(total).forEach(freq => {
+        total[freq] += qty * (item.absorption[freq] || 0);
+      });
+    }
+  });
+
+  // Sumar objetos
+  Object.entries(objectCounts || {}).forEach(([objId, count]) => {
+    const qty = Math.max(0, parseInt(count, 10) || 0);
+    if (qty <= 0) return;
+    const item = DEFAULT_OBJECTS_CATALOG.find(o => o.id === objId);
+    if (item && item.absorption) {
+      Object.keys(total).forEach(freq => {
+        total[freq] += qty * (item.absorption[freq] || 0);
+      });
+    }
+  });
+
+  // Redondear a 2 decimales
+  const rounded = {};
+  Object.keys(total).forEach(freq => {
+    rounded[freq] = Number(total[freq].toFixed(2));
+  });
+
+  return rounded;
 }

@@ -28,6 +28,10 @@ import {
   nudgeVertex,
   getEdgeNormal,
   centerPolygonAtOrigin,
+  findSmartStrokeSnap,
+  getAdaptiveGridStep,
+  pointInPolygon,
+  findSafeInteriorPoint,
 } from '../utils/sketchGeometry';
 
 // Presets arquitectónicos
@@ -122,11 +126,15 @@ export default function RoomSketcher({
 
   // Puntos en proceso de trazado
   const [drawPoints, setDrawPoints] = useState([]);
+  // Extremo activo desde el cual se extiende el trazo: 'end' (Pn) | 'start' (P1) | null (soltado/libre)
+  const [activeAnchor, setActiveAnchor] = useState('end');
+  const [isSpaceDown, setIsSpaceDown] = useState(false);
   const [cursorWorld, setCursorWorld] = useState({ x: 0, y: 0 });
   const [currentSnap, setCurrentSnap] = useState({ point: { x: 0, y: 0 }, type: 'none' });
   const [dynamicInputStr, setDynamicInputStr] = useState('');
   const [dynamicInputError, setDynamicInputError] = useState(null);
   const [measuredResult, setMeasuredResult] = useState(null);
+  const [activeTrackingGuide, setActiveTrackingGuide] = useState(null);
 
   // Estados de edición existentes
   const [draggingIdx, setDraggingIdx] = useState(null);
@@ -245,25 +253,53 @@ export default function RoomSketcher({
   const maxY = vertices.length ? Math.max(...ys) : 6;
   const centroid = useMemo(() => polygonCentroid(vertices), [vertices]);
 
-  // Posiciones de Fuente y Receptor
+  // Posiciones de Fuente y Receptor (garantizadas dentro del recinto)
   const sourcePos = useMemo(() => {
-    if (sourceReceiver?.sourcePos) return sourceReceiver.sourcePos;
-    return {
-      x: Number((minX + Math.min(2.0, (maxX - minX) * 0.25)).toFixed(2)),
-      y: Number((centroid.y).toFixed(2)),
-      z: 1.5,
-    };
-  }, [sourceReceiver?.sourcePos, minX, maxX, centroid]);
+    if (sourceReceiver?.sourcePos && (vertices.length < 3 || pointInPolygon(sourceReceiver.sourcePos, vertices))) {
+      return sourceReceiver.sourcePos;
+    }
+    return findSafeInteriorPoint(vertices, sourceReceiver?.sourcePos);
+  }, [sourceReceiver?.sourcePos, vertices]);
 
   const receiverPos = useMemo(() => {
-    if (sourceReceiver?.receiverPos) return sourceReceiver.receiverPos;
-    const initialDist = Math.min(3.0, (sourceReceiver?.distance || 3.0));
-    return {
+    const initialDist = Math.min(3.0, Math.max(1.0, sourceReceiver?.distance || 3.0));
+    if (sourceReceiver?.receiverPos && (vertices.length < 3 || pointInPolygon(sourceReceiver.receiverPos, vertices))) {
+      return sourceReceiver.receiverPos;
+    }
+    const candidateR = {
       x: Number((sourcePos.x + initialDist).toFixed(2)),
-      y: Number((sourcePos.y).toFixed(2)),
+      y: Number(sourcePos.y.toFixed(2)),
       z: 1.2,
     };
-  }, [sourceReceiver?.receiverPos, sourcePos, sourceReceiver?.distance]);
+    if (vertices.length < 3 || pointInPolygon(candidateR, vertices)) {
+      return candidateR;
+    }
+    return findSafeInteriorPoint(vertices, candidateR);
+  }, [sourceReceiver?.receiverPos, sourcePos, sourceReceiver?.distance, vertices]);
+
+  const isSourceInside = useMemo(() => {
+    if (!vertices || vertices.length < 3) return true;
+    return pointInPolygon(sourcePos, vertices);
+  }, [sourcePos, vertices]);
+
+  const isReceiverInside = useMemo(() => {
+    if (!vertices || vertices.length < 3) return true;
+    return pointInPolygon(receiverPos, vertices);
+  }, [receiverPos, vertices]);
+
+  const handleRecenterNodes = useCallback(() => {
+    if (!vertices || vertices.length < 3 || !onChangeSourceReceiver) return;
+    const safeS = findSafeInteriorPoint(vertices);
+    const candidateR = { x: Number((safeS.x + 2.0).toFixed(2)), y: safeS.y, z: 1.2 };
+    const safeR = findSafeInteriorPoint(vertices, candidateR);
+    const distR = Math.hypot(safeR.x - safeS.x, safeR.y - safeS.y);
+    onChangeSourceReceiver({
+      ...sourceReceiver,
+      sourcePos: safeS,
+      receiverPos: safeR,
+      distance: Number(distR.toFixed(2)),
+    });
+  }, [vertices, sourceReceiver, onChangeSourceReceiver]);
 
   // Puntos totales visibles para encuadre
   const allBoundsPoints = useMemo(() => {
@@ -357,7 +393,19 @@ export default function RoomSketcher({
     };
   }, [scale, offsetX, offsetY, userZoom, userPan]);
 
-  const GRID_STEP = 0.5; // metros
+  // Cuadrícula y precisión adaptativa según zoom (0.02m a 1.00m con 2 decimales)
+  const currentGridStep = useMemo(() => {
+    return snapToGrid ? getAdaptiveGridStep(userZoom) : 0.05;
+  }, [snapToGrid, userZoom]);
+
+  // Índice del extremo más cercano al cursor (0 para P1 o N-1 para Pn)
+  const closestEndpointIdx = useMemo(() => {
+    if (drawPoints.length === 0) return null;
+    if (drawPoints.length === 1) return 0;
+    const dStart = dist(drawPoints[0], cursorWorld);
+    const dEnd = dist(drawPoints[drawPoints.length - 1], cursorWorld);
+    return dStart <= dEnd ? 0 : drawPoints.length - 1;
+  }, [drawPoints, cursorWorld]);
 
   const fitToView = useCallback(() => {
     setUserZoom(1.0);
@@ -416,39 +464,103 @@ export default function RoomSketcher({
     return { endpoints, segments };
   }, [vertices, drawPoints, guides]);
 
-  const calculateSnappedCursor = useCallback((rawWorldPoint) => {
+  const calculateSnappedCursor = useCallback((rawWorldPoint, referenceOrigin = null) => {
     const effectiveOrtho = isOrtho || isShiftDown;
-    const lastDrawPoint = drawPoints.length > 0 ? drawPoints[drawPoints.length - 1] : null;
+    
+    // Determinar punto de anclaje activo (según activeAnchor o extremo más cercano si está libre)
+    let lastDrawPoint = referenceOrigin;
+    let previousPoint = null;
+    let oppositeClosingPt = null;
 
-    // 1. Si OSNAP a geometría está activo, buscar snap a extremos o puntos medios
-    let snapResult = { point: rawWorldPoint, type: 'none' };
+    if (!lastDrawPoint && drawPoints.length > 0 && activeTool === 'wall') {
+      if (activeAnchor === 'start') {
+        lastDrawPoint = drawPoints[0];
+        previousPoint = drawPoints.length >= 2 ? drawPoints[1] : null;
+        oppositeClosingPt = drawPoints[drawPoints.length - 1];
+      } else if (activeAnchor === 'end') {
+        lastDrawPoint = drawPoints[drawPoints.length - 1];
+        previousPoint = drawPoints.length >= 2 ? drawPoints[drawPoints.length - 2] : null;
+        oppositeClosingPt = drawPoints[0];
+      } else {
+        // activeAnchor === null (cursor libre/soltado): usar el extremo más cercano
+        const dStart = dist(rawWorldPoint, drawPoints[0]);
+        const dEnd = dist(rawWorldPoint, drawPoints[drawPoints.length - 1]);
+        if (dStart <= dEnd) {
+          lastDrawPoint = drawPoints[0];
+          previousPoint = drawPoints.length >= 2 ? drawPoints[1] : null;
+          oppositeClosingPt = drawPoints[drawPoints.length - 1];
+        } else {
+          lastDrawPoint = drawPoints[drawPoints.length - 1];
+          previousPoint = drawPoints.length >= 2 ? drawPoints[drawPoints.length - 2] : null;
+          oppositeClosingPt = drawPoints[0];
+        }
+      }
+    }
+
+    // 1. Detección prioritaria de cierre en el extremo opuesto si estamos dibujando muros
+    if (drawPoints.length >= 3 && activeTool === 'wall' && oppositeClosingPt) {
+      if (dist(rawWorldPoint, oppositeClosingPt) < (0.45 / userZoom)) {
+        setActiveTrackingGuide(null);
+        return { point: cleanPoint(oppositeClosingPt), snapType: 'endpoint', isClosing: true };
+      }
+    }
+
+    // 2. Si OSNAP a extremos de geometría está activo y el cursor está cerca de algún vértice existente
     if (snapToGeometry) {
-      snapResult = findSnap(rawWorldPoint, {
+      const geomSnap = findSnap(rawWorldPoint, {
         endpoints: snapTargets.endpoints,
         segments: snapTargets.segments,
         from: lastDrawPoint,
         tolerance: 0.35 / userZoom,
-        gridStep: snapToGrid ? GRID_STEP : null,
+        gridStep: null, // Evitar salto forzado a esquinas de cuadrícula aquí
       });
-    } else if (snapToGrid) {
-      snapResult = {
-        point: { x: Math.round(rawWorldPoint.x / GRID_STEP) * GRID_STEP, y: Math.round(rawWorldPoint.y / GRID_STEP) * GRID_STEP },
-        type: 'grid',
-      };
-    }
-
-    let finalPoint = cleanPoint(snapResult.point);
-
-    // 2. Si ORTO está activo y tenemos un punto de partida, aplicar restricción horizontal/vertical
-    if (effectiveOrtho && lastDrawPoint) {
-      // Si el snap no fue un endpoint prioritario, forzar ortogonalidad
-      if (snapResult.type !== 'endpoint') {
-        finalPoint = cleanPoint(applyOrtho(lastDrawPoint, finalPoint));
+      if (geomSnap && geomSnap.type !== 'none' && geomSnap.type !== 'grid') {
+        setActiveTrackingGuide(null);
+        return { point: cleanPoint(geomSnap.point), snapType: geomSnap.type };
       }
     }
 
-    return { point: finalPoint, snapType: snapResult.type };
-  }, [isOrtho, isShiftDown, drawPoints, snapToGeometry, snapToGrid, snapTargets, userZoom]);
+    // 3. RASTREO INTELIGENTE ORTOGONAL Y DEL TRAZO ("Seguir lo recto del trazo y ángulo relativo")
+    // Resuelve el problema donde el trazo se va por las esquinas del cuadro/cuadrante más cercano
+    // y rastrea la dirección perpendicular (90°) o extensión recta del trazo anterior
+    if (lastDrawPoint) {
+      // Puntos de referencia para alineación (ej: P1 y todos los vértices de la sala)
+      const referencePoints = [...(drawPoints || []), ...(vertices || [])];
+      const strokeSnap = findSmartStrokeSnap(rawWorldPoint, lastDrawPoint, {
+        previousPoint,
+        referencePoints,
+        forceOrtho: effectiveOrtho,
+        gridStep: snapToGrid ? currentGridStep : 0,
+        angleToleranceDeg: Math.max(3.5, Math.min(10.0, 8.5 / Math.sqrt(userZoom))),
+        alignTolerance: 0.35 / userZoom,
+      });
+
+      if (strokeSnap) {
+        setActiveTrackingGuide({
+          from: lastDrawPoint,
+          to: strokeSnap.point,
+          axis: strokeSnap.axis,
+          angle: strokeSnap.angle,
+          relAngle: strokeSnap.relAngle,
+          isStraight: strokeSnap.isStraight,
+          alignedWith: strokeSnap.alignedWith,
+        });
+        return { point: strokeSnap.point, snapType: strokeSnap.type };
+      }
+    }
+
+    // 4. Si no hay trazo activo (o no hubo imán)
+    setActiveTrackingGuide(null);
+    if (snapToGrid) {
+      const gridPoint = {
+        x: Math.round(rawWorldPoint.x / currentGridStep) * currentGridStep,
+        y: Math.round(rawWorldPoint.y / currentGridStep) * currentGridStep,
+      };
+      return { point: cleanPoint(gridPoint), snapType: 'grid' };
+    }
+
+    return { point: cleanPoint(rawWorldPoint), snapType: 'none' };
+  }, [isOrtho, isShiftDown, drawPoints, activeAnchor, snapToGeometry, snapToGrid, snapTargets, userZoom, activeTool, vertices, currentGridStep]);
 
   // --- ZOOM CON RUEDA DEL MOUSE (centrado en cursor) ---
   const handleWheel = useCallback((e) => {
@@ -493,9 +605,21 @@ export default function RoomSketcher({
     if (editingEdgeIdx !== null) return;
     hasPannedRef.current = false;
 
-    // Si es botón central o derecho -> Pan siempre
-    if (e.button === 1 || e.button === 2) {
+    // Si es botón central, derecho o barra espaciadora -> Pan siempre
+    if (e.button === 1 || e.button === 2 || isSpaceDown) {
       e.preventDefault();
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX, y: e.clientY, panX: userPan.x, panY: userPan.y };
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    const target = e.target;
+    const isBackgroundRect = target.dataset?.canvasBg === 'true';
+    const isSvgRoot = target === svgRef.current;
+
+    // Si estamos trazando con anclaje libre (activeAnchor === null), arrastrar en el fondo activa Pan para desplazarse a otro extremo
+    if (activeTool === 'wall' && activeAnchor === null && (isSvgRoot || isBackgroundRect)) {
       setIsPanning(true);
       panStartRef.current = { x: e.clientX, y: e.clientY, panX: userPan.x, panY: userPan.y };
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -508,16 +632,13 @@ export default function RoomSketcher({
     }
 
     // En modo 'select', clic izquierdo en espacio vacío activa Pan y deselecciona vértice
-    const target = e.target;
-    const isBackgroundRect = target.dataset?.canvasBg === 'true';
-    const isSvgRoot = target === svgRef.current;
     if (isSvgRoot || isBackgroundRect) {
       setSelectedVertexIdx(null);
       setIsPanning(true);
       panStartRef.current = { x: e.clientX, y: e.clientY, panX: userPan.x, panY: userPan.y };
       e.currentTarget.setPointerCapture(e.pointerId);
     }
-  }, [userPan, editingEdgeIdx, activeTool]);
+  }, [userPan, editingEdgeIdx, activeTool, isSpaceDown, activeAnchor]);
 
   const handleCanvasPointerMove = useCallback((e) => {
     const svg = svgRef.current;
@@ -590,22 +711,22 @@ export default function RoomSketcher({
     if (activeTool === 'wall') {
       if (drawPoints.length === 0) {
         setDrawPoints([clickPt]);
-        setStatusMsg('Primer punto fijado. Haz clic para la siguiente pared o escribe medida.');
+        setActiveAnchor('end');
+        setStatusMsg('Primer punto fijado (P1). Haz clic para la siguiente pared o escribe medida.');
         return;
       }
 
-      // Comprobar si se hace clic en el primer punto para cerrar el recinto
-      const firstPt = drawPoints[0];
-      const isClosing = dist(firstPt, clickPt) < (0.4 / userZoom);
+      const pStart = drawPoints[0];
+      const pEnd = drawPoints[drawPoints.length - 1];
+      const hitTol = 0.45 / userZoom;
+      const dToStart = dist(clickPt, pStart);
+      const dToEnd = dist(clickPt, pEnd);
 
-      if (isClosing) {
-        if (drawPoints.length < 3) {
-          setStatusMsg('⚠️ Se necesitan mínimo 3 paredes para cerrar el recinto.');
-          setTimeout(() => setStatusMsg(null), 2500);
-          return;
-        }
+      // CASO A: Cerrar recinto si se hace clic en el extremo opuesto con >= 3 puntos
+      const isClosingAtStart = activeAnchor === 'end' && dToStart < hitTol && drawPoints.length >= 3;
+      const isClosingAtEnd = activeAnchor === 'start' && dToEnd < hitTol && drawPoints.length >= 3;
 
-        // Validar si el polígono resultante se cruza
+      if (isClosingAtStart || isClosingAtEnd) {
         if (polygonSelfIntersects(drawPoints)) {
           setStatusMsg('⚠️ Error: Las paredes se cruzan entre sí. Corrige el trazado para cerrar.');
           setTimeout(() => setStatusMsg(null), 3500);
@@ -620,22 +741,83 @@ export default function RoomSketcher({
         });
         setActivePresetId('custom');
         setDrawPoints([]);
+        setActiveAnchor('end');
+        setActiveTrackingGuide(null);
         setActiveTool('select');
         setStatusMsg(`¡Recinto cerrado con éxito! (${drawPoints.length} paredes creadas)`);
         setTimeout(() => setStatusMsg(null), 3500);
         return;
       }
 
-      // Validar si el nuevo tramo cruza las paredes ya colocadas
-      if (segmentCrossesPolyline(drawPoints, clickPt, false)) {
-        setStatusMsg('⚠️ Cruce no permitido: Esta pared intersecta otra pared.');
-        setTimeout(() => setStatusMsg(null), 3000);
+      // CASO B: Clic directo en el extremo inicial (P1) para continuar desde allí
+      if (dToStart < hitTol) {
+        setActiveAnchor('start');
+        setStatusMsg('Extremo inicial P1 seleccionado como origen. Mueve el cursor y haz clic para continuar el trazo.');
         return;
       }
 
-      // Añadir vértice al trazado
-      setDrawPoints(prev => [...prev, clickPt]);
-      setStatusMsg(`Pared añadida (${drawPoints.length + 1} puntos). Clic en V1 o presiona C para cerrar.`);
+      // CASO C: Clic directo en el extremo final (Pn) para continuar desde allí
+      if (dToEnd < hitTol) {
+        setActiveAnchor('end');
+        setStatusMsg(`Extremo final P${drawPoints.length} seleccionado como origen. Mueve el cursor y haz clic para continuar el trazo.`);
+        return;
+      }
+
+      // CASO D: Clic en un vértice intermedio (P_i) para continuar el trazo desde ese punto
+      for (let i = 1; i < drawPoints.length - 1; i++) {
+        if (dist(clickPt, drawPoints[i]) < hitTol) {
+          setDrawPoints(drawPoints.slice(0, i + 1));
+          setActiveAnchor('end');
+          setStatusMsg(`Continuando trazo desde P${i + 1}. Puntos posteriores eliminados.`);
+          return;
+        }
+      }
+
+      // CASO E: Añadir nueva pared al trazo
+      // 1. Si estamos trazando desde el extremo inicial (P1): prepender punto
+      if (activeAnchor === 'start') {
+        if (segmentCrossesPolyline(drawPoints, clickPt, false)) {
+          setStatusMsg('⚠️ Cruce no permitido: Esta pared intersecta otra pared.');
+          setTimeout(() => setStatusMsg(null), 3000);
+          return;
+        }
+        setDrawPoints(prev => [clickPt, ...prev]);
+        setStatusMsg(`Pared añadida al inicio (${drawPoints.length + 1} puntos). Clic en P${drawPoints.length + 1} o C para cerrar.`);
+        return;
+      }
+
+      // 2. Si estamos trazando desde el extremo final (Pn): apender punto
+      if (activeAnchor === 'end') {
+        if (segmentCrossesPolyline(drawPoints, clickPt, false)) {
+          setStatusMsg('⚠️ Cruce no permitido: Esta pared intersecta otra pared.');
+          setTimeout(() => setStatusMsg(null), 3000);
+          return;
+        }
+        setDrawPoints(prev => [...prev, clickPt]);
+        setStatusMsg(`Pared añadida (${drawPoints.length + 1} puntos). Clic en P1 o presiona C para cerrar.`);
+        return;
+      }
+
+      // 3. Si el anclaje estaba libre (activeAnchor === null): conectar al extremo más cercano
+      if (dToStart <= dToEnd) {
+        if (segmentCrossesPolyline(drawPoints, clickPt, false)) {
+          setStatusMsg('⚠️ Cruce no permitido: Esta pared intersecta otra pared.');
+          setTimeout(() => setStatusMsg(null), 3000);
+          return;
+        }
+        setDrawPoints(prev => [clickPt, ...prev]);
+        setActiveAnchor('start');
+        setStatusMsg(`Pared conectada al extremo inicial P1 (${drawPoints.length + 1} puntos).`);
+      } else {
+        if (segmentCrossesPolyline(drawPoints, clickPt, false)) {
+          setStatusMsg('⚠️ Cruce no permitido: Esta pared intersecta otra pared.');
+          setTimeout(() => setStatusMsg(null), 3000);
+          return;
+        }
+        setDrawPoints(prev => [...prev, clickPt]);
+        setActiveAnchor('end');
+        setStatusMsg(`Pared conectada al extremo final P${drawPoints.length + 1} (${drawPoints.length + 1} puntos).`);
+      }
     }
 
     // HERRAMIENTA 2: RECTÁNGULO CAD (R)
@@ -665,8 +847,9 @@ export default function RoomSketcher({
       });
       setActivePresetId('rectangle');
       setDrawPoints([]);
+      setActiveTrackingGuide(null);
       setActiveTool('select');
-      setStatusMsg(`Recinto rectangular creado (${w.toFixed(1)}m × ${h.toFixed(1)}m)`);
+      setStatusMsg(`Recinto rectangular creado (${w.toFixed(2)}m × ${h.toFixed(2)}m)`);
       setTimeout(() => setStatusMsg(null), 3500);
     }
 
@@ -687,6 +870,7 @@ export default function RoomSketcher({
       const newGuides = [...guides, newGuide];
       onChangePolygon({ ...roomPolygon, guides: newGuides });
       setDrawPoints([]);
+      setActiveTrackingGuide(null);
       setStatusMsg('Línea auxiliar añadida como referencia.');
       setTimeout(() => setStatusMsg(null), 2500);
     }
@@ -706,9 +890,10 @@ export default function RoomSketcher({
       const ang = screenAngleDeg(p1, p2);
       setMeasuredResult({ p1, p2, dist: d, angle: ang });
       setDrawPoints([]);
+      setActiveTrackingGuide(null);
       setStatusMsg(`Medida: ${d.toFixed(2)}m (Ángulo: ${ang.toFixed(1)}°)`);
     }
-  }, [isPanning, activeTool, drawPoints, cursorWorld, userZoom, roomPolygon, onChangePolygon, guides, pushHistory, toWorld, calculateSnappedCursor]);
+  }, [isPanning, activeTool, drawPoints, activeAnchor, cursorWorld, userZoom, roomPolygon, onChangePolygon, guides, pushHistory, toWorld, calculateSnappedCursor]);
 
   // --- EJECUCIÓN DE ENTRADA DINÁMICA (CUANDO SE ESCRIBE 5 + ENTER) ---
   const handleExecuteDynamicInput = useCallback(() => {
@@ -723,15 +908,38 @@ export default function RoomSketcher({
       return;
     }
 
-    const lastPt = drawPoints.length > 0 ? drawPoints[drawPoints.length - 1] : null;
+    let anchorPt = null;
+    let isPrepending = false;
 
-    if (!lastPt) {
+    if (activeTool === 'wall' && drawPoints.length > 0) {
+      if (activeAnchor === 'start') {
+        anchorPt = drawPoints[0];
+        isPrepending = true;
+      } else if (activeAnchor === 'end') {
+        anchorPt = drawPoints[drawPoints.length - 1];
+        isPrepending = false;
+      } else {
+        const dStart = dist(cursorWorld, drawPoints[0]);
+        const dEnd = dist(cursorWorld, drawPoints[drawPoints.length - 1]);
+        if (dStart <= dEnd) {
+          anchorPt = drawPoints[0];
+          isPrepending = true;
+        } else {
+          anchorPt = drawPoints[drawPoints.length - 1];
+          isPrepending = false;
+        }
+      }
+    } else if (drawPoints.length > 0) {
+      anchorPt = drawPoints[drawPoints.length - 1];
+    }
+
+    if (!anchorPt) {
       setDynamicInputError('Primero fija un punto en pantalla');
       return;
     }
 
     const parseResult = parseDynamicInput(rawStr, {
-      from: lastPt,
+      from: anchorPt,
       cursor: cursorWorld,
       mode: activeTool === 'rect' ? 'rect' : 'point',
     });
@@ -751,8 +959,15 @@ export default function RoomSketcher({
         setStatusMsg('⚠️ Cruce no permitido con la medida ingresada.');
         return;
       }
-      setDrawPoints(prev => [...prev, nextPt]);
-      setStatusMsg(`Pared añadida con medida exacta. Siguiente tramo o C para cerrar.`);
+      if (isPrepending) {
+        setDrawPoints(prev => [nextPt, ...prev]);
+        setActiveAnchor('start');
+        setStatusMsg('Pared añadida al inicio con medida exacta. Clic en extremo opuesto o C para cerrar.');
+      } else {
+        setDrawPoints(prev => [...prev, nextPt]);
+        setActiveAnchor('end');
+        setStatusMsg('Pared añadida con medida exacta. Siguiente tramo o C para cerrar.');
+      }
     } else if (activeTool === 'rect') {
       const rectVerts = rectangleFromCorners(drawPoints[0], nextPt);
       pushHistory();
@@ -768,18 +983,54 @@ export default function RoomSketcher({
       setDrawPoints([]);
       setStatusMsg('Línea auxiliar fijada.');
     }
-  }, [dynamicInputStr, drawPoints, cursorWorld, activeTool, roomPolygon, onChangePolygon, guides, pushHistory]);
+  }, [dynamicInputStr, drawPoints, cursorWorld, activeTool, activeAnchor, roomPolygon, onChangePolygon, guides, pushHistory]);
 
-  // Cancelar trazado activo
-  const handleCancelDrawing = useCallback(() => {
+  // Deshacer el último punto del trazo en progreso
+  const handleUndoLastPoint = useCallback(() => {
+    setDrawPoints(prev => {
+      if (prev.length <= 1) {
+        setActiveAnchor('end');
+        setActiveTrackingGuide(null);
+        setStatusMsg('Trazo vaciado.');
+        return [];
+      }
+      if (activeAnchor === 'start') {
+        const next = prev.slice(1);
+        setStatusMsg(`Punto inicial P1 eliminado. Quedan ${next.length} punto(s).`);
+        return next;
+      } else {
+        const next = prev.slice(0, -1);
+        setStatusMsg(`Punto P${prev.length} eliminado. Quedan ${next.length} punto(s).`);
+        return next;
+      }
+    });
+  }, [activeAnchor]);
+
+  // Descartar trazo activo por completo
+  const handleDiscardDrawing = useCallback(() => {
     setDrawPoints([]);
+    setActiveAnchor('end');
+    setActiveTrackingGuide(null);
     setMeasuredResult(null);
     setDynamicInputStr('');
     setDynamicInputError(null);
-    setActiveTool('select');
-    setStatusMsg('Operación cancelada');
+    setStatusMsg('Trazo descartado.');
     setTimeout(() => setStatusMsg(null), 1500);
   }, []);
+
+  // Cancelar/soltar anclaje activo (en muros suelta el cursor sin borrar los puntos)
+  const handleCancelDrawing = useCallback((forceDiscard = false) => {
+    if (!forceDiscard && activeTool === 'wall' && drawPoints.length > 0) {
+      if (activeAnchor !== null) {
+        setActiveAnchor(null);
+        setStatusMsg('Extremo soltado. Haz clic en P1, en Pn o en cualquier punto del lienzo para seguir dibujando.');
+        return;
+      }
+      setStatusMsg('Trazo protegido. Para descartar todo pulsa el botón "Descartar" o escribe DESCARTAR.');
+      return;
+    }
+    handleDiscardDrawing();
+  }, [activeTool, drawPoints.length, activeAnchor, handleDiscardDrawing]);
 
   // Cerrar polilínea de muros explícitamente (tecla C o botón)
   const handleClosePolygonExplicit = useCallback(() => {
@@ -799,6 +1050,8 @@ export default function RoomSketcher({
     });
     setActivePresetId('custom');
     setDrawPoints([]);
+    setActiveAnchor('end');
+    setActiveTrackingGuide(null);
     setActiveTool('select');
     setStatusMsg(`¡Recinto cerrado con éxito! (${drawPoints.length} paredes)`);
     setTimeout(() => setStatusMsg(null), 3500);
@@ -902,26 +1155,32 @@ export default function RoomSketcher({
 
     if (['L', 'LINE', 'LINEA', 'MURO'].includes(cmd)) {
       setActiveTool('wall');
-      setDrawPoints([]);
-      setStatusMsg('Herramienta Muro activa (L)');
+      if (drawPoints.length > 0 && activeAnchor === null) {
+        setActiveAnchor('end');
+      }
+      setStatusMsg(drawPoints.length > 0 ? `Continuando trazo de muros (${drawPoints.length} puntos)` : 'Muro CAD: haz clic para el primer punto');
     } else if (['R', 'REC', 'RECT', 'RECTANGULO'].includes(cmd)) {
       setActiveTool('rect');
-      setDrawPoints([]);
       setStatusMsg('Herramienta Rectángulo activa (R)');
     } else if (['X', 'GUIA', 'XLINE', 'AUX'].includes(cmd)) {
       setActiveTool('guide');
-      setDrawPoints([]);
       setStatusMsg('Herramienta Guía activa (X)');
     } else if (['M', 'MEDIR', 'DIST'].includes(cmd)) {
       setActiveTool('measure');
-      setDrawPoints([]);
       setStatusMsg('Herramienta Medir activa (M)');
     } else if (['V', 'SEL', 'SELECT', 'SELECCIONAR'].includes(cmd)) {
       setActiveTool('select');
-      setDrawPoints([]);
       setStatusMsg('Herramienta Selección activa (V)');
+    } else if (['U', 'UNDO', 'DESHACER'].includes(cmd)) {
+      if (drawPoints.length > 0) {
+        handleUndoLastPoint();
+      } else {
+        handleUndo();
+      }
+    } else if (['DISCARD', 'DESCARTAR', 'BORRAR'].includes(cmd)) {
+      handleDiscardDrawing();
     } else if (['C', 'CLOSE', 'CERRAR'].includes(cmd)) {
-      if (activeTool === 'wall' && drawPoints.length >= 3) {
+      if (drawPoints.length >= 3) {
         handleClosePolygonExplicit();
       } else {
         setStatusMsg('Se requieren mínimo 3 puntos trazados para cerrar el recinto');
@@ -1021,22 +1280,44 @@ export default function RoomSketcher({
         return;
       }
 
-      // Escape: Cancelar herramienta o deseleccionar vértice
+      // Escape: Soltar anclaje de muros para elegir otro punto, deseleccionar vértice o cancelar
       if (e.key === 'Escape') {
         e.preventDefault();
         if (selectedVertexIdx !== null) {
           setSelectedVertexIdx(null);
           return;
         }
+        if (drawPoints.length > 0 && activeTool === 'wall') {
+          if (activeAnchor !== null) {
+            setActiveAnchor(null);
+            setStatusMsg('Extremo soltado. Haz clic en P1, en Pn o en cualquier punto para seguir dibujando.');
+            return;
+          }
+          setStatusMsg('Trazo protegido. Si deseas descartarlo por completo, usa el botón "Descartar".');
+          return;
+        }
         handleCancelDrawing();
         return;
       }
 
-      // Delete o Backspace: Eliminar vértice seleccionado en modo select
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedVertexIdx !== null && activeTool === 'select' && document.activeElement !== dynamicInputRef.current) {
+      // Barra espaciadora: Activar paneo interactivo (tipo CAD/Figma)
+      if (e.code === 'Space' && document.activeElement !== dynamicInputRef.current && document.activeElement !== commandInputRef.current) {
         e.preventDefault();
-        removeVertex(selectedVertexIdx);
-        return;
+        setIsSpaceDown(true);
+      }
+
+      // Delete o Backspace: Eliminar último punto del trazo en progreso O vértice seleccionado
+      if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement !== dynamicInputRef.current) {
+        if (drawPoints.length > 0) {
+          e.preventDefault();
+          handleUndoLastPoint();
+          return;
+        }
+        if (selectedVertexIdx !== null && activeTool === 'select') {
+          e.preventDefault();
+          removeVertex(selectedVertexIdx);
+          return;
+        }
       }
 
       // Flechas del teclado: Desplazamiento fino (nudge) del vértice seleccionado (0.1m o 0.5m con Shift)
@@ -1069,11 +1350,31 @@ export default function RoomSketcher({
       // Atajos de herramientas si no se está escribiendo en el dynamic input
       if (document.activeElement !== dynamicInputRef.current) {
         const k = e.key.toLowerCase();
-        if (k === 'v') { setActiveTool('select'); setDrawPoints([]); }
-        else if (k === 'l') { setActiveTool('wall'); setDrawPoints([]); setStatusMsg('Herramienta Muro activa (L). Clic para iniciar.'); }
-        else if (k === 'r') { setActiveTool('rect'); setDrawPoints([]); setStatusMsg('Herramienta Rectángulo activa (R). Clic en esquina 1.'); }
-        else if (k === 'x') { setActiveTool('guide'); setDrawPoints([]); setStatusMsg('Herramienta Guía activa (X).'); }
-        else if (k === 'm') { setActiveTool('measure'); setDrawPoints([]); setStatusMsg('Herramienta Medir activa (M).'); }
+        if (k === 'v') {
+          setActiveTool('select');
+          if (drawPoints.length > 0) {
+            setStatusMsg('Modo Selección. Pulsa L o haz clic en Muro para continuar tu trazo.');
+          }
+        }
+        else if (k === 'l') {
+          setActiveTool('wall');
+          if (drawPoints.length > 0 && activeAnchor === null) {
+            setActiveAnchor('end');
+          }
+          setStatusMsg(drawPoints.length > 0 ? `Continuando trazo (${drawPoints.length} puntos)` : 'Muro CAD: haz clic para el primer punto');
+        }
+        else if (k === 'r') {
+          setActiveTool('rect');
+          setStatusMsg('Herramienta Rectángulo activa (R). Clic en esquina 1.');
+        }
+        else if (k === 'x') {
+          setActiveTool('guide');
+          setStatusMsg('Herramienta Guía activa (X).');
+        }
+        else if (k === 'm') {
+          setActiveTool('measure');
+          setStatusMsg('Herramienta Medir activa (M).');
+        }
 
         // Si empieza a escribir un número mientras dibuja, enfocar entrada dinámica
         if (drawPoints.length > 0 && /^[0-9@<.,]$/.test(e.key)) {
@@ -1099,6 +1400,9 @@ export default function RoomSketcher({
       if (e.key === 'Shift') {
         setIsShiftDown(false);
       }
+      if (e.code === 'Space') {
+        setIsSpaceDown(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -1108,8 +1412,8 @@ export default function RoomSketcher({
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [
-    activeTool, drawPoints, isOrtho, snapToGeometry, selectedVertexIdx, vertices,
-    roomPolygon, onChangePolygon, handleCancelDrawing, handleClosePolygonExplicit,
+    activeTool, drawPoints, activeAnchor, isOrtho, snapToGeometry, selectedVertexIdx, vertices,
+    roomPolygon, onChangePolygon, handleCancelDrawing, handleUndoLastPoint, handleClosePolygonExplicit,
     handleUndo, handleRedo, removeVertex, pushHistory
   ]);
 
@@ -1177,22 +1481,22 @@ export default function RoomSketcher({
 
       let newVerts;
       if (isHorizontal) {
-        const targetW = Number(desiredLen.toFixed(1));
-        const cleanH = Number(curHeight.toFixed(1));
+        const targetW = Number(desiredLen.toFixed(2));
+        const cleanH = Number(curHeight.toFixed(2));
         newVerts = [
-          { x: Number(originX.toFixed(1)), y: Number(originY.toFixed(1)) },
-          { x: Number((originX + targetW).toFixed(1)), y: Number(originY.toFixed(1)) },
-          { x: Number((originX + targetW).toFixed(1)), y: Number((originY + cleanH).toFixed(1)) },
-          { x: Number(originX.toFixed(1)), y: Number((originY + cleanH).toFixed(1)) }
+          { x: Number(originX.toFixed(2)), y: Number(originY.toFixed(2)) },
+          { x: Number((originX + targetW).toFixed(2)), y: Number(originY.toFixed(2)) },
+          { x: Number((originX + targetW).toFixed(2)), y: Number((originY + cleanH).toFixed(2)) },
+          { x: Number(originX.toFixed(2)), y: Number((originY + cleanH).toFixed(2)) }
         ];
       } else {
-        const cleanW = Number(curWidth.toFixed(1));
-        const targetH = Number(desiredLen.toFixed(1));
+        const cleanW = Number(curWidth.toFixed(2));
+        const targetH = Number(desiredLen.toFixed(2));
         newVerts = [
-          { x: Number(originX.toFixed(1)), y: Number(originY.toFixed(1)) },
-          { x: Number((originX + cleanW).toFixed(1)), y: Number(originY.toFixed(1)) },
-          { x: Number((originX + cleanW).toFixed(1)), y: Number((originY + targetH).toFixed(1)) },
-          { x: Number(originX.toFixed(1)), y: Number((originY + targetH).toFixed(1)) }
+          { x: Number(originX.toFixed(2)), y: Number(originY.toFixed(2)) },
+          { x: Number((originX + cleanW).toFixed(2)), y: Number(originY.toFixed(2)) },
+          { x: Number((originX + cleanW).toFixed(2)), y: Number((originY + targetH).toFixed(2)) },
+          { x: Number(originX.toFixed(2)), y: Number((originY + targetH).toFixed(2)) }
         ];
       }
       onChangePolygon({ ...roomPolygon, vertices: newVerts });
@@ -1214,24 +1518,24 @@ export default function RoomSketcher({
     let newJx, newJy;
     if (Math.abs(dy) < 0.05) {
       const dirX = vj.x >= vi.x ? 1 : -1;
-      newJx = Number((vi.x + dirX * desiredLen).toFixed(1));
+      newJx = Number((vi.x + dirX * desiredLen).toFixed(2));
       newJy = vi.y;
     } else if (Math.abs(dx) < 0.05) {
       const dirY = vj.y >= vi.y ? 1 : -1;
       newJx = vi.x;
-      newJy = Number((vi.y + dirY * desiredLen).toFixed(1));
+      newJy = Number((vi.y + dirY * desiredLen).toFixed(2));
     } else {
       const ux = dx / curDist;
       const uy = dy / curDist;
-      newJx = Number((vi.x + ux * desiredLen).toFixed(1));
-      newJy = Number((vi.y + uy * desiredLen).toFixed(1));
+      newJx = Number((vi.x + ux * desiredLen).toFixed(2));
+      newJy = Number((vi.y + uy * desiredLen).toFixed(2));
     }
 
     const deltaX = newJx - vj.x;
     const deltaY = newJy - vj.y;
     const newVerts = [...vertices];
     newVerts[j] = { x: newJx, y: newJy };
-    newVerts[k] = { x: Number((vk.x + deltaX).toFixed(1)), y: Number((vk.y + deltaY).toFixed(1)) };
+    newVerts[k] = { x: Number((vk.x + deltaX).toFixed(2)), y: Number((vk.y + deltaY).toFixed(2)) };
 
     onChangePolygon({ ...roomPolygon, vertices: newVerts });
     setActivePresetId('custom');
@@ -1248,11 +1552,15 @@ export default function RoomSketcher({
   }, [roomPolygon, onChangePolygon, pushHistory]);
 
   const handleEntityPointerDown = (entity, e) => {
-    if (activeTool !== 'select') return;
+    if (activeTool !== 'select') {
+      setActiveTool('select');
+    }
     e.preventDefault();
     e.stopPropagation();
     setDraggingEntity(entity);
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (_) {}
   };
 
   const handleEntityPointerMove = (e) => {
@@ -1319,7 +1627,7 @@ export default function RoomSketcher({
     setDrawPoints([]);
   }, [roomPolygon, onChangePolygon, geometry, pushHistory]);
 
-  // Cuadrícula CAD
+  // Cuadrícula CAD con resolución visual adaptativa según zoom
   const { gridLines, intersectionDots } = useMemo(() => {
     if (!vertices.length) return { gridLines: [], intersectionDots: [] };
     const minXFloor = Math.floor(minXVal - 0.5);
@@ -1329,19 +1637,21 @@ export default function RoomSketcher({
     const lines = [];
     const dots = [];
 
-    for (let x = minXFloor; x <= maxXCeil; x += GRID_STEP) {
+    const visualStep = userZoom >= 2.5 ? 0.1 : (userZoom >= 1.2 ? 0.2 : 0.5);
+
+    for (let x = minXFloor; x <= maxXCeil + 0.001; x = Number((x + visualStep).toFixed(2))) {
       const s1 = toScreen(x, minYFloor);
       const s2 = toScreen(x, maxYCeil);
-      const isMajor = Math.abs(x % 1) < 0.05;
-      const isFive = Math.abs(x % 5) < 0.05;
-      lines.push({ x1: s1.x, y1: s1.y, x2: s2.x, y2: s2.y, major: isMajor, isFive, val: Math.round(x * 10) / 10, axis: 'x' });
+      const isMajor = Math.abs(x % 1) < 0.05 || Math.abs(x % 1 - 1) < 0.05;
+      const isFive = Math.abs(x % 5) < 0.05 || Math.abs(x % 5 - 5) < 0.05;
+      lines.push({ x1: s1.x, y1: s1.y, x2: s2.x, y2: s2.y, major: isMajor, isFive, val: Number(x.toFixed(2)), axis: 'x' });
     }
-    for (let y = minYFloor; y <= maxYCeil; y += GRID_STEP) {
+    for (let y = minYFloor; y <= maxYCeil + 0.001; y = Number((y + visualStep).toFixed(2))) {
       const s1 = toScreen(minXFloor, y);
       const s2 = toScreen(maxXCeil, y);
-      const isMajor = Math.abs(y % 1) < 0.05;
-      const isFive = Math.abs(y % 5) < 0.05;
-      lines.push({ x1: s1.x, y1: s1.y, x2: s2.x, y2: s2.y, major: isMajor, isFive, val: Math.round(y * 10) / 10, axis: 'y' });
+      const isMajor = Math.abs(y % 1) < 0.05 || Math.abs(y % 1 - 1) < 0.05;
+      const isFive = Math.abs(y % 5) < 0.05 || Math.abs(y % 5 - 5) < 0.05;
+      lines.push({ x1: s1.x, y1: s1.y, x2: s2.x, y2: s2.y, major: isMajor, isFive, val: Number(y.toFixed(2)), axis: 'y' });
     }
 
     for (let x = Math.ceil(minXVal); x <= Math.floor(maxXVal); x += 1.0) {
@@ -1351,7 +1661,7 @@ export default function RoomSketcher({
     }
 
     return { gridLines: lines, intersectionDots: dots };
-  }, [vertices, minXVal, maxXVal, minYVal, maxYVal, toScreen]);
+  }, [vertices, minXVal, maxXVal, minYVal, maxYVal, toScreen, userZoom]);
 
 
   const area = useMemo(() => {
@@ -1455,23 +1765,43 @@ export default function RoomSketcher({
 
   // Cálculos en vivo para la línea elástica (rubberband)
   const rubberbandInfo = useMemo(() => {
-    if (drawPoints.length === 0) return null;
-    const last = drawPoints[drawPoints.length - 1];
+    if (drawPoints.length === 0 || activeTool !== 'wall') return null;
+
+    // Determinar el punto de anclaje de la línea elástica
+    let anchorIdx = null;
+    if (activeAnchor === 'start') {
+      anchorIdx = 0;
+    } else if (activeAnchor === 'end') {
+      anchorIdx = drawPoints.length - 1;
+    } else {
+      anchorIdx = closestEndpointIdx;
+    }
+
+    if (anchorIdx === null || anchorIdx === undefined || !drawPoints[anchorIdx]) return null;
+
+    const anchorPt = drawPoints[anchorIdx];
     const curr = cursorWorld;
-    const d = dist(last, curr);
-    const ang = screenAngleDeg(last, curr);
-    const first = drawPoints[0];
-    const isClosingNear = dist(first, curr) < (0.4 / userZoom) && drawPoints.length >= 3;
+    const d = dist(anchorPt, curr);
+    const ang = screenAngleDeg(anchorPt, curr);
+
+    const oppositeIdx = anchorIdx === 0 ? drawPoints.length - 1 : 0;
+    const targetOpposite = drawPoints[oppositeIdx];
+    const isClosingNear = drawPoints.length >= 3 && targetOpposite && dist(targetOpposite, curr) < (0.45 / userZoom);
     const isCrossing = segmentCrossesPolyline(drawPoints, curr, isClosingNear);
+
     return {
-      fromScreen: toScreen(last.x, last.y),
+      fromScreen: toScreen(anchorPt.x, anchorPt.y),
       toScreen: toScreen(curr.x, curr.y),
+      fromPoint: anchorPt,
+      targetOpposite,
+      anchorIdx,
       dist: d,
       angle: ang,
       isClosingNear,
       isCrossing,
+      isDetached: activeAnchor === null,
     };
-  }, [drawPoints, cursorWorld, toScreen, userZoom]);
+  }, [drawPoints, cursorWorld, toScreen, userZoom, activeTool, activeAnchor, closestEndpointIdx]);
 
   const effectiveOrtho = isOrtho || isShiftDown;
 
@@ -1485,7 +1815,12 @@ export default function RoomSketcher({
         <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#0A0C14] p-1 rounded-xl border border-black/[0.04] dark:border-white/10">
           <button
             type="button"
-            onClick={() => { setActiveTool('select'); setDrawPoints([]); }}
+            onClick={() => {
+              setActiveTool('select');
+              if (drawPoints.length > 0) {
+                setStatusMsg('Modo Selección activo. Pulsa "Muro" (L) para continuar tu trazo.');
+              }
+            }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTool === 'select'
                 ? 'bg-[#5833c7] text-white shadow-xs'
@@ -1500,22 +1835,34 @@ export default function RoomSketcher({
 
           <button
             type="button"
-            onClick={() => { setActiveTool('wall'); setDrawPoints([]); setStatusMsg('Muro CAD: haz clic para el primer punto'); }}
+            onClick={() => {
+              setActiveTool('wall');
+              if (drawPoints.length > 0 && activeAnchor === null) {
+                setActiveAnchor('end');
+              }
+              setStatusMsg(drawPoints.length > 0 ? `Continuando trazo de muros (${drawPoints.length} puntos)` : 'Muro CAD: haz clic para el primer punto');
+            }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTool === 'wall'
                 ? 'bg-[#5833c7] text-white shadow-xs'
+                : drawPoints.length > 0
+                ? 'bg-[#5833c7]/20 text-[#a78bfa] border border-[#5833c7]/30'
                 : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
             title="Trazar Muros Punto a Punto (L)"
           >
             <PenTool className="w-3.5 h-3.5" />
             <span>Muro</span>
+            {drawPoints.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
             <kbd className="text-[9px] opacity-70 font-mono">L</kbd>
           </button>
 
           <button
             type="button"
-            onClick={() => { setActiveTool('rect'); setDrawPoints([]); setStatusMsg('Rectángulo CAD: haz clic en esquina 1'); }}
+            onClick={() => {
+              setActiveTool('rect');
+              setStatusMsg('Rectángulo CAD: haz clic en esquina 1');
+            }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTool === 'rect'
                 ? 'bg-[#5833c7] text-white shadow-xs'
@@ -1530,7 +1877,10 @@ export default function RoomSketcher({
 
           <button
             type="button"
-            onClick={() => { setActiveTool('guide'); setDrawPoints([]); setStatusMsg('Línea Auxiliar: traza una guía libre'); }}
+            onClick={() => {
+              setActiveTool('guide');
+              setStatusMsg('Línea Auxiliar: traza una guía libre');
+            }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTool === 'guide'
                 ? 'bg-[#0ea5e9] text-white shadow-xs'
@@ -1545,7 +1895,10 @@ export default function RoomSketcher({
 
           <button
             type="button"
-            onClick={() => { setActiveTool('measure'); setDrawPoints([]); }}
+            onClick={() => {
+              setActiveTool('measure');
+              setStatusMsg('Herramienta Medir activa (M)');
+            }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               activeTool === 'measure'
                 ? 'bg-[#10b981] text-white shadow-xs'
@@ -1702,12 +2055,74 @@ export default function RoomSketcher({
           </div>
         )}
 
-        {/* --- CAJA FLOTANTE DE ENTRADA DINÁMICA (CAD HUD) --- */}
+        {/* --- CAJA FLOTANTE DE ENTRADA DINÁMICA Y CONTROL DE TRAZO BIDIRECCIONAL (CAD HUD) --- */}
         {drawPoints.length > 0 && (
-          <div className="absolute top-3 left-3 z-30 flex items-center gap-2 bg-[#141622]/95 backdrop-blur-md p-2 rounded-xl border border-white/20 shadow-2xl animate-fadeIn">
-            <div className="text-[11px] font-mono font-bold text-slate-300 flex items-center gap-1.5">
-              <span className="text-[#a78bfa]">Medida CAD:</span>
+          <div className="absolute top-3 left-3 z-30 flex flex-wrap items-center gap-2 bg-[#141622]/95 backdrop-blur-md p-2 rounded-xl border border-white/20 shadow-2xl animate-fadeIn">
+            {/* Indicador de estado del trazo y extremo activo */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs">
+              <span className={`w-2 h-2 rounded-full ${activeAnchor ? 'bg-[#a78bfa] animate-pulse' : 'bg-cyan-400'}`} />
+              <span className="font-bold text-slate-200">
+                {activeTool !== 'wall'
+                  ? 'Trazo en curso'
+                  : activeAnchor === 'start'
+                  ? 'Trazando desde P1 (Inicio)'
+                  : activeAnchor === 'end'
+                  ? `Trazando desde P${drawPoints.length} (Final)`
+                  : 'Extremo libre (Haz clic para seguir)'}
+              </span>
+              <span className="text-slate-400 text-[10px]">({drawPoints.length} {drawPoints.length === 1 ? 'pto' : 'ptos'})</span>
             </div>
+
+            {/* Selector interactivo de extremo para continuar desde el otro punto en muros */}
+            {activeTool === 'wall' && drawPoints.length > 1 && (
+              <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveAnchor('start');
+                    setStatusMsg('Origen de trazo cambiado a P1 (extremo inicial).');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1 ${
+                    activeAnchor === 'start'
+                      ? 'bg-[#5833c7] text-white shadow-xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Continuar dibujando desde el extremo inicial P1"
+                >
+                  ◀ P1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveAnchor('end');
+                    setStatusMsg(`Origen de trazo cambiado a P${drawPoints.length} (extremo final).`);
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1 ${
+                    activeAnchor === 'end'
+                      ? 'bg-[#5833c7] text-white shadow-xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
+                  }`}
+                  title={`Continuar dibujando desde el extremo final P${drawPoints.length}`}
+                >
+                  P{drawPoints.length} ▶
+                </button>
+                {activeAnchor !== null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveAnchor(null);
+                      setStatusMsg('Extremo soltado (Esc). Haz clic en P1, en Pn o en el lienzo para continuar.');
+                    }}
+                    className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-400 hover:text-slate-200 hover:bg-white/10 transition"
+                    title="Soltar cursor para moverte o elegir otro punto (Esc)"
+                  >
+                    Soltar (Esc)
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Entrada dinámica de medidas CAD */}
             <form
               onSubmit={(e) => { e.preventDefault(); handleExecuteDynamicInput(); }}
               className="flex items-center gap-1.5"
@@ -1717,41 +2132,71 @@ export default function RoomSketcher({
                 type="text"
                 value={dynamicInputStr}
                 onChange={(e) => { setDynamicInputStr(e.target.value); setDynamicInputError(null); }}
-                placeholder={activeTool === 'rect' ? 'Ej: 8,5 (W,H)' : 'Ej: 5 o 5<90'}
-                className="w-28 sm:w-36 bg-[#0A0C14] text-xs font-mono font-bold text-white px-2 py-1 rounded-lg border border-white/20 focus:outline-none focus:border-[#a78bfa]"
+                placeholder={activeTool === 'rect' ? 'Ej: 8,5' : 'Ej: 5 o 5<90'}
+                className="w-24 sm:w-28 bg-[#0A0C14] text-xs font-mono font-bold text-white px-2 py-1 rounded-lg border border-white/20 focus:outline-none focus:border-[#a78bfa]"
               />
               <button
                 type="submit"
                 className="px-2 py-1 bg-[#5833c7] hover:bg-[#4727a8] text-white text-xs font-bold rounded-lg transition"
+                title="Aplicar medida (Enter)"
               >
                 ↵
               </button>
             </form>
 
+            {/* Cerrar recinto (C) si >= 3 paredes */}
             {activeTool === 'wall' && drawPoints.length >= 3 && (
               <button
                 type="button"
                 onClick={handleClosePolygonExplicit}
                 className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 shadow-sm"
-                title="Cerrar polígono (Tecla C)"
+                title="Cerrar recinto uniendo los dos extremos (Tecla C)"
               >
                 <Check className="w-3 h-3" />
                 <span>Cerrar (C)</span>
               </button>
             )}
 
+            {/* Deshacer último punto colocado */}
             <button
               type="button"
-              onClick={handleCancelDrawing}
-              className="px-2 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 text-xs font-bold rounded-lg transition"
-              title="Cancelar trazo (Esc)"
+              onClick={handleUndoLastPoint}
+              className="px-2 py-1 bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold rounded-lg transition flex items-center gap-1"
+              title="Deshacer punto colocado (Backspace)"
             >
-              Esc
+              <Undo2 className="w-3 h-3" />
+              <span className="hidden sm:inline">Deshacer</span>
+            </button>
+
+            {/* Descartar trazo */}
+            <button
+              type="button"
+              onClick={handleDiscardDrawing}
+              className="px-2 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 text-xs font-bold rounded-lg transition flex items-center gap-1"
+              title="Descartar trazo por completo"
+            >
+              <Trash2 className="w-3 h-3" />
             </button>
 
             {dynamicInputError && (
               <span className="text-[10px] text-rose-400 font-sans">{dynamicInputError}</span>
             )}
+          </div>
+        )}
+
+        {/* --- AVISO SI FUENTE O MICRO ESTÁN FUERA DEL RECINTO --- */}
+        {showAcousticNodes && (!isSourceInside || !isReceiverInside) && (
+          <div className="absolute top-14 left-3 z-30 bg-[#ef4444]/95 text-white backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 shadow-2xl flex items-center gap-2 text-xs animate-fadeIn font-sans font-medium">
+            <AlertTriangle className="w-4 h-4 text-amber-200 shrink-0" />
+            <span>{!isSourceInside && !isReceiverInside ? 'Fuente y Micrófono fuera del recinto' : !isSourceInside ? 'Fuente acústica fuera de las paredes' : 'Micrófono fuera de las paredes'}</span>
+            <button
+              type="button"
+              onClick={handleRecenterNodes}
+              className="ml-1 px-2.5 py-1 bg-white text-[#ef4444] hover:bg-white/90 font-bold rounded-lg transition shadow-xs"
+              title="Reubicar automáticamente en una posición interior segura"
+            >
+              Centrar en Sala
+            </button>
           </div>
         )}
 
@@ -1803,7 +2248,7 @@ export default function RoomSketcher({
           viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
           preserveAspectRatio="xMidYMid meet"
           className="w-full select-none h-[360px] sm:h-[440px]"
-          style={{ cursor: isPanning ? 'grabbing' : activeTool !== 'select' ? 'crosshair' : 'default', touchAction: 'none' }}
+          style={{ cursor: isPanning ? 'grabbing' : isSpaceDown ? 'grab' : activeTool !== 'select' ? 'crosshair' : 'default', touchAction: 'none' }}
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={(e) => {
             handleCanvasPointerMove(e);
@@ -2034,13 +2479,13 @@ export default function RoomSketcher({
                 {showMeasurements && (
                   <g>
                     {editingEdgeIdx === i ? (
-                      <foreignObject x={badgeX - 28} y={badgeY - 11} width={56} height={22}>
+                      <foreignObject x={badgeX - 32} y={badgeY - 11} width={64} height={22}>
                         <div className="flex items-center justify-center w-full h-full">
                           <input
                             autoFocus
                             type="number"
-                            step="0.1"
-                            min="0.2"
+                            step="0.01"
+                            min="0.1"
                             value={editingLengthStr}
                             onChange={(e) => setEditingLengthStr(e.target.value)}
                             onBlur={() => handleApplyEdgeLength(i, editingLengthStr)}
@@ -2057,15 +2502,15 @@ export default function RoomSketcher({
                         onDoubleClick={(e) => {
                           e.stopPropagation();
                           setEditingEdgeIdx(i);
-                          setEditingLengthStr(edge.length.toFixed(1));
+                          setEditingLengthStr(edge.length.toFixed(2));
                         }}
                         style={{ cursor: activeTool === 'select' ? 'pointer' : 'default' }}
                       >
                         <rect
-                          x={badgeX - (isCurved ? 30 : 22)}
-                          y={badgeY - 7}
-                          width={isCurved ? 60 : 44}
-                          height={14}
+                          x={badgeX - (isCurved ? 36 : 28)}
+                          y={badgeY - 7.5}
+                          width={isCurved ? 72 : 56}
+                          height={15}
                           rx={4}
                           fill="rgba(255,255,255,0.96)"
                           stroke={isCurved ? '#5833c7' : 'rgba(0,0,0,0.12)'}
@@ -2082,7 +2527,7 @@ export default function RoomSketcher({
                           textAnchor="middle"
                           className="dark:fill-white select-none pointer-events-none"
                         >
-                          {edge.length.toFixed(1)}m{isCurved ? ' (arc)' : ''}
+                          {edge.length.toFixed(2)}m{isCurved ? ' (arc)' : ''}
                         </text>
                       </g>
                     )}
@@ -2182,14 +2627,14 @@ export default function RoomSketcher({
                 {isSelected && activeTool === 'select' && (
                   <g transform={`translate(${s.x}, ${s.y + 18})`} style={{ pointerEvents: 'none' }}>
                     <rect
-                      x="-46" y="-8" width="92" height="16" rx="4"
+                      x="-54" y="-8" width="108" height="16" rx="4"
                       fill="#141622" stroke="#f59e0b" strokeWidth="1"
                     />
                     <text
                       x="0" y="3.5"
                       fill="#fef3c7" fontSize="8" fontWeight="bold" fontFamily="monospace" textAnchor="middle"
                     >
-                      {v.x.toFixed(1)}m, {v.y.toFixed(1)}m
+                      {v.x.toFixed(2)}m, {v.y.toFixed(2)}m
                     </text>
                   </g>
                 )}
@@ -2221,14 +2666,19 @@ export default function RoomSketcher({
             );
           })()}
 
-          {/* --- TRAZADO CAD EN VIVO (POLILÍNEA DE MUROS / RUBBERBAND) --- */}
-          {drawPoints.length > 0 && activeTool === 'wall' && (
-            <g style={{ pointerEvents: 'none' }}>
+          {/* --- TRAZADO CAD EN VIVO (POLILÍNEA DE MUROS / ANCLAJES BIDIRECCIONALES / RUBBERBAND) --- */}
+          {drawPoints.length > 0 && (
+            <g>
               {/* Tramos ya fijados en el dibujo */}
               {drawPoints.map((pt, idx) => {
                 const s = toScreen(pt.x, pt.y);
                 const nextPt = drawPoints[idx + 1];
                 const nextS = nextPt ? toScreen(nextPt.x, nextPt.y) : null;
+                const isStart = idx === 0;
+                const isLast = idx === drawPoints.length - 1;
+                const isEndpoint = isStart || isLast;
+                const isActiveAnchor = (activeAnchor === 'start' && isStart) || (activeAnchor === 'end' && isLast);
+
                 return (
                   <g key={`draw-pt-${idx}`}>
                     {nextS && (
@@ -2236,59 +2686,283 @@ export default function RoomSketcher({
                         x1={s.x} y1={s.y}
                         x2={nextS.x} y2={nextS.y}
                         stroke="#5833c7"
-                        strokeWidth="2.8"
+                        strokeWidth="3.0"
                         strokeLinecap="round"
                       />
                     )}
-                    <circle cx={s.x} cy={s.y} r={6} fill="#5833c7" stroke="white" strokeWidth={2} />
+
+                    {/* Vértice con estilos interactivos */}
+                    <circle
+                      cx={s.x} cy={s.y}
+                      r={isActiveAnchor ? 8 : isEndpoint ? 7 : 5}
+                      fill={isActiveAnchor ? '#7c3aed' : isEndpoint ? '#5833c7' : '#8b5cf6'}
+                      stroke="white"
+                      strokeWidth={isActiveAnchor ? 2.5 : 2}
+                      className={isEndpoint ? 'cursor-pointer' : undefined}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isStart) {
+                          if (activeAnchor === 'end' && drawPoints.length >= 3) {
+                            handleClosePolygonExplicit();
+                          } else {
+                            setActiveAnchor('start');
+                            setStatusMsg('Continuando trazo desde el extremo inicial P1.');
+                          }
+                        } else if (isLast) {
+                          if (activeAnchor === 'start' && drawPoints.length >= 3) {
+                            handleClosePolygonExplicit();
+                          } else {
+                            setActiveAnchor('end');
+                            setStatusMsg(`Continuando trazo desde el extremo final P${drawPoints.length}.`);
+                          }
+                        } else {
+                          setDrawPoints(drawPoints.slice(0, idx + 1));
+                          setActiveAnchor('end');
+                          setStatusMsg(`Continuando trazo desde P${idx + 1}.`);
+                        }
+                      }}
+                    />
+
+                    {/* Etiqueta del vértice P1, P2... */}
                     <text
-                      x={s.x} y={s.y - 9}
-                      fill="#5833c7" fontSize="9" fontWeight="bold" fontFamily="monospace" textAnchor="middle"
+                      x={s.x} y={s.y - 12}
+                      fill="#c4b5fd"
+                      fontSize="9.5" fontWeight="bold" fontFamily="monospace" textAnchor="middle"
                     >
                       P{idx + 1}
                     </text>
+
+                    {/* Halo pulsante en el extremo activo */}
+                    {isActiveAnchor && (
+                      <circle
+                        cx={s.x} cy={s.y} r={14}
+                        fill="rgba(124, 58, 237, 0.2)"
+                        stroke="#a78bfa" strokeWidth={1.5}
+                        strokeDasharray="3,3"
+                      >
+                        <animate attributeName="r" values="11;16;11" dur="2s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+
+                    {/* Si está soltado (activeAnchor === null), mostrar invitación interactiva en ambos extremos */}
+                    {activeAnchor === null && isEndpoint && (
+                      <g
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isStart) {
+                            setActiveAnchor('start');
+                            setStatusMsg('Continuando trazo desde el extremo inicial P1.');
+                          } else {
+                            setActiveAnchor('end');
+                            setStatusMsg(`Continuando trazo desde el extremo final P${drawPoints.length}.`);
+                          }
+                        }}
+                      >
+                        <circle
+                          cx={s.x} cy={s.y} r={16}
+                          fill="rgba(56, 189, 248, 0.22)"
+                          stroke="#38bdf8" strokeWidth={1.6}
+                          strokeDasharray="3,3"
+                        >
+                          <animate attributeName="r" values="13;18;13" dur="1.8s" repeatCount="indefinite" />
+                        </circle>
+                        <g transform={`translate(${s.x}, ${s.y + (isStart ? -26 : 22)})`}>
+                          <rect
+                            x="-52" y="-9" width="104" height="18" rx="5"
+                            fill="#141622" stroke="#38bdf8" strokeWidth="1.2"
+                          />
+                          <text x="0" y="3.5" fill="#bae6fd" fontSize="8.5" fontWeight="bold" textAnchor="middle">
+                            ▶ Seguir desde P{idx + 1}
+                          </text>
+                        </g>
+                      </g>
+                    )}
+
+                    {/* Si un extremo está activo, mostrar en el extremo opuesto botón para cambiar de extremo */}
+                    {activeAnchor !== null && !isActiveAnchor && isEndpoint && (
+                      <g
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isStart) {
+                            if (activeAnchor === 'end' && drawPoints.length >= 3) {
+                              handleClosePolygonExplicit();
+                            } else {
+                              setActiveAnchor('start');
+                              setStatusMsg('Cambiado a extremo P1.');
+                            }
+                          } else {
+                            if (activeAnchor === 'start' && drawPoints.length >= 3) {
+                              handleClosePolygonExplicit();
+                            } else {
+                              setActiveAnchor('end');
+                              setStatusMsg(`Cambiado a extremo P${drawPoints.length}.`);
+                            }
+                          }
+                        }}
+                      >
+                        <circle cx={s.x} cy={s.y} r={13} fill="rgba(167, 139, 250, 0.15)" stroke="#a78bfa" strokeWidth={1} strokeDasharray="2,2" />
+                        <g transform={`translate(${s.x}, ${s.y + (isStart ? -24 : 20)})`}>
+                          <rect x="-48" y="-8" width="96" height="16" rx="4" fill="#141622" stroke="#a78bfa" strokeWidth="1" />
+                          <text x="0" y="3.5" fill="#e9d5ff" fontSize="8" fontWeight="bold" textAnchor="middle">
+                            {drawPoints.length >= 3 ? 'Cerrar / Cambiar' : `Seguir desde P${idx + 1}`}
+                          </text>
+                        </g>
+                      </g>
+                    )}
                   </g>
                 );
               })}
 
-              {/* Tramo elástico (rubberband) desde el último punto al cursor */}
+              {/* Tramo elástico (rubberband) */}
               {rubberbandInfo && (
-                <g>
+                <g style={{ pointerEvents: 'none' }}>
+                  {/* LÍNEA DE RASTREO POLAR / ORTOGONAL INFINITA (Smart Polar Tracking) */}
+                  {activeTrackingGuide && activeTrackingGuide.isStraight && !rubberbandInfo.isDetached && (() => {
+                    if (activeTrackingGuide.axis === 'h') {
+                      const sLeft = toScreen(minXVal - 25, activeTrackingGuide.from.y);
+                      const sRight = toScreen(maxXVal + 25, activeTrackingGuide.from.y);
+                      return (
+                        <g>
+                          <line
+                            x1={sLeft.x} y1={sLeft.y}
+                            x2={sRight.x} y2={sRight.y}
+                            stroke="#8767f9"
+                            strokeWidth="1.2"
+                            strokeDasharray="6,4"
+                            opacity="0.65"
+                          />
+                          <circle cx={rubberbandInfo.toScreen.x} cy={rubberbandInfo.toScreen.y} r="10" fill="none" stroke="#8767f9" strokeWidth="1" strokeDasharray="3,3" />
+                        </g>
+                      );
+                    }
+                    if (activeTrackingGuide.axis === 'v') {
+                      const sTop = toScreen(activeTrackingGuide.from.x, minYVal - 25);
+                      const sBottom = toScreen(activeTrackingGuide.from.x, maxYVal + 25);
+                      return (
+                        <g>
+                          <line
+                            x1={sTop.x} y1={sTop.y}
+                            x2={sBottom.x} y2={sBottom.y}
+                            stroke="#8767f9"
+                            strokeWidth="1.2"
+                            strokeDasharray="6,4"
+                            opacity="0.65"
+                          />
+                          <circle cx={rubberbandInfo.toScreen.x} cy={rubberbandInfo.toScreen.y} r="10" fill="none" stroke="#8767f9" strokeWidth="1" strokeDasharray="3,3" />
+                        </g>
+                      );
+                    }
+                    // Eje relativo perpendicular a la pared previa o colineal
+                    const isRelPerp = activeTrackingGuide.axis === 'relative-perp';
+                    const p1 = polarPoint(activeTrackingGuide.from, -30, activeTrackingGuide.angle);
+                    const p2 = polarPoint(activeTrackingGuide.from, 30, activeTrackingGuide.angle);
+                    const s1 = toScreen(p1.x, p1.y);
+                    const s2 = toScreen(p2.x, p2.y);
+                    const guideColor = isRelPerp ? '#f43f5e' : '#8767f9';
+                    return (
+                      <g>
+                        <line
+                          x1={s1.x} y1={s1.y}
+                          x2={s2.x} y2={s2.y}
+                          stroke={guideColor}
+                          strokeWidth="1.4"
+                          strokeDasharray={isRelPerp ? "5,3" : "6,4"}
+                          opacity="0.8"
+                        />
+                        <circle cx={rubberbandInfo.toScreen.x} cy={rubberbandInfo.toScreen.y} r="10" fill="none" stroke={guideColor} strokeWidth="1.2" strokeDasharray="3,3" />
+                      </g>
+                    );
+                  })()}
+
+                  {/* GUÍA DE ALINEACIÓN CON OTRO VÉRTICE DE REFERENCIA (Smart Alignment Guide) */}
+                  {activeTrackingGuide?.alignedWith && !rubberbandInfo.isDetached && (() => {
+                    const sRef = toScreen(activeTrackingGuide.alignedWith.x, activeTrackingGuide.alignedWith.y);
+                    const sCurr = rubberbandInfo.toScreen;
+                    return (
+                      <g>
+                        <line
+                          x1={sRef.x} y1={sRef.y}
+                          x2={sCurr.x} y2={sCurr.y}
+                          stroke="#10b981"
+                          strokeWidth="1.5"
+                          strokeDasharray="3,3"
+                          opacity="0.85"
+                        />
+                        <circle cx={sRef.x} cy={sRef.y} r={6} fill="none" stroke="#10b981" strokeWidth={2} />
+                        <circle cx={sRef.x} cy={sRef.y} r={11} fill="rgba(16,185,129,0.18)" />
+                      </g>
+                    );
+                  })()}
+
+                  {/* Línea elástica (rubberband) */}
                   <line
                     x1={rubberbandInfo.fromScreen.x}
                     y1={rubberbandInfo.fromScreen.y}
                     x2={rubberbandInfo.toScreen.x}
                     y2={rubberbandInfo.toScreen.y}
-                    stroke={rubberbandInfo.isCrossing ? '#ef4444' : rubberbandInfo.isClosingNear ? '#10b981' : '#5833c7'}
-                    strokeWidth="2.2"
-                    strokeDasharray={rubberbandInfo.isCrossing ? '4,3' : '5,4'}
+                    stroke={
+                      rubberbandInfo.isDetached
+                        ? '#38bdf8'
+                        : rubberbandInfo.isCrossing
+                        ? '#ef4444'
+                        : rubberbandInfo.isClosingNear
+                        ? '#10b981'
+                        : activeTrackingGuide?.isStraight
+                        ? (activeTrackingGuide.axis === 'relative-perp' ? '#f43f5e' : '#7c3aed')
+                        : '#5833c7'
+                    }
+                    strokeWidth={rubberbandInfo.isDetached ? '1.5' : activeTrackingGuide?.isStraight ? '2.8' : '2.2'}
+                    strokeDasharray={rubberbandInfo.isDetached ? '3,3' : rubberbandInfo.isCrossing ? '4,3' : '5,4'}
+                    opacity={rubberbandInfo.isDetached ? 0.6 : 1}
                   />
 
                   {/* Badge de cota en vivo (distancia y ángulo) */}
-                  <g transform={`translate(${(rubberbandInfo.fromScreen.x + rubberbandInfo.toScreen.x) / 2}, ${(rubberbandInfo.fromScreen.y + rubberbandInfo.toScreen.y) / 2 - 12})`}>
+                  <g transform={`translate(${(rubberbandInfo.fromScreen.x + rubberbandInfo.toScreen.x) / 2}, ${(rubberbandInfo.fromScreen.y + rubberbandInfo.toScreen.y) / 2 - 14})`}>
                     <rect
-                      x="-42" y="-9" width="84" height="18" rx="5"
-                      fill="#141622" stroke="rgba(255,255,255,0.2)" strokeWidth="1"
+                      x={rubberbandInfo.isDetached ? "-60" : activeTrackingGuide?.isStraight ? "-64" : "-46"}
+                      y="-10"
+                      width={rubberbandInfo.isDetached ? "120" : activeTrackingGuide?.isStraight ? "128" : "92"}
+                      height="20"
+                      rx="6"
+                      fill="#141622"
+                      stroke={rubberbandInfo.isDetached ? "#38bdf8" : activeTrackingGuide?.axis === 'relative-perp' ? '#f43f5e' : activeTrackingGuide?.isStraight ? "#a78bfa" : "rgba(255,255,255,0.2)"}
+                      strokeWidth={rubberbandInfo.isDetached ? "1.2" : activeTrackingGuide?.isStraight ? "1.5" : "1"}
                     />
                     <text
                       x="0" y="3.5"
-                      fill={rubberbandInfo.isCrossing ? '#f87171' : '#ffffff'}
+                      fill={rubberbandInfo.isDetached ? "#7dd3fc" : rubberbandInfo.isCrossing ? '#f87171' : activeTrackingGuide?.axis === 'relative-perp' ? '#fda4af' : activeTrackingGuide?.isStraight ? '#c4b5fd' : '#ffffff'}
                       fontSize="9" fontWeight="bold" fontFamily="monospace" textAnchor="middle"
                     >
-                      {rubberbandInfo.dist.toFixed(2)}m · {rubberbandInfo.angle.toFixed(0)}°
+                      {rubberbandInfo.isDetached ? `Conectar P${rubberbandInfo.anchorIdx + 1} · ` : ''}
+                      {rubberbandInfo.dist.toFixed(2)}m · {
+                        Number.isInteger(rubberbandInfo.angle) ? rubberbandInfo.angle : rubberbandInfo.angle.toFixed(1)
+                      }°{
+                        !rubberbandInfo.isDetached && activeTrackingGuide?.isStraight ? (
+                          activeTrackingGuide.alignedWith ? ' ⇥ Alineado' :
+                          activeTrackingGuide.axis === 'relative-perp' ? ' ⟂ 90° Perp' :
+                          activeTrackingGuide.axis === 'relative-parallel' ? ' ∥ Paralela' :
+                          activeTrackingGuide.axis === 'h' ? ' ⇄ Horiz' :
+                          activeTrackingGuide.axis === 'v' ? ' ⇅ Vert' : ''
+                        ) : ''
+                      }
                     </text>
                   </g>
 
-                  {/* Indicador de cierre si está cerca de P1 */}
-                  {rubberbandInfo.isClosingNear && (
-                    <g transform={`translate(${toScreen(drawPoints[0].x, drawPoints[0].y).x}, ${toScreen(drawPoints[0].x, drawPoints[0].y).y})`}>
-                      <circle cx="0" cy="0" r="16" fill="rgba(16, 185, 129, 0.25)" stroke="#10b981" strokeWidth="2" strokeDasharray="3,3" />
-                      <rect x="-35" y="-30" width="70" height="16" rx="4" fill="#10b981" />
-                      <text x="0" y="-19" fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">
-                        Cerrar Recinto
-                      </text>
-                    </g>
-                  )}
+                  {/* Indicador de cierre si está cerca del extremo opuesto */}
+                  {rubberbandInfo.isClosingNear && rubberbandInfo.targetOpposite && (() => {
+                    const sOpp = toScreen(rubberbandInfo.targetOpposite.x, rubberbandInfo.targetOpposite.y);
+                    return (
+                      <g transform={`translate(${sOpp.x}, ${sOpp.y})`}>
+                        <circle cx="0" cy="0" r="16" fill="rgba(16, 185, 129, 0.25)" stroke="#10b981" strokeWidth="2" strokeDasharray="3,3" />
+                        <rect x="-35" y="-30" width="70" height="16" rx="4" fill="#10b981" />
+                        <text x="0" y="-19" fill="white" fontSize="9" fontWeight="bold" textAnchor="middle">
+                          Cerrar Recinto
+                        </text>
+                      </g>
+                    );
+                  })()}
                 </g>
               )}
             </g>
@@ -2383,7 +3057,7 @@ export default function RoomSketcher({
                   x={(s1.x + s2.x) / 2} y={(s1.y + s2.y) / 2 + 2}
                   fill="white" fontSize="9.5" fontWeight="bold" fontFamily="monospace" textAnchor="middle"
                 >
-                  {measuredResult.dist.toFixed(2)}m ({measuredResult.angle.toFixed(0)}°)
+                  {measuredResult.dist.toFixed(2)}m ({Number.isInteger(measuredResult.angle) ? measuredResult.angle : measuredResult.angle.toFixed(1)}°)
                 </text>
               </g>
             );
@@ -2452,22 +3126,52 @@ export default function RoomSketcher({
                 </text>
 
                 {/* Fuente S */}
-                <g style={{ cursor: activeTool === 'select' ? 'grab' : 'default' }} onPointerDown={(e) => handleEntityPointerDown('source', e)}>
-                  <circle cx={ss.x} cy={ss.y} r={10} fill="#5833c7" stroke="white" strokeWidth={1.5} />
+                <g
+                  style={{ cursor: draggingEntity === 'source' ? 'grabbing' : 'grab' }}
+                  onPointerDown={(e) => handleEntityPointerDown('source', e)}
+                  onPointerMove={handleEntityPointerMove}
+                  onPointerUp={handleEntityPointerUp}
+                >
+                  {!isSourceInside && (
+                    <circle cx={ss.x} cy={ss.y} r={18} fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="3,2" />
+                  )}
+                  <circle cx={ss.x} cy={ss.y} r={11} fill="#5833c7" stroke="white" strokeWidth={2} />
                   <circle cx={ss.x} cy={ss.y} r={4} fill="white" />
-                  <rect x={ss.x - 30} y={ss.y - 24} width={60} height={14} rx={3} fill="rgba(88, 51, 199, 0.95)" />
+                  <rect
+                    x={ss.x - (isSourceInside ? 30 : 38)}
+                    y={ss.y - 25}
+                    width={isSourceInside ? 60 : 76}
+                    height={15}
+                    rx={4}
+                    fill={isSourceInside ? "rgba(88, 51, 199, 0.95)" : "rgba(239, 68, 68, 0.95)"}
+                  />
                   <text x={ss.x} y={ss.y - 14} fill="white" fontSize="8" fontWeight="800" fontFamily="Inter, system-ui" textAnchor="middle">
-                    Fuente (S)
+                    {isSourceInside ? "Fuente (S)" : "⚠️ S fuera"}
                   </text>
                 </g>
 
                 {/* Receptor R */}
-                <g style={{ cursor: activeTool === 'select' ? 'grab' : 'default' }} onPointerDown={(e) => handleEntityPointerDown('receiver', e)}>
-                  <circle cx={rs.x} cy={rs.y} r={9} fill="#10b981" stroke="white" strokeWidth={1.5} />
+                <g
+                  style={{ cursor: draggingEntity === 'receiver' ? 'grabbing' : 'grab' }}
+                  onPointerDown={(e) => handleEntityPointerDown('receiver', e)}
+                  onPointerMove={handleEntityPointerMove}
+                  onPointerUp={handleEntityPointerUp}
+                >
+                  {!isReceiverInside && (
+                    <circle cx={rs.x} cy={rs.y} r={16} fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="3,2" />
+                  )}
+                  <circle cx={rs.x} cy={rs.y} r={10} fill="#10b981" stroke="white" strokeWidth={2} />
                   <circle cx={rs.x} cy={rs.y} r={3.5} fill="white" />
-                  <rect x={rs.x - 26} y={rs.y - 22} width={52} height={14} rx={3} fill="rgba(16, 185, 129, 0.95)" />
+                  <rect
+                    x={rs.x - (isReceiverInside ? 26 : 34)}
+                    y={rs.y - 23}
+                    width={isReceiverInside ? 52 : 68}
+                    height={15}
+                    rx={4}
+                    fill={isReceiverInside ? "rgba(16, 185, 129, 0.95)" : "rgba(239, 68, 68, 0.95)"}
+                  />
                   <text x={rs.x} y={rs.y - 12} fill="white" fontSize="8" fontWeight="800" fontFamily="Inter, system-ui" textAnchor="middle">
-                    Micro (R)
+                    {isReceiverInside ? "Micro (R)" : "⚠️ R fuera"}
                   </text>
                 </g>
               </g>
@@ -2602,9 +3306,9 @@ export default function RoomSketcher({
                   ? 'bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa]'
                   : 'bg-black/[0.05] dark:bg-white/[0.06] text-[#86868b]'
               }`}
-              title="Snap a cuadrícula de 0.5m"
+              title={`Snap a cuadrícula adaptativa (${currentGridStep.toFixed(2)}m según nivel de zoom)`}
             >
-              GRID 0.5m
+              GRID {currentGridStep.toFixed(2)}m
             </button>
 
             <button
@@ -2787,7 +3491,7 @@ export default function RoomSketcher({
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-xs font-black text-[#1d1d1f] dark:text-white font-mono">
-                                {edge.length.toFixed(1)} m {isCurved ? '(arco)' : ''}
+                                {edge.length.toFixed(2)} m {isCurved ? '(arco)' : ''}
                               </span>
                               <span className="text-[9.5px] text-[#86868b] truncate" title={matInfo?.name || 'Material'}>
                                 • {matInfo?.name || 'Material'}
@@ -2880,18 +3584,18 @@ export default function RoomSketcher({
                           <span className="text-[9px] text-[#86868b] font-mono">X:</span>
                           <input
                             type="number"
-                            step="0.1"
-                            value={Number(v.x).toFixed(1)}
+                            step="0.01"
+                            value={Number(v.x).toFixed(2)}
                             onChange={(e) => {
                               const val = parseFloat(e.target.value);
                               if (isNaN(val)) return;
                               pushHistory();
                               const newVerts = [...vertices];
-                              newVerts[i] = { ...newVerts[i], x: Number(val.toFixed(1)) };
+                              newVerts[i] = { ...newVerts[i], x: Number(val.toFixed(2)) };
                               onChangePolygon({ ...roomPolygon, vertices: newVerts });
                               setActivePresetId('custom');
                             }}
-                            className="w-12 px-1 py-0.5 text-[10px] font-mono bg-white dark:bg-[#141622] rounded border border-black/[0.08] dark:border-white/10 text-center text-[#1d1d1f] dark:text-white"
+                            className="w-14 px-1 py-0.5 text-[10px] font-mono bg-white dark:bg-[#141622] rounded border border-black/[0.08] dark:border-white/10 text-center text-[#1d1d1f] dark:text-white"
                           />
                         </div>
 
@@ -2899,18 +3603,18 @@ export default function RoomSketcher({
                           <span className="text-[9px] text-[#86868b] font-mono">Y:</span>
                           <input
                             type="number"
-                            step="0.1"
-                            value={Number(v.y).toFixed(1)}
+                            step="0.01"
+                            value={Number(v.y).toFixed(2)}
                             onChange={(e) => {
                               const val = parseFloat(e.target.value);
                               if (isNaN(val)) return;
                               pushHistory();
                               const newVerts = [...vertices];
-                              newVerts[i] = { ...newVerts[i], y: Number(val.toFixed(1)) };
+                              newVerts[i] = { ...newVerts[i], y: Number(val.toFixed(2)) };
                               onChangePolygon({ ...roomPolygon, vertices: newVerts });
                               setActivePresetId('custom');
                             }}
-                            className="w-12 px-1 py-0.5 text-[10px] font-mono bg-white dark:bg-[#141622] rounded border border-black/[0.08] dark:border-white/10 text-center text-[#1d1d1f] dark:text-white"
+                            className="w-14 px-1 py-0.5 text-[10px] font-mono bg-white dark:bg-[#141622] rounded border border-black/[0.08] dark:border-white/10 text-center text-[#1d1d1f] dark:text-white"
                           />
                         </div>
                       </div>
@@ -2978,8 +3682,12 @@ export default function RoomSketcher({
                     <kbd className="px-1.5 py-0.5 bg-black/50 rounded border border-white/20 text-emerald-400 font-bold">M</kbd>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
-                    <span className="font-sans">Seleccionar / Mover</span>
-                    <kbd className="px-1.5 py-0.5 bg-black/50 rounded border border-white/20 font-bold">V / Esc</kbd>
+                    <span className="font-sans">Pausar Trazo / Selección</span>
+                    <kbd className="px-1.5 py-0.5 bg-black/50 rounded border border-white/20 font-bold">Esc / V</kbd>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                    <span className="font-sans">Deshacer Último Punto</span>
+                    <kbd className="px-1.5 py-0.5 bg-black/50 rounded border border-white/20 text-amber-400 font-bold">Backspace</kbd>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
                     <span className="font-sans">Cerrar Recinto</span>

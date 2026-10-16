@@ -11,7 +11,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { Activity, Info, Sparkles, TrendingUp } from 'lucide-react';
-import { modalDensityN, modalDensityDerivative } from '../../utils/modalCalculations';
+import { modalDensityN, modalDensityDerivative, computeAllModesUpToFreq } from '../../utils/modalCalculations';
 
 /**
  * Gráfica de Densidad Modal Teórica N(f) y dN/df vs Conteo Discreto Acumulado
@@ -27,15 +27,22 @@ export default function ModalDensityChart({
   fMax = 400,
 }) {
   const chartData = useMemo(() => {
-    const maxFreq = Math.min(600, Math.max(fMax, schroederFreq * 1.1));
+    const maxFreq = Math.max(50, Number(fMax) || 400);
     const step = 5; // muestreo cada 5 Hz
     const points = [];
 
-    const sortedModes = [...modes].sort((a, b) => a.frequency - b.frequency);
+    // Catálogo completo de frecuencias modales hasta maxFreq sin truncamiento de índices
+    const allFrequencies = computeAllModesUpToFreq(
+      dimensions.Lx,
+      dimensions.Ly,
+      dimensions.Lz,
+      maxFreq,
+      c
+    );
 
     for (let f = 10; f <= maxFreq; f += step) {
-      // Modos reales calculados acumulados <= f
-      const realCount = sortedModes.filter(m => m.frequency <= f).length;
+      // Conteo discreto exacto de modos acumulados <= f
+      const realCount = allFrequencies.filter(freq => freq <= f).length;
 
       // Densidad teórica asintótica Weyl N(f)
       const theoreticalN = modalDensityN(f, volume, surface, perimeter, c);
@@ -52,7 +59,7 @@ export default function ModalDensityChart({
     }
 
     return points;
-  }, [modes, volume, surface, perimeter, c, schroederFreq, fMax]);
+  }, [dimensions.Lx, dimensions.Ly, dimensions.Lz, volume, surface, perimeter, c, fMax]);
 
   return (
     <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">

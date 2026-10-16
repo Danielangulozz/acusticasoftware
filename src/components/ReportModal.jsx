@@ -16,6 +16,7 @@ import {
 import { OCTAVE_BANDS, ROOM_SURFACES } from '../utils/acousticCalculations';
 import { getMaterialById } from '../utils/defaultMaterials';
 import RoomVisualizer from './RoomVisualizer';
+import { parseSpectralPeaks } from '../utils/measurementUtils';
 
 /**
  * Modal de Informe Técnico de Ingeniería Acústica
@@ -524,6 +525,114 @@ export default function ReportModal({
                   </tbody>
                 </table>
               </div>
+
+              {/* 4.1 Medición Experimental In Situ (Protocolo ISO / Cuadrícula) */}
+              {modalData?.measurementData?.points?.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-black/[0.06] dark:border-white/[0.06] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#5833c7]">
+                      4.1 Medición Experimental In Situ (ISO / Cuadrícula)
+                    </h3>
+                    <span className="text-[10px] text-[#86868b] font-mono">
+                      {modalData.measurementData.points.length} puntos ({modalData.measurementData.points.filter(p => p.isCorner).length} esquinas)
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
+                    <table className="w-full text-left text-xs font-mono">
+                      <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[10px] uppercase text-[#86868b]">
+                        <tr>
+                          <th className="p-2">Punto</th>
+                          <th className="p-2">Posición (X, Y)</th>
+                          <th className="p-2">Tipo</th>
+                          <th className="p-2 text-right">SPL 63 Hz</th>
+                          <th className="p-2 text-right">SPL 80 Hz</th>
+                          <th className="p-2 text-right">SPL 100 Hz</th>
+                          <th className="p-2 text-right">SPL 125 Hz</th>
+                          <th className="p-2 text-right">SPL 160 Hz</th>
+                          <th className="p-2 text-right">SPL 200 Hz</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-black/[0.04] text-[11px]">
+                        {modalData.measurementData.points.slice(0, 10).map((pt) => (
+                          <tr key={pt.id}>
+                            <td className="p-2 font-bold text-[#1d1d1f] dark:text-white">{pt.label || `P${pt.id}`}</td>
+                            <td className="p-2 text-[#86868b]">({pt.x}m, {pt.y}m)</td>
+                            <td className="p-2">{pt.isCorner ? <span className="text-amber-600 dark:text-amber-400 font-semibold">Esquina</span> : 'Interior'}</td>
+                            <td className="p-2 text-right">{pt.spl?.[63] !== undefined ? `${pt.spl[63]} dB` : '—'}</td>
+                            <td className="p-2 text-right">{pt.spl?.[80] !== undefined ? `${pt.spl[80]} dB` : '—'}</td>
+                            <td className="p-2 text-right">{pt.spl?.[100] !== undefined ? `${pt.spl[100]} dB` : '—'}</td>
+                            <td className="p-2 text-right">{pt.spl?.[125] !== undefined ? `${pt.spl[125]} dB` : '—'}</td>
+                            <td className="p-2 text-right">{pt.spl?.[160] !== undefined ? `${pt.spl[160]} dB` : '—'}</td>
+                            <td className="p-2 text-right">{pt.spl?.[200] !== undefined ? `${pt.spl[200]} dB` : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 4.2 Comparativa Cuádruple (Teórico vs Experimental vs REW vs FEM) */}
+              {modalData?.comparisonData && (
+                <div className="mt-4 pt-3 border-t border-black/[0.06] dark:border-white/[0.06] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#5833c7]">
+                      4.2 Comparativa Cuádruple de Frecuencias Modales (Teórico vs Exp vs REW vs FEM)
+                    </h3>
+                    <span className="text-[10px] text-[#86868b] font-mono">
+                      Tolerancia ±{modalData.comparisonData.tolerance || 2.0} Hz
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
+                    <table className="w-full text-left text-xs font-mono">
+                      <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[10px] uppercase text-[#86868b]">
+                        <tr>
+                          <th className="p-2">Modo</th>
+                          <th className="p-2">Tipo</th>
+                          <th className="p-2 font-bold text-[#5833c7]">f_Teórica</th>
+                          <th className="p-2 text-emerald-600">f_Exp</th>
+                          <th className="p-2 text-indigo-600">f_REW</th>
+                          <th className="p-2 text-cyan-600">f_FEM</th>
+                          <th className="p-2 text-right">Max % Error</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-black/[0.04] text-[11px]">
+                        {(modalData.modes || []).slice(0, 10).map((m) => {
+                          const expList = parseSpectralPeaks(modalData.comparisonData.expText || '');
+                          const rewList = parseSpectralPeaks(modalData.comparisonData.rewText || '');
+                          const femList = parseSpectralPeaks(modalData.comparisonData.femText || '');
+                          const tol = modalData.comparisonData.tolerance || 2.0;
+
+                          const expMatch = expList.find(f => Math.abs(f - m.frequency) <= tol);
+                          const rewMatch = rewList.find(f => Math.abs(f - m.frequency) <= tol);
+                          const femMatch = femList.find(f => Math.abs(f - m.frequency) <= tol);
+
+                          const errs = [
+                            expMatch ? (Math.abs(expMatch - m.frequency) / m.frequency) * 100 : 0,
+                            rewMatch ? (Math.abs(rewMatch - m.frequency) / m.frequency) * 100 : 0,
+                            femMatch ? (Math.abs(femMatch - m.frequency) / m.frequency) * 100 : 0,
+                          ];
+                          const maxErr = Math.max(...errs);
+
+                          return (
+                            <tr key={m.id}>
+                              <td className="p-2 font-bold text-[#1d1d1f] dark:text-white">({m.nx}, {m.ny}, {m.nz})</td>
+                              <td className="p-2 text-[10px]" style={{ color: m.color }}>{m.label}</td>
+                              <td className="p-2 font-bold text-[#5833c7]">{m.frequency.toFixed(2)} Hz</td>
+                              <td className="p-2">{expMatch ? `${expMatch.toFixed(1)} Hz` : '—'}</td>
+                              <td className="p-2">{rewMatch ? `${rewMatch.toFixed(1)} Hz` : '—'}</td>
+                              <td className="p-2">{femMatch ? `${femMatch.toFixed(1)} Hz` : '—'}</td>
+                              <td className="p-2 text-right font-semibold text-[#1d1d1f] dark:text-white">
+                                {maxErr > 0 ? `${maxErr.toFixed(2)}%` : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

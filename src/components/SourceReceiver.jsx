@@ -24,6 +24,7 @@ import {
   lwToPowerWatts,
   polygonCentroid,
 } from '../utils/acousticCalculations';
+import { pointInPolygon, findSafeInteriorPoint } from '../utils/sketchGeometry';
 import RoomVisualizer from './RoomVisualizer';
 
 /**
@@ -68,6 +69,7 @@ export default function SourceReceiver({
   roomPolygon,
   geometry,
   materials,
+  onChangeMaterials,
   selectedBand = 1000,
   soundFieldData = {},
 }) {
@@ -92,25 +94,37 @@ export default function SourceReceiver({
   const roomL = maxX - minX;
   const roomW = maxY - minY;
 
-  // Posiciones de Fuente y Receptor con fallback seguro
+  // Posiciones de Fuente y Receptor con fallback seguro e interior
   const sourcePos = useMemo(() => {
-    if (sourceReceiver?.sourcePos) return sourceReceiver.sourcePos;
-    return {
-      x: Number((minX + Math.min(2.0, roomL * 0.25)).toFixed(2)),
-      y: Number(centroid.y.toFixed(2)),
-      z: 1.5,
-    };
-  }, [sourceReceiver?.sourcePos, minX, roomL, centroid]);
+    if (sourceReceiver?.sourcePos && (vertices.length < 3 || pointInPolygon(sourceReceiver.sourcePos, vertices))) {
+      return sourceReceiver.sourcePos;
+    }
+    return findSafeInteriorPoint(vertices, sourceReceiver?.sourcePos);
+  }, [sourceReceiver?.sourcePos, vertices]);
 
   const receiverPos = useMemo(() => {
-    if (sourceReceiver?.receiverPos) return sourceReceiver.receiverPos;
     const initialDist = Math.min(3.0, Math.max(1.0, sourceReceiver?.distance || 3.0));
-    return {
+    if (sourceReceiver?.receiverPos && (vertices.length < 3 || pointInPolygon(sourceReceiver.receiverPos, vertices))) {
+      return sourceReceiver.receiverPos;
+    }
+    const cand = {
       x: Number((sourcePos.x + initialDist).toFixed(2)),
       y: Number(sourcePos.y.toFixed(2)),
       z: 1.2,
     };
-  }, [sourceReceiver?.receiverPos, sourcePos, sourceReceiver?.distance]);
+    if (vertices.length < 3 || pointInPolygon(cand, vertices)) return cand;
+    return findSafeInteriorPoint(vertices, cand);
+  }, [sourceReceiver?.receiverPos, sourcePos, sourceReceiver?.distance, vertices]);
+
+  const isSourceInside = useMemo(() => {
+    if (!vertices || vertices.length < 3) return true;
+    return pointInPolygon(sourcePos, vertices);
+  }, [sourcePos, vertices]);
+
+  const isReceiverInside = useMemo(() => {
+    if (!vertices || vertices.length < 3) return true;
+    return pointInPolygon(receiverPos, vertices);
+  }, [receiverPos, vertices]);
 
   // Distancia 3D
   const currentR3D = useMemo(() => {
@@ -131,7 +145,7 @@ export default function SourceReceiver({
   const isDistanceIsoCompliant = r >= 2.0;
   const isSourceWallCompliant = sourceWallDist >= 1.0;
   const isReceiverWallCompliant = receiverWallDist >= 1.0;
-  const isFullIsoCompliant = isDistanceIsoCompliant && isSourceWallCompliant && isReceiverWallCompliant;
+  const isFullIsoCompliant = isDistanceIsoCompliant && isSourceWallCompliant && isReceiverWallCompliant && isSourceInside && isReceiverInside;
 
   // Handlers
   const handleLwChange = (val) => {
@@ -320,6 +334,36 @@ export default function SourceReceiver({
           )}
         </div>
       </div>
+
+      {/* Alerta de Contención en Salas Irregulares */}
+      {(!isSourceInside || !isReceiverInside) && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              <strong>Posición fuera de la sala:</strong> {!isSourceInside && !isReceiverInside ? 'La fuente y el receptor están fuera del polígono.' : !isSourceInside ? 'La fuente está fuera del polígono.' : 'El micrófono está fuera del polígono.'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const safeS = findSafeInteriorPoint(vertices);
+              const candR = { x: safeS.x + 2.0, y: safeS.y, z: 1.2 };
+              const safeR = findSafeInteriorPoint(vertices, candR);
+              const distR = Math.hypot(safeR.x - safeS.x, safeR.y - safeS.y);
+              onChange({
+                ...sourceReceiver,
+                sourcePos: safeS,
+                receiverPos: safeR,
+                distance: Number(distR.toFixed(2)),
+              });
+            }}
+            className="px-3 py-1 rounded-xl bg-amber-600 text-white font-bold text-xs hover:bg-amber-700 shadow-xs transition shrink-0"
+          >
+            Centrar en Sala
+          </button>
+        </div>
+      )}
 
       {/* 2. Presets Normalizados (Pills compactas) */}
       <div>
@@ -702,6 +746,7 @@ export default function SourceReceiver({
               criticalDistance={criticalDistance}
               onChangeSourceReceiver={onChange}
               materials={materials}
+              onChangeMaterials={onChangeMaterials}
               selectedBand={selectedBand}
             />
           </div>

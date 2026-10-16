@@ -8,6 +8,7 @@ import {
   Info,
   Maximize2,
   Box,
+  Compass,
 } from 'lucide-react';
 import {
   boltDimensionsFromVolume,
@@ -26,6 +27,7 @@ export default function BoltProportions({
 
   const [targetVolume, setTargetVolume] = useState(volume > 0 ? Number(volume.toFixed(1)) : 100);
   const [selectedPresetKey, setSelectedPresetKey] = useState('small');
+  const [appliedFeedback, setAppliedFeedback] = useState(false);
 
   // Dimensiones sugeridas para el volumen objetivo
   const suggested = useMemo(() => {
@@ -42,29 +44,74 @@ export default function BoltProportions({
     return detectSimpleRatios(Lx, Ly, Lz);
   }, [Lx, Ly, Lz]);
 
-  // Coordenadas SVG para el diagrama p-q de Bolt
-  // Rango p: [1.0, 2.0], Rango q: [1.0, 3.0]
-  const svgWidth = 420;
-  const svgHeight = 280;
-  const margin = { top: 25, right: 30, bottom: 40, left: 45 };
+  // Coordenadas y Auto-escalado dinámico SVG para el diagrama p-q de Bolt
+  // Se auto-escala dinámicamente si (p, q) de la sala supera los límites canónicos (2.0 en p, 3.0 en q)
+  const svgWidth = 460;
+  const svgHeight = 310;
+  const margin = { top: 30, right: 35, bottom: 45, left: 50 };
 
   const plotW = svgWidth - margin.left - margin.right;
   const plotH = svgHeight - margin.top - margin.bottom;
 
-  const scaleP = (p) => margin.left + ((p - 1.0) / 1.0) * plotW;
-  const scaleQ = (q) => margin.top + plotH - ((q - 1.0) / 2.0) * plotH;
+  const currentP = Number(currentNormalized.p);
+  const currentQ = Number(currentNormalized.q);
 
-  // Ruta del contorno de la Zona A
+  // Auto-escalado dinámico de los ejes para que la sala actual SIEMPRE sea visible
+  const maxP = useMemo(() => {
+    return Math.max(2.1, Math.ceil((currentP + 0.25) * 5) / 5);
+  }, [currentP]);
+
+  const maxQ = useMemo(() => {
+    return Math.max(3.2, Math.ceil((currentQ + 0.4) * 2) / 2);
+  }, [currentQ]);
+
+  const minP = 1.0;
+  const minQ = 1.0;
+
+  const scaleP = (p) => margin.left + ((p - minP) / (maxP - minP)) * plotW;
+  const scaleQ = (q) => margin.top + plotH - ((q - minQ) / (maxQ - minQ)) * plotH;
+
+  // Generación de marcas dinámicas para los ejes
+  const pTicks = useMemo(() => {
+    const ticks = [];
+    const step = maxP > 3.0 ? 0.5 : 0.2;
+    for (let p = 1.0; p <= maxP + 0.01; p += step) {
+      ticks.push(Number(p.toFixed(1)));
+    }
+    return ticks;
+  }, [maxP]);
+
+  const qTicks = useMemo(() => {
+    const ticks = [];
+    const step = maxQ > 4.5 ? 1.0 : 0.5;
+    for (let q = 1.0; q <= maxQ + 0.01; q += step) {
+      ticks.push(Number(q.toFixed(1)));
+    }
+    return ticks;
+  }, [maxQ]);
+
+  // Ruta del contorno de la Zona A de Bolt
   const zoneAPath = useMemo(() => {
     return BOLT_ZONE_A_CONTOUR.map((pt, idx) => {
       const x = scaleP(pt.p);
       const y = scaleQ(pt.q);
       return `${idx === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
     }).join(' ') + ' Z';
-  }, [plotW, plotH]);
+  }, [plotW, plotH, maxP, maxQ]);
 
-  const currentPointX = scaleP(currentNormalized.p);
-  const currentPointY = scaleQ(currentNormalized.q);
+  // Posición del punto de la sala actual garantizado dentro del canvas
+  const currentPointX = scaleP(currentP);
+  const currentPointY = scaleQ(currentQ);
+
+  // Puntos de referencia canónicos (Bolt Sala Pequeña y Sala Grande)
+  const boltSmallPoint = { x: scaleP(1.404), y: scaleQ(1.863) };
+  const boltLargePoint = { x: scaleP(1.202), y: scaleQ(1.435) };
+
+  const handleApply = () => {
+    onApplyProportions({ Lx: suggested.L, Ly: suggested.W, Lz: suggested.H });
+    setAppliedFeedback(true);
+    setTimeout(() => setAppliedFeedback(false), 3000);
+  };
 
   return (
     <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
@@ -149,11 +196,25 @@ export default function BoltProportions({
             </div>
 
             <button
-              onClick={() => onApplyProportions({ Lx: suggested.L, Ly: suggested.W, Lz: suggested.H })}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#5833c7] hover:bg-[#4727a8] text-white font-bold text-xs shadow-md shadow-[#5833c7]/20 transition-all"
+              type="button"
+              onClick={handleApply}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs shadow-md transition-all ${
+                appliedFeedback
+                  ? 'bg-[#10b981] text-white shadow-[#10b981]/25 scale-[0.99]'
+                  : 'bg-[#5833c7] hover:bg-[#4727a8] text-white shadow-[#5833c7]/20 active:scale-95'
+              }`}
             >
-              <span>Aplicar Estas Proporciones a la Sala</span>
-              <ArrowRight className="w-4 h-4" />
+              {appliedFeedback ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>¡Dimensiones aplicadas al modelo 3D y Módulo 1!</span>
+                </>
+              ) : (
+                <>
+                  <span>Aplicar Estas Proporciones a la Sala</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </div>
 
@@ -175,7 +236,7 @@ export default function BoltProportions({
           )}
         </div>
 
-        {/* Columna 2: Diagrama p-q de Bolt (SVG) */}
+        {/* Columna 2: Diagrama p-q de Bolt (SVG con Auto-escalado Dinámico) */}
         <div className="space-y-3 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
           <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
             <div>
@@ -183,7 +244,7 @@ export default function BoltProportions({
                 Diagrama de Área Aceptable (Bolt Zone A)
               </h4>
               <p className="text-[11px] text-[#86868b]">
-                Eje X: p = W/H &bull; Eje Y: q = L/H (con H = 1.0)
+                Eje X: p = W/H &bull; Eje Y: q = L/H (normalizado con H = 1.0)
               </p>
             </div>
             <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
@@ -206,20 +267,21 @@ export default function BoltProportions({
           </div>
 
           {/* Gráfico SVG del Plano p-q */}
-          <div className="relative w-full aspect-[4/3] bg-white dark:bg-[#121322] rounded-xl border border-black/[0.06] dark:border-white/[0.06] p-2 flex items-center justify-center">
+          <div className="relative w-full aspect-[4/3] bg-white dark:bg-[#121322] rounded-xl border border-black/[0.06] dark:border-white/[0.06] p-2 flex items-center justify-center overflow-hidden">
             <svg
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-              className="w-full h-full"
+              className="w-full h-full select-none"
             >
               {/* Ejes y Cuadrícula */}
               <line x1={margin.left} y1={margin.top} x2={margin.left} y2={margin.top + plotH} stroke="#888888" strokeWidth="1" opacity="0.3" />
               <line x1={margin.left} y1={margin.top + plotH} x2={margin.left + plotW} y2={margin.top + plotH} stroke="#888888" strokeWidth="1" opacity="0.3" />
 
-              {/* Ticks y etiquetas en P */}
-              {[1.0, 1.2, 1.4, 1.6, 1.8, 2.0].map(p => {
+              {/* Ticks y etiquetas dinámicas en P */}
+              {pTicks.map(p => {
                 const x = scaleP(p);
                 return (
-                  <g key={p}>
+                  <g key={`p-${p}`}>
+                    <line x1={x} y1={margin.top} x2={x} y2={margin.top + plotH} stroke="#888888" strokeDasharray="2 3" opacity="0.12" />
                     <line x1={x} y1={margin.top + plotH} x2={x} y2={margin.top + plotH + 5} stroke="#888888" opacity="0.5" />
                     <text x={x} y={margin.top + plotH + 16} fontSize="10" fill="#86868b" textAnchor="middle" fontFamily="monospace">
                       {p.toFixed(1)}
@@ -228,11 +290,12 @@ export default function BoltProportions({
                 );
               })}
 
-              {/* Ticks y etiquetas en Q */}
-              {[1.0, 1.5, 2.0, 2.5, 3.0].map(q => {
+              {/* Ticks y etiquetas dinámicas en Q */}
+              {qTicks.map(q => {
                 const y = scaleQ(q);
                 return (
-                  <g key={q}>
+                  <g key={`q-${q}`}>
+                    <line x1={margin.left} y1={y} x2={margin.left + plotW} y2={y} stroke="#888888" strokeDasharray="2 3" opacity="0.12" />
                     <line x1={margin.left - 5} y1={y} x2={margin.left} y2={y} stroke="#888888" opacity="0.5" />
                     <text x={margin.left - 8} y={y + 3} fontSize="10" fill="#86868b" textAnchor="end" fontFamily="monospace">
                       {q.toFixed(1)}
@@ -241,55 +304,100 @@ export default function BoltProportions({
                 );
               })}
 
+              {/* Etiquetas de ejes */}
+              <text x={margin.left + plotW / 2} y={margin.top + plotH + 34} fontSize="11" fontWeight="bold" fill="#86868b" textAnchor="middle">
+                Razón p = Ancho / Altura (W / H)
+              </text>
+              <text
+                x={margin.left - 30}
+                y={margin.top + plotH / 2}
+                fontSize="11"
+                fontWeight="bold"
+                fill="#86868b"
+                textAnchor="middle"
+                transform={`rotate(-90, ${margin.left - 30}, ${margin.top + plotH / 2})`}
+              >
+                Razón q = Largo / Altura (L / H)
+              </text>
+
               {/* Polígono de la Zona A de Bolt */}
               <path
                 d={zoneAPath}
-                fill="rgba(88, 51, 199, 0.15)"
+                fill="rgba(88, 51, 199, 0.18)"
                 stroke="#5833c7"
                 strokeWidth="2"
                 strokeDasharray="4 2"
               />
               <text
-                x={scaleP(1.4)}
-                y={scaleQ(1.8)}
+                x={scaleP(1.40)}
+                y={scaleQ(1.80)}
                 fill="#5833c7"
-                fontSize="12"
+                fontSize="11"
                 fontWeight="bold"
                 textAnchor="middle"
               >
-                Zona A (Bolt)
+                Zona A de Bolt
               </text>
 
-              {/* Punto de la sala actual */}
-              {currentNormalized.p >= 1.0 && currentNormalized.p <= 2.0 && currentNormalized.q >= 1.0 && currentNormalized.q <= 3.0 && (
-                <g>
-                  <circle
-                    cx={currentPointX}
-                    cy={currentPointY}
-                    r="7"
-                    fill={currentNormalized.isInsideZoneA ? '#10b981' : '#ef4444'}
-                    stroke="#ffffff"
-                    strokeWidth="2.5"
-                  />
-                  <text
-                    x={currentPointX}
-                    y={currentPointY - 10}
-                    fontSize="11"
-                    fontWeight="bold"
-                    fill={currentNormalized.isInsideZoneA ? '#10b981' : '#ef4444'}
-                    textAnchor="middle"
-                  >
-                    Sala Actual ({currentNormalized.p}, {currentNormalized.q})
-                  </text>
-                </g>
-              )}
+              {/* Puntos de Referencia Canónicos */}
+              <g opacity="0.8">
+                <circle cx={boltSmallPoint.x} cy={boltSmallPoint.y} r="4" fill="#0071e3" stroke="#fff" strokeWidth="1" />
+                <text x={boltSmallPoint.x + 6} y={boltSmallPoint.y + 3} fontSize="8" fill="#0071e3" fontWeight="bold">
+                  Sala Pequeña (1.40, 1.86)
+                </text>
+
+                <circle cx={boltLargePoint.x} cy={boltLargePoint.y} r="4" fill="#10b981" stroke="#fff" strokeWidth="1" />
+                <text x={boltLargePoint.x + 6} y={boltLargePoint.y + 3} fontSize="8" fill="#10b981" fontWeight="bold">
+                  Sala Grande (1.20, 1.44)
+                </text>
+              </g>
+
+              {/* Punto de la sala actual (SIEMPRE VISIBLE gracias al auto-escalado) */}
+              <g>
+                <circle
+                  cx={currentPointX}
+                  cy={currentPointY}
+                  r="14"
+                  fill="none"
+                  stroke={currentNormalized.isInsideZoneA ? '#10b981' : '#ef4444'}
+                  strokeWidth="1.5"
+                  strokeOpacity="0.4"
+                  className="animate-ping"
+                />
+                <circle
+                  cx={currentPointX}
+                  cy={currentPointY}
+                  r="7.5"
+                  fill={currentNormalized.isInsideZoneA ? '#10b981' : '#ef4444'}
+                  stroke="#ffffff"
+                  strokeWidth="2.5"
+                />
+
+                {/* Etiqueta inteligente que evita desbordar los bordes */}
+                <text
+                  x={currentPointX > margin.left + plotW - 90 ? currentPointX - 12 : currentPointX + 12}
+                  y={currentPointY < margin.top + 20 ? currentPointY + 16 : currentPointY - 10}
+                  fontSize="10"
+                  fontWeight="bold"
+                  fill={currentNormalized.isInsideZoneA ? '#10b981' : '#ef4444'}
+                  textAnchor={currentPointX > margin.left + plotW - 90 ? 'end' : 'start'}
+                >
+                  Sala Actual (p={currentP.toFixed(2)}, q={currentQ.toFixed(2)})
+                </text>
+              </g>
             </svg>
           </div>
 
-          <div className="text-xs text-[#86868b] flex justify-between font-mono">
+          <div className="text-xs text-[#86868b] flex flex-wrap justify-between font-mono gap-2 pt-1 border-t border-black/[0.04] dark:border-white/[0.04]">
             <span>Dimensiones: {currentNormalized.sortedDims[0].toFixed(2)}m × {currentNormalized.sortedDims[1].toFixed(2)}m × {currentNormalized.sortedDims[2].toFixed(2)}m</span>
-            <span>Razón: 1 : {currentNormalized.p} : {currentNormalized.q}</span>
+            <span>Razón: 1 : {currentP.toFixed(2)} : {currentQ.toFixed(2)}</span>
           </div>
+
+          {!currentNormalized.isInsideZoneA && (
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-300 leading-snug">
+              ⚠️ <strong>Fuera de Zona A de Bolt:</strong> La relación de aspecto actual ({currentP.toFixed(2)}, {currentQ.toFixed(2)}) favorece la formación de modos tangenciales agrupados. Considera aplicar las proporciones de Bolt recomendadas (ej. {suggested.name}: 1 : {suggested.ratios.w} : {suggested.ratios.l}).
+            </div>
+          )}
         </div>
 
       </div>
