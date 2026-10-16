@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { LineChart as LineChartIcon, Activity, Layers, Target, Info } from 'lucide-react';
 import { OCTAVE_BANDS, ROOM_SURFACES, generateDistanceCurveData } from '../utils/acousticCalculations';
+import ChartExportMenu from './common/ChartExportMenu';
 
 /**
  * Componente de Gráficas Acústicas Interactivas
@@ -233,16 +234,26 @@ export default function AcousticCharts({
 
       {/* --- GRÁFICO 1: RT vs FRECUENCIA --- */}
       {activeChartTab === 'rt_vs_freq' && (
-        <div>
+        <div id="chart-rt-vs-freq" className="p-1">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 px-1">
             <div className="text-xs text-[#1d1d1f] dark:text-white font-medium">
               Comparación de modelos: <strong className="text-[#5833c7] dark:text-[#8767f9]">Sabine</strong> vs{' '}
               <strong className="text-[#34c759]">Norris-Eyring</strong> vs{' '}
               <strong className="text-[#ff9500]">Millington-Sette</strong>
             </div>
-            <div className="text-xs text-[#86868b] dark:text-slate-400 font-mono flex items-center gap-1.5">
-              <span>Zona sombreada: Rango óptimo</span>
-              <span className="w-3 h-3 bg-emerald-500/15 dark:bg-emerald-500/25 border border-emerald-500/30 rounded"></span>
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-[#86868b] dark:text-slate-400 font-mono flex items-center gap-1.5">
+                <span>Rango óptimo</span>
+                <span className="w-3 h-3 bg-emerald-500/15 dark:bg-emerald-500/25 border border-emerald-500/30 rounded"></span>
+              </div>
+              <ChartExportMenu
+                targetId="chart-rt-vs-freq"
+                filename="tiempo_reverberacion_rt60_pozole"
+                title="Tiempo de Reverberación RT60 (ISO 3382)"
+                headers={['Banda (Hz)', 'Sabine (s)', 'Norris-Eyring (s)', 'Millington-Sette (s)', 'T60 Óptimo (s)', 'Mín Óptimo (s)', 'Máx Óptimo (s)']}
+                rows={rtChartData.map(d => [d.freqNum, d.Sabine, d.Eyring, d.Millington, d.Optimo, d.MinOpt, d.MaxOpt])}
+                showLabels={true}
+              />
             </div>
           </div>
 
@@ -320,13 +331,23 @@ export default function AcousticCharts({
 
       {/* --- GRÁFICO 2: Lp vs DISTANCIA --- */}
       {activeChartTab === 'lp_vs_dist' && (
-        <div>
+        <div id="chart-lp-vs-dist" className="p-1">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 px-1">
             <div className="text-xs text-[#1d1d1f] dark:text-white font-medium">
               Atenuación espacial de presión sonora a <strong>{selectedBand} Hz</strong> (Lw={currentLw}dB, Q={currentQ})
             </div>
-            <div className="text-xs font-mono text-[#5833c7] dark:text-[#a78bfa] flex items-center gap-2">
-              <span>Distancia Crítica Dc: <strong>{criticalDistance} m</strong></span>
+            <div className="flex items-center gap-3">
+              <div className="text-xs font-mono text-[#5833c7] dark:text-[#a78bfa] flex items-center gap-2">
+                <span>Distancia Crítica Dc: <strong>{criticalDistance} m</strong></span>
+              </div>
+              <ChartExportMenu
+                targetId="chart-lp-vs-dist"
+                filename={`atenuacion_distancia_${selectedBand}Hz_pozole`}
+                title={`Atenuación Espacial Lp vs Distancia (${selectedBand} Hz)`}
+                headers={['Distancia r (m)', 'Nivel Total Lp (dB)', 'Sonido Directo (dB)', 'Sonido Reverberado (dB)', 'DRR (dB)', 'Distancia Crítica Dc (m)']}
+                rows={curveData.map(d => [d.distance, d.lpTotal, d.lpDirect, d.lpReverberant, d.drr, criticalDistance])}
+                showLabels={true}
+              />
             </div>
           </div>
 
@@ -413,14 +434,19 @@ export default function AcousticCharts({
 
       {/* --- GRÁFICO 3: DESGLOSE DE ABSORCIÓN --- */}
       {activeChartTab === 'abs_breakdown' && (
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-4 px-1">
+        <div id="chart-abs-breakdown" className="p-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 px-1">
             <div className="text-xs text-[#1d1d1f] dark:text-white font-medium">
-              Absorción acústica equivalente acumulada (m² Sabine) por superficie del recinto
+              Absorción acústica equivalente acumulada (m² Sabine) por superficie del recinto &bull; <span className="text-[#86868b] font-mono">Total = Σ(Si · αi)</span>
             </div>
-            <span className="text-xs text-[#86868b] dark:text-slate-400 font-mono">
-              Total = Σ(Si · αi)
-            </span>
+            <ChartExportMenu
+              targetId="chart-abs-breakdown"
+              filename="desglose_absorcion_superficies_pozole"
+              title="Aporte de Absorción por Superficie"
+              headers={['Frecuencia', ...surfaceKeys.map(k => getSurfaceLabel(k)), 'Total (m² Sabine)']}
+              rows={absBreakdownData.map(d => [d.frequency, ...surfaceKeys.map(k => d[getSurfaceLabel(k)] ?? 0), d.Total])}
+              showLabels={true}
+            />
           </div>
 
           <div className="h-80 w-full">

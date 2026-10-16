@@ -15,6 +15,7 @@ import {
   Compass,
   Grid3X3,
 } from 'lucide-react';
+import ChartExportMenu from '../common/ChartExportMenu';
 import {
   LineChart,
   Line,
@@ -553,7 +554,7 @@ export default function PressureFieldViewer({
   }, [probePoint, currentMode, Lx, Ly, Lz]);
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div id="pressure-field-viewer-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado y Selector de Modo */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
@@ -588,6 +589,22 @@ export default function PressureFieldViewer({
               </option>
             ))}
           </select>
+
+          <ChartExportMenu
+            targetId="pressure-field-viewer-card"
+            filename={`campo_presion_modo_${currentMode.id}`}
+            title={`Distribución Espacial de Presión - Modo (${currentMode.nx},${currentMode.ny},${currentMode.nz})`}
+            headers={['Tiempo t (ms)', 'Presión Instantánea p(t)', 'Amplitud Modal ψ(x,y,z)', 'Posición Sonda (x, y, z)', 'Frecuencia (Hz)', 'Modo']}
+            rows={probeCurve.curve.map(pt => [
+              pt.timeMs,
+              pt.pressure,
+              probeCurve.shape,
+              `(${probePoint.x.toFixed(2)}, ${probePoint.y.toFixed(2)}, ${probePoint.z.toFixed(2)})`,
+              Number(currentMode.frequency.toFixed(2)),
+              `(${currentMode.nx},${currentMode.ny},${currentMode.nz})`
+            ])}
+            showLabels={false}
+          />
         </div>
       </div>
 

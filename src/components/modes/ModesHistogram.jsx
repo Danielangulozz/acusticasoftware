@@ -13,6 +13,7 @@ import {
 import { BarChart3, Layers, Download, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { countModesByBand } from '../../utils/modalCalculations';
 import { downloadCsv } from '../../utils/csvUtils';
+import ChartExportMenu from '../common/ChartExportMenu';
 
 /**
  * Histograma de Modos Propios por Bandas de 1/3 de Octava (ISO 266)
@@ -130,7 +131,7 @@ export default function ModesHistogram({
   };
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div id="modes-histogram-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
@@ -158,13 +159,32 @@ export default function ModesHistogram({
             />
             <span>Ocultar bandas vacías</span>
           </label>
-          <button
-            onClick={handleExportCsv}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] hover:bg-[#e8e8ed] dark:hover:bg-[#25263a] text-xs font-semibold text-[#1d1d1f] dark:text-white border border-black/[0.05] dark:border-white/[0.08] transition-all"
-          >
-            <Download className="w-3.5 h-3.5 text-[#0071e3]" />
-            <span>Exportar CSV</span>
-          </button>
+          <ChartExportMenu
+            targetId="modes-histogram-card"
+            filename="POZOLE_Histograma_Modos_1-3_Octava"
+            title="Histograma de Modos por 1/3 de Octava"
+            headers={[
+              'Banda fc (Hz)',
+              'f_inferior (Hz)',
+              'f_superior (Hz)',
+              'Modos Axiales',
+              'Modos Tangenciales',
+              'Modos Oblicuos',
+              'Total en Banda',
+              'Acumulado N(f)'
+            ]}
+            rows={bandData.map(b => [
+              b.fc,
+              Number(b.fLow.toFixed(2)),
+              Number(b.fHigh.toFixed(2)),
+              b.axial,
+              b.tangential,
+              b.oblique,
+              b.count,
+              b.cumulative
+            ])}
+            showLabels={true}
+          />
         </div>
       </div>
 

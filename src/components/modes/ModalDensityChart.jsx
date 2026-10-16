@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { Activity, Info, Sparkles, TrendingUp } from 'lucide-react';
 import { modalDensityN, modalDensityDerivative, computeAllModesUpToFreq } from '../../utils/modalCalculations';
+import ChartExportMenu from '../common/ChartExportMenu';
 
 /**
  * Gráfica de Densidad Modal Teórica N(f) y dN/df vs Conteo Discreto Acumulado
@@ -62,10 +63,10 @@ export default function ModalDensityChart({
   }, [dimensions.Lx, dimensions.Ly, dimensions.Lz, volume, surface, perimeter, c, fMax]);
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div id="modal-density-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400">
@@ -79,6 +80,15 @@ export default function ModalDensityChart({
             Comparación asintótica entre el conteo discreto exacto de modos y la fórmula continua de Weyl para volumen V={volume.toFixed(1)} m³, S={surface.toFixed(1)} m².
           </p>
         </div>
+
+        <ChartExportMenu
+          targetId="modal-density-card"
+          filename="densidad_modal_weyl_pozole"
+          title="Densidad Modal N(f) y dN/df (Ley de Weyl)"
+          headers={['Frecuencia (Hz)', 'N real discreto', 'N(f) Weyl teórico', 'dN/df densidad (modos/Hz)']}
+          rows={chartData.map(d => [d.freq, d.realCount, d.theoreticalN, d.dN_df])}
+          showLabels={true}
+        />
       </div>
 
       {/* Gráfica N(f) vs Real */}

@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
+import ChartExportMenu from '../common/ChartExportMenu';
 
 /**
  * ==============================================================================
@@ -153,6 +154,19 @@ export default function ModeStandingWaveCard({
     return { cols, rows, cells };
   }, [nx, ny, dimensions]);
 
+  // Datos para exportación a Excel / CSV
+  const excelHeaders = ['Posición x (m)', 'Presión Acústica p(x)', 'Desplazamiento ξ(x)', 'Puntos Clave'];
+  const excelRows = useMemo(() => {
+    return wavePoints.map(pt => {
+      let tag = '-';
+      if (Math.abs(pt.x) < 0.01) tag = 'Pared Rígida x=0 (Vientre)';
+      else if (Math.abs(pt.x - L) < 0.01) tag = `Pared Rígida x=${L}m (Vientre)`;
+      else if (Math.abs(pt.p) < 0.06) tag = 'Nodo N (Presión nula)';
+      else if (Math.abs(Math.abs(pt.p) - 1.0) < 0.05) tag = 'Vientre V (Máxima Presión)';
+      return [pt.x, pt.p, pt.xi, tag];
+    });
+  }, [wavePoints, L]);
+
   return (
     <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 shadow-apple-sm transition-all space-y-4">
       
@@ -213,6 +227,16 @@ export default function ModeStandingWaveCard({
             <Eye className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ver 3D MATLAB</span>
           </button>
+
+          {/* Menú de Exportación PNG y Excel */}
+          <ChartExportMenu
+            targetId="mode-standing-wave-card"
+            title={`Modo_${nx}_${ny}_${nz}_${f.toFixed(1)}Hz`}
+            filename={`modo_${nx}_${ny}_${nz}_${f.toFixed(0)}Hz_onda_estacionaria`}
+            headers={excelHeaders}
+            rows={excelRows}
+            showLabels={true}
+          />
         </div>
       </div>
 
@@ -241,7 +265,7 @@ export default function ModeStandingWaveCard({
       {/* ÁREA DE GRÁFICA INTERACTIVA */}
       {viewMetric === 'pressure_displacement' ? (
         /* GRÁFICA 1D DE ONDA ESTACIONARIA (IDÉNTICA A DIAPOSITIVA 1 Y 3) */
-        <div className="bg-[#fbfbfd] dark:bg-[#0c0d18] p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] relative overflow-hidden">
+        <div id="mode-standing-wave-card" className="bg-[#fbfbfd] dark:bg-[#0c0d18] p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] relative overflow-hidden">
           
           {/* Leyenda superior */}
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono mb-2">

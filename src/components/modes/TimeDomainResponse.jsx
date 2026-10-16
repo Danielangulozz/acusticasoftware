@@ -27,6 +27,7 @@ import {
   CheckCircle2,
   HelpCircle,
 } from 'lucide-react';
+import ChartExportMenu from '../common/ChartExportMenu';
 import {
   calculateModalDamping,
   generateModeTimeResponse,
@@ -332,7 +333,7 @@ export default function TimeDomainResponse({
   };
 
   return (
-    <div className="space-y-6">
+    <div id="time-domain-card" className="space-y-6">
       {/* =========================================================================
           ENCABEZADO Y TEORÍA CANÓNICA
           ========================================================================= */}
@@ -361,13 +362,30 @@ export default function TimeDomainResponse({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleExportCsv}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white dark:bg-[#18192a] border border-black/[0.08] dark:border-white/[0.08] hover:border-[#5833c7] text-xs font-bold text-[#1d1d1f] dark:text-white transition-all shadow-sm active:scale-95"
-            >
-              <Download className="w-4 h-4 text-[#5833c7]" />
-              <span>Exportar Serie CSV</span>
-            </button>
+            <ChartExportMenu
+              targetId="time-domain-card"
+              filename={isSuperposition ? `presion_temporal_superposicion_${activeSuperposedModes.length}modos` : `presion_temporal_modo_${currentMode?.id || 'libre'}`}
+              title="Respuesta Modal en Dominio del Tiempo"
+              headers={[
+                'Tiempo [s]',
+                'Tiempo [ms]',
+                'Presion Instantanea [Pa]',
+                'Envolvente Superior [Pa]',
+                'Envolvente Inferior [Pa]',
+                'Factor Amortiguamiento',
+                'Nivel Relativo [dB]',
+              ]}
+              rows={activeChartData.map((s) => [
+                Number(s.t.toFixed(6)),
+                Number(s.tMs.toFixed(3)),
+                Number(s.pressure.toFixed(4)),
+                Number(s.envelopeUpper.toFixed(4)),
+                Number(s.envelopeLower.toFixed(4)),
+                Number(s.decayFactor.toFixed(4)),
+                s.levelDb !== undefined && s.levelDb !== null ? Number(s.levelDb.toFixed(2)) : '',
+              ])}
+              showLabels={true}
+            />
           </div>
         </div>
 

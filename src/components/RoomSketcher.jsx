@@ -106,8 +106,17 @@ export default function RoomSketcher({
   onChangePolygon,
   geometry,
   materials,
+  onChangeMaterials,
   sourceReceiver,
   onChangeSourceReceiver,
+  roomType = 'speech',
+  onChangeRoomType,
+  modalSettings,
+  onChangeModalSettings,
+  includeAirAbsorption = true,
+  onChangeIncludeAirAbsorption,
+  selectedBand = 1000,
+  onChangeSelectedBand,
 }) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
@@ -1708,9 +1717,10 @@ export default function RoomSketcher({
   const handleExportDrawing = useCallback(() => {
     const exportPayload = {
       software: 'POZOLE - CAD Acústico ISO 3382',
-      version: '2.0',
+      version: '3.0',
       fecha_guardado: new Date().toLocaleString(),
       sala: {
+        tipo_uso: roomType || 'speech',
         tipo_forma: activePresetId,
         altura_metros: Number(height.toFixed(2)),
         area_m2: Number(area.toFixed(2)),
@@ -1722,18 +1732,24 @@ export default function RoomSketcher({
         })),
         curvaturas_aristas: curvatures || {},
         lineas_auxiliares: guides || [],
-      }
+      },
+      tipo_sala: roomType || 'speech',
+      materiales: materials || {},
+      fuente_receptor: sourceReceiver || {},
+      modalSettings: modalSettings || {},
+      includeAirAbsorption: includeAirAbsorption !== undefined ? includeAirAbsorption : true,
+      selectedBand: selectedBand || 1000,
     };
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `plano_sala_pozole_${activePresetId}_${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `modelo_sala_pozole_${activePresetId}_${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setStatusMsg('Plano CAD exportado exitosamente (.json)');
-    setTimeout(() => setStatusMsg(null), 3000);
-  }, [activePresetId, height, area, vertices, curvatures, guides]);
+    setStatusMsg('Modelo completo (geometría + materiales + fuente + tipo) guardado exitosamente (.json)');
+    setTimeout(() => setStatusMsg(null), 3500);
+  }, [activePresetId, height, area, vertices, curvatures, guides, materials, sourceReceiver, roomType, modalSettings, includeAirAbsorption, selectedBand]);
 
   const handleImportDrawing = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -1746,6 +1762,8 @@ export default function RoomSketcher({
         if (Array.isArray(s.vertices) && s.vertices.length >= 3) {
           pushHistory();
           const cleanVerts = s.vertices.map(v => cleanPoint({ x: v.x_m ?? v.x ?? 0, y: v.y_m ?? v.y ?? 0 }));
+          
+          // 1. Restaurar polígono
           onChangePolygon({
             vertices: cleanVerts,
             height: Number(s.altura_metros || s.height || 3.0),
@@ -1753,15 +1771,51 @@ export default function RoomSketcher({
             guides: s.lineas_auxiliares || [],
           });
           setActivePresetId(s.tipo_forma || 'custom');
-          setStatusMsg(`Plano "${file.name}" cargado (${cleanVerts.length} vértices)`);
+
+          // 2. Restaurar materiales si vienen incluidos en el modelo
+          const importedMats = parsed.materiales || parsed.materials;
+          if (importedMats && onChangeMaterials) {
+            onChangeMaterials(importedMats);
+          }
+
+          // 3. Restaurar fuente y receptor si vienen incluidos
+          const importedSR = parsed.fuente_receptor || parsed.sourceReceiver;
+          if (importedSR && onChangeSourceReceiver) {
+            onChangeSourceReceiver(importedSR);
+          }
+
+          // 4. Restaurar tipo de uso / sala si viene incluido
+          const importedRoomType = s.tipo_uso || parsed.tipo_sala || parsed.roomType || parsed.tipo_uso;
+          if (importedRoomType && onChangeRoomType) {
+            onChangeRoomType(importedRoomType);
+          }
+
+          // 5. Restaurar parámetros modales si vienen incluidos
+          const importedModal = parsed.modalSettings;
+          if (importedModal && onChangeModalSettings) {
+            onChangeModalSettings(importedModal);
+          }
+
+          // 6. Restaurar absorción de aire
+          if (parsed.includeAirAbsorption !== undefined && onChangeIncludeAirAbsorption) {
+            onChangeIncludeAirAbsorption(parsed.includeAirAbsorption);
+          }
+
+          // 7. Restaurar banda
+          if (parsed.selectedBand && onChangeSelectedBand) {
+            onChangeSelectedBand(parsed.selectedBand);
+          }
+
+          setStatusMsg(`Modelo "${file.name}" cargado con geometría, materiales, tipo y fuente (${cleanVerts.length} vértices)`);
           setTimeout(() => setStatusMsg(null), 3500);
         }
       } catch (_) {
-        alert('Formato de plano no compatible.');
+        alert('Formato de modelo no compatible.');
       }
     };
     reader.readAsText(file);
-  }, [onChangePolygon, pushHistory]);
+    if (e.target) e.target.value = '';
+  }, [onChangePolygon, onChangeMaterials, onChangeSourceReceiver, onChangeRoomType, onChangeModalSettings, onChangeIncludeAirAbsorption, onChangeSelectedBand, pushHistory]);
 
   // Cálculos en vivo para la línea elástica (rubberband)
   const rubberbandInfo = useMemo(() => {

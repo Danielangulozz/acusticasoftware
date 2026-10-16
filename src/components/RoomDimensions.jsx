@@ -27,6 +27,14 @@ export default function RoomDimensions({
   onChangeMaterials,
   sourceReceiver,
   onChangeSourceReceiver,
+  roomType,
+  onChangeRoomType,
+  modalSettings,
+  onChangeModalSettings,
+  includeAirAbsorption,
+  onChangeIncludeAirAbsorption,
+  selectedBand,
+  onChangeSelectedBand,
   criticalDistance,
   visualizerSlot
 }) {
@@ -207,8 +215,17 @@ export default function RoomDimensions({
               onChangePolygon={onChangePolygon}
               geometry={geometry}
               materials={materials}
+              onChangeMaterials={onChangeMaterials}
               sourceReceiver={sourceReceiver}
               onChangeSourceReceiver={onChangeSourceReceiver}
+              roomType={roomType}
+              onChangeRoomType={onChangeRoomType}
+              modalSettings={modalSettings}
+              onChangeModalSettings={onChangeModalSettings}
+              includeAirAbsorption={includeAirAbsorption}
+              onChangeIncludeAirAbsorption={onChangeIncludeAirAbsorption}
+              selectedBand={selectedBand}
+              onChangeSelectedBand={onChangeSelectedBand}
             />
 
             {isCubic && (
@@ -234,8 +251,17 @@ export default function RoomDimensions({
             onChangePolygon={onChangePolygon}
             geometry={geometry}
             materials={materials}
+            onChangeMaterials={onChangeMaterials}
             sourceReceiver={sourceReceiver}
             onChangeSourceReceiver={onChangeSourceReceiver}
+            roomType={roomType}
+            onChangeRoomType={onChangeRoomType}
+            modalSettings={modalSettings}
+            onChangeModalSettings={onChangeModalSettings}
+            includeAirAbsorption={includeAirAbsorption}
+            onChangeIncludeAirAbsorption={onChangeIncludeAirAbsorption}
+            selectedBand={selectedBand}
+            onChangeSelectedBand={onChangeSelectedBand}
           />
 
           {isCubic && (

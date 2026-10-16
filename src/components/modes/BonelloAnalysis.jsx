@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Layers,
 } from 'lucide-react';
+import ChartExportMenu from '../common/ChartExportMenu';
 
 /**
  * Análisis Riguroso y Visualización del Criterio de Bonello (1981)
@@ -144,7 +145,7 @@ export default function BonelloAnalysis({
       </div>
 
       {/* Gráfica de Escalera de Bonello */}
-      <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-4">
+      <div id="bonello-chart-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
           <div>
             <h3 className="text-lg font-bold text-[#1d1d1f] dark:text-white">
@@ -154,7 +155,7 @@ export default function BonelloAnalysis({
               Las barras deben ser siempre crecientes o iguales a la anterior. Las barras en <span className="text-[#ef4444] font-bold">ROJO</span> indican violación del criterio.
             </p>
           </div>
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 text-xs flex-wrap">
             <span className="flex items-center gap-1.5 text-[#1d1d1f] dark:text-slate-300 font-medium">
               <span className="w-3 h-3 rounded bg-[#5833c7]"></span>
               Banda Conforme
@@ -163,6 +164,21 @@ export default function BonelloAnalysis({
               <span className="w-3 h-3 rounded bg-[#ef4444]"></span>
               Infracción (Falla)
             </span>
+            <ChartExportMenu
+              targetId="bonello-chart-card"
+              filename="analisis_criterio_bonello_pozole"
+              title="Diagrama Escalonado de Bonello (1/3 Octava)"
+              headers={['Banda fc (Hz)', 'f_inferior (Hz)', 'f_superior (Hz)', 'Nº Modos', 'Estado Bonello', 'Coincidencias']}
+              rows={evaluatedBands.map(b => [
+                b.fc,
+                Number(b.fLow.toFixed(2)),
+                Number(b.fHigh.toFixed(2)),
+                b.count,
+                b.complies ? 'CUMPLE' : 'FALLA',
+                b.degenerates?.length || 0
+              ])}
+              showLabels={true}
+            />
           </div>
         </div>
 

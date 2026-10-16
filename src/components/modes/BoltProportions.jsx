@@ -17,6 +17,7 @@ import {
   BOLT_ZONE_A_CONTOUR,
   BOLT_PRESETS,
 } from '../../utils/proportions';
+import ChartExportMenu from '../common/ChartExportMenu';
 
 export default function BoltProportions({
   dimensions = { Lx: 10, Ly: 6, Lz: 3 },
@@ -237,8 +238,8 @@ export default function BoltProportions({
         </div>
 
         {/* Columna 2: Diagrama p-q de Bolt (SVG con Auto-escalado Dinámico) */}
-        <div className="space-y-3 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
-          <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div id="bolt-proportions-diagram" className="space-y-3 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
                 Diagrama de Área Aceptable (Bolt Zone A)
@@ -247,23 +248,40 @@ export default function BoltProportions({
                 Eje X: p = W/H &bull; Eje Y: q = L/H (normalizado con H = 1.0)
               </p>
             </div>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
-              currentNormalized.isInsideZoneA
-                ? 'bg-[#10b981]/20 text-[#10b981]'
-                : 'bg-[#ef4444]/20 text-[#ef4444]'
-            }`}>
-              {currentNormalized.isInsideZoneA ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>DENTRO DE ZONA A</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>FUERA DE ZONA A</span>
-                </>
-              )}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+                currentNormalized.isInsideZoneA
+                  ? 'bg-[#10b981]/20 text-[#10b981]'
+                  : 'bg-[#ef4444]/20 text-[#ef4444]'
+              }`}>
+                {currentNormalized.isInsideZoneA ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>DENTRO DE ZONA A</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>FUERA DE ZONA A</span>
+                  </>
+                )}
+              </span>
+
+              <ChartExportMenu
+                targetId="bolt-proportions-diagram"
+                filename="proporciones_bolt_pozole"
+                title="Diagrama de Proporciones Bolt (Zona A)"
+                headers={['Parámetro', 'Valor Sala Actual', 'Relación Normalizada', 'Sugerido Preset']}
+                rows={[
+                  ['Longitud (L)', `${Lx.toFixed(2)} m`, `q = ${currentNormalized.q}`, `${suggested.L.toFixed(2)} m`],
+                  ['Anchura (W)', `${Ly.toFixed(2)} m`, `p = ${currentNormalized.p}`, `${suggested.W.toFixed(2)} m`],
+                  ['Altura (H)', `${Lz.toFixed(2)} m`, '1.00', `${suggested.H.toFixed(2)} m`],
+                  ['Volumen (V)', `${(Lx * Ly * Lz).toFixed(2)} m³`, '-', `${targetVolume.toFixed(2)} m³`],
+                  ['Estado Zona A Bolt', currentNormalized.isInsideZoneA ? 'DENTRO' : 'FUERA', '-', 'DENTRO (Óptimo)'],
+                ]}
+                showLabels={false}
+              />
+            </div>
           </div>
 
           {/* Gráfico SVG del Plano p-q */}

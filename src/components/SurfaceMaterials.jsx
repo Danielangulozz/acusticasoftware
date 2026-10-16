@@ -20,6 +20,7 @@ import {
   getMaterialById,
   DEFAULT_SUB_ELEMENTS_PRESETS,
 } from '../utils/defaultMaterials';
+import ChartExportMenu from './common/ChartExportMenu';
 
 /**
  * Módulo 2: Materiales y Caras (SurfaceMaterials)
@@ -176,8 +177,40 @@ export default function SurfaceMaterials({
 
   const wallCount = effectiveSurfaces.filter(s => s.id.startsWith('wall')).length;
 
+  const materialsExportHeaders = [
+    'Superficie',
+    'Material Asignado',
+    'Área (m²)',
+    'α 125Hz',
+    'α 250Hz',
+    'α 500Hz',
+    'α 1000Hz',
+    'α 2000Hz',
+    'α 4000Hz',
+    'Sub-elementos'
+  ];
+
+  const materialsExportRows = effectiveSurfaces.map((s) => {
+    const mat = materials[s.id] || {};
+    const matDef = getMaterialById(mat.materialId);
+    const coeffs = mat.coefficients || {};
+    const subs = mat.subElements || [];
+    return [
+      s.name,
+      matDef.name,
+      Number((surfaceAreas[s.id] || s.area || 0).toFixed(2)),
+      coeffs[125] ?? 0.05,
+      coeffs[250] ?? 0.05,
+      coeffs[500] ?? 0.05,
+      coeffs[1000] ?? 0.05,
+      coeffs[2000] ?? 0.05,
+      coeffs[4000] ?? 0.05,
+      subs.length > 0 ? `${subs.length} elementos (${subs.map(el => el.name).join(', ')})` : 'Continuo',
+    ];
+  });
+
   return (
-    <div className="bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 shadow-apple-sm transition-all space-y-6">
+    <div id="surface-materials-card" className="bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 shadow-apple-sm transition-all space-y-6">
 
       {/* 1. Encabezado Bento Limpio */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-black/[0.06] dark:border-white/10">
@@ -196,7 +229,7 @@ export default function SurfaceMaterials({
         </div>
 
         {/* Acciones Rápidas del Encabezado */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <button
             onClick={handleCopyToAllWalls}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#0A0C14] hover:bg-slate-200 dark:hover:bg-[#1c1e30] text-xs font-bold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/10 transition active:scale-95"
@@ -214,6 +247,15 @@ export default function SurfaceMaterials({
               </>
             )}
           </button>
+
+          <ChartExportMenu
+            targetId="surface-materials-card"
+            filename="inventario_materiales_superficies_pozole"
+            title="Inventario de Materiales y Absorción"
+            headers={materialsExportHeaders}
+            rows={materialsExportRows}
+            showLabels={true}
+          />
         </div>
       </div>
 

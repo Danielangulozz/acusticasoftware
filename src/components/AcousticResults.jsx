@@ -11,6 +11,7 @@ import {
   Target
 } from 'lucide-react';
 import { OCTAVE_BANDS } from '../utils/acousticCalculations';
+import ChartExportMenu from './common/ChartExportMenu';
 
 /**
  * Componente de Resultados y Parámetros Acústicos
@@ -266,16 +267,57 @@ export default function AcousticResults({
       </div>
 
       {/* --- TABLA COMPLETA POR BANDAS DE OCTAVA --- */}
-      <div className="bg-white dark:bg-[#0A0C14] rounded-2xl border border-black/[0.08] dark:border-white/10 overflow-hidden shadow-2xs">
+      <div id="acoustic-results-table" className="bg-white dark:bg-[#0A0C14] rounded-2xl border border-black/[0.08] dark:border-white/10 overflow-hidden shadow-2xs">
         
         <div className="px-5 py-3.5 bg-[#fbfbfd] dark:bg-[#141622] border-b border-black/[0.06] dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="text-xs font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider flex items-center gap-2">
             <Activity className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa]" />
             <span>Tabla Comparativa Completa por Bandas de Octava</span>
           </div>
-          <span className="text-[11px] text-[#86868b] dark:text-slate-400 font-mono">
-            Haz clic en una banda para destacarla
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-[#86868b] dark:text-slate-400 font-mono hidden md:inline">
+              Haz clic en una banda para destacarla
+            </span>
+            <ChartExportMenu
+              targetId="acoustic-results-table"
+              filename="matriz_parametros_acusticos_pozole"
+              title="Resultados y Parámetros Acústicos (ISO 3382)"
+              headers={[
+                'Frecuencia (Hz)',
+                'Absorción A (m² Sab)',
+                'Coef. Medio (ᾱ)',
+                'Constante Sala R (m²)',
+                'RT60 Sabine (s)',
+                'RT60 Norris-Eyring (s)',
+                'RT60 Millington-Sette (s)',
+                'Reflexiones n',
+                'Distancia Crítica Dc (m)',
+                'Lp Directo (dB)',
+                'Lp Reverberado (dB)',
+                'Lp Total (dB)',
+              ]}
+              rows={OCTAVE_BANDS.map((freq) => {
+                const rt = reverberationData[freq] || {};
+                const abs = absorptionData[freq] || {};
+                const sf = soundFieldData[freq] || {};
+                return [
+                  freq,
+                  Number(abs.equivalentAbsorption?.toFixed(2) || 0),
+                  Number(abs.alphaMean?.toFixed(3) || 0),
+                  Number(sf.roomConstant?.toFixed(2) || 0),
+                  Number(rt.sabine?.toFixed(2) || 0),
+                  Number(rt.eyring?.toFixed(2) || 0),
+                  Number(rt.millington?.toFixed(2) || 0),
+                  Math.round(rt.reflectionsSabine || 0),
+                  Number(sf.criticalDistance?.toFixed(2) || 0),
+                  Number(sf.directIntensityLevel?.toFixed(1) || 0),
+                  Number(sf.revIntensityLevel?.toFixed(1) || 0),
+                  Number(sf.lpTotalWithAir?.toFixed(1) || 0),
+                ];
+              })}
+              showLabels={true}
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto touch-scroll-x">

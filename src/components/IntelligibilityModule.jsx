@@ -53,6 +53,7 @@ import {
   calculateOccupancyAbsorption,
 } from '../utils/defaultMaterials';
 import { OCTAVE_BANDS } from '../utils/acousticCalculations';
+import ChartExportMenu from './common/ChartExportMenu';
 
 export default function IntelligibilityModule({
   geometry,
@@ -565,7 +566,7 @@ export default function IntelligibilityModule({
           </div>
 
           {/* Gráfica Recharts: %ALcons vs Distancia con Zonas ISO 9921 */}
-          <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
+          <div id="peutz-curve-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h4 className="text-sm font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-2">
@@ -577,13 +578,21 @@ export default function IntelligibilityModule({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-mono">
+              <div className="flex items-center gap-2 text-xs font-mono flex-wrap">
                 <span className="px-2 py-0.5 rounded-md bg-[#0071e3]/10 text-[#0071e3] font-bold">
                   Dc = {Dc_untreated.toFixed(2)}m
                 </span>
                 <span className="px-2 py-0.5 rounded-md bg-[#5833c7]/10 text-[#5833c7] font-bold">
                   D_lim = {DLim_untreated.toFixed(2)}m
                 </span>
+                <ChartExportMenu
+                  targetId="peutz-curve-card"
+                  filename="curva_peutz_alcons_distancia"
+                  title="Curva Analítica de Peutz (%ALcons vs Distancia)"
+                  headers={['Distancia (m)', '%ALcons Peutz', 'STI Equivalente', 'Calificación ISO 9921']}
+                  rows={distanceCurveData.map(d => [d.distance, d.alconsUntreated, d.stiUntreated, getIntelligibilityRating(d.alconsUntreated).rating])}
+                  showLabels={false}
+                />
               </div>
             </div>
 
@@ -828,7 +837,7 @@ export default function IntelligibilityModule({
           </div>
 
           {/* Gráfica Superpuesta: Curvas de Comparación */}
-          <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
+          <div id="peutz-comparison-chart-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h4 className="text-sm font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-2">
@@ -840,15 +849,30 @@ export default function IntelligibilityModule({
                 </p>
               </div>
 
-              <div className="flex items-center gap-4 text-xs font-bold">
+              <div className="flex items-center gap-3 text-xs font-bold flex-wrap">
                 <span className="flex items-center gap-1.5 text-rose-500">
                   <span className="w-3 h-1 bg-rose-500 rounded-full"></span>
-                  <span>Sin Acondicionar (RT = {RT60_untreated}s)</span>
+                  <span>Sin Tratar</span>
                 </span>
                 <span className="flex items-center gap-1.5 text-emerald-500">
                   <span className="w-3 h-1 bg-emerald-500 rounded-full"></span>
-                  <span>Con Acondicionamiento (RT = {RT60_treated}s)</span>
+                  <span>Tratado</span>
                 </span>
+                <ChartExportMenu
+                  targetId="peutz-comparison-chart-card"
+                  filename="comparativa_acondicionamiento_peutz"
+                  title="Comparativa %ALcons: Sin Tratar vs Acondicionado"
+                  headers={['Distancia (m)', '%ALcons Sin Tratar', 'STI Sin Tratar', '%ALcons Tratado', 'STI Tratado', 'Reducción %ALcons']}
+                  rows={distanceCurveData.map(d => [
+                    d.distance,
+                    d.alconsUntreated,
+                    d.stiUntreated,
+                    d.alconsTreated,
+                    d.stiTreated,
+                    Number((d.alconsUntreated - d.alconsTreated).toFixed(1))
+                  ])}
+                  showLabels={false}
+                />
               </div>
             </div>
 
@@ -955,13 +979,31 @@ export default function IntelligibilityModule({
                 <h5 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
                   Registro de Resultados Experimentales por Receptor / Distancia
                 </h5>
-                <button
-                  onClick={handleResetToUsbExperimental}
-                  className="text-xs text-[#0071e3] font-semibold hover:underline flex items-center gap-1"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Restablecer Datos de Muestra USB</span>
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleResetToUsbExperimental}
+                    className="text-xs text-[#0071e3] font-semibold hover:underline flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Restablecer Datos de Muestra USB</span>
+                  </button>
+                  <ChartExportMenu
+                    targetId="logatomes-table-card"
+                    filename="mediciones_experimentales_logatomos"
+                    title="Medición Experimental con Logátomos (ISO 9921)"
+                    headers={['Distancia (m)', 'Total Palabras', 'Aciertos', 'Errores', '%ALcons Exp', 'Calificación', 'Ubicación / Notas']}
+                    rows={experimentalMeasurements.map(m => [
+                      m.distance,
+                      m.totalLogatomes,
+                      m.correctLogatomes,
+                      m.totalLogatomes - m.correctLogatomes,
+                      m.alconsExp,
+                      getIntelligibilityRating(m.alconsExp).rating,
+                      m.notes || ''
+                    ])}
+                    showLabels={false}
+                  />
+                </div>
               </div>
 
               {/* Formulario de Entrada */}
@@ -1025,7 +1067,7 @@ export default function IntelligibilityModule({
               </div>
 
               {/* Tabla de Puntos Medidos */}
-              <div className="overflow-x-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
+              <div id="logatomes-table-card" className="overflow-x-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
                 <table className="w-full text-left text-xs font-mono">
                   <thead className="bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b]">
                     <tr>

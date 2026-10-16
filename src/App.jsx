@@ -581,6 +581,14 @@ export default function App() {
                 onChangeMaterials={setMaterials}
                 sourceReceiver={sourceReceiver}
                 onChangeSourceReceiver={setSourceReceiver}
+                roomType={roomType}
+                onChangeRoomType={setRoomType}
+                modalSettings={modalSettings}
+                onChangeModalSettings={setModalSettings}
+                includeAirAbsorption={includeAirAbsorption}
+                onChangeIncludeAirAbsorption={setIncludeAirAbsorption}
+                selectedBand={selectedBand}
+                onChangeSelectedBand={setSelectedBand}
                 criticalDistance={activeCriticalDistance}
                 visualizerSlot={
                   <RoomVisualizer
@@ -728,6 +736,14 @@ export default function App() {
                     onChangeMaterials={setMaterials}
                     sourceReceiver={sourceReceiver}
                     onChangeSourceReceiver={setSourceReceiver}
+                    roomType={roomType}
+                    onChangeRoomType={setRoomType}
+                    modalSettings={modalSettings}
+                    onChangeModalSettings={setModalSettings}
+                    includeAirAbsorption={includeAirAbsorption}
+                    onChangeIncludeAirAbsorption={setIncludeAirAbsorption}
+                    selectedBand={selectedBand}
+                    onChangeSelectedBand={setSelectedBand}
                     criticalDistance={activeCriticalDistance}
                   />
                 </div>

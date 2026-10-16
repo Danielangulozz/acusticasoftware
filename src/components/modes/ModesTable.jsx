@@ -12,6 +12,7 @@ import {
   Info
 } from 'lucide-react';
 import { downloadCsv } from '../../utils/csvUtils';
+import ChartExportMenu from '../common/ChartExportMenu';
 
 /**
  * Tabla interactiva y exhaustiva de Modos Propios (Normales de Vibración)
@@ -113,7 +114,7 @@ export default function ModesTable({
   const countOblique = modes.filter(m => m.type === 'oblique').length;
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors">
+    <div id="modes-table-container" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors">
       
       {/* Encabezado y Acciones */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-black/[0.06] dark:border-white/[0.06]">
@@ -132,13 +133,40 @@ export default function ModesTable({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={handleExportCsv}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] hover:bg-[#e8e8ed] dark:hover:bg-[#25263a] text-xs font-semibold text-[#1d1d1f] dark:text-white border border-black/[0.05] dark:border-white/[0.08] transition-all"
-          >
-            <Download className="w-4 h-4 text-[#5833c7]" />
-            <span>Descargar CSV</span>
-          </button>
+          <ChartExportMenu
+            targetId="modes-table-container"
+            filename={`POZOLE_Modos_Propios_${filteredModes.length}_modos`}
+            title="Catálogo de Modos Propios"
+            headers={[
+              '#',
+              'nx',
+              'ny',
+              'nz',
+              'Frecuencia f (Hz)',
+              'Tipo de Modo',
+              'Detalle',
+              'kx (rad/m)',
+              'ky (rad/m)',
+              'kz (rad/m)',
+              'k total (rad/m)',
+              'Peso Energético'
+            ]}
+            rows={filteredModes.map(m => [
+              m.index,
+              m.nx,
+              m.ny,
+              m.nz,
+              Number(m.frequency.toFixed(2)),
+              m.label,
+              m.detail || '',
+              m.kVector?.kx ? Number(m.kVector.kx.toFixed(3)) : '',
+              m.kVector?.ky ? Number(m.kVector.ky.toFixed(3)) : '',
+              m.kVector?.kz ? Number(m.kVector.kz.toFixed(3)) : '',
+              m.kVector?.k ? Number(m.kVector.k.toFixed(3)) : '',
+              m.weight
+            ])}
+            showLabels={true}
+          />
         </div>
       </div>
 

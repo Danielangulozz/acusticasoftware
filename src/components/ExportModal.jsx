@@ -3,10 +3,11 @@ import { X, FileSpreadsheet, Download, Copy, Check, Sparkles, FileText, CheckCir
 import { OCTAVE_BANDS } from '../utils/acousticCalculations';
 import { getMaterialById } from '../utils/defaultMaterials';
 import { parseSpectralPeaks } from '../utils/measurementUtils';
+import { downloadTableAsExcel } from '../utils/exportUtils';
 
 /**
  * Modal de Exportación Avanzada para Excel y Software de Análisis
- * Compatible con Excel en español (separador ';') y estándar internacional (',').
+ * Compatible con Excel nativo (.xls con formato Spreadsheet), CSV en español (';') y estándar (',').
  * Incluye geometría completa del polígono, paredes curvas, materiales y matriz acústica.
  */
 export default function ExportModal({
@@ -32,8 +33,8 @@ export default function ExportModal({
   const height = roomPolygon?.height || dimensions?.height || 3.0;
   const numWalls = vertices.length || 4;
 
-  // Generador de bloques de datos unificados
-  const buildExportData = (sep = ';') => {
+  // Generador de matriz de filas unificadas
+  const buildExportRows = () => {
     let rows = [];
 
     // 1. Encabezado institucional y autoría
@@ -269,7 +270,22 @@ export default function ExportModal({
       }
     }
 
-    return rows.map(r => r.join(sep)).join('\r\n');
+    return rows;
+  };
+
+  const buildExportData = (sep = ';') => {
+    return buildExportRows().map(r => r.join(sep)).join('\r\n');
+  };
+
+  // Generar Libro de Excel nativo (.xls con estilos XML y formato de tabla)
+  const handleDownloadExcelWorkbook = () => {
+    const rows = buildExportRows();
+    downloadTableAsExcel(
+      [],
+      rows,
+      `POZOLE_Reporte_Acustico_${numWalls}paredes_${(geometry?.volume || 0).toFixed(0)}m3.xls`,
+      'Reporte Acústico POZOLE'
+    );
   };
 
   // Generar CSV compatible con Excel español (Separador ';' y BOM UTF-8)
@@ -316,7 +332,7 @@ export default function ExportModal({
         {/* Encabezado */}
         <div className="bg-white border-b border-black/[0.06] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#34c759]/10 text-[#34c759] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-[#5833c7]/10 text-[#5833c7] flex items-center justify-center font-bold">
               <FileSpreadsheet className="w-4 h-4" />
             </div>
             <div>
@@ -347,11 +363,38 @@ export default function ExportModal({
                 onChange={(e) => setIncludeModalAnalysis(e.target.checked)}
                 className="rounded border-gray-400 text-[#5833c7] focus:ring-[#5833c7]"
               />
-              <span>Incluir Módulo de Modos Propios (resonancias, Schroeder y Bonello) en el archivo CSV</span>
+              <span>Incluir Módulo de Modos Propios (resonancias, Schroeder y Bonello) en el reporte</span>
             </label>
           )}
 
-          {/* Opción 1: CSV para Excel (Recomendada) */}
+          {/* Opción 1: Hoja de Cálculo Excel Nativa (.xls) - Recomendada */}
+          <div className="p-4 rounded-2xl bg-[#f8f9fe] border border-[#5833c7]/30 hover:border-[#5833c7] transition shadow-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-[#1d1d1f]">
+                    Libro de Microsoft Excel (.xls)
+                  </h4>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#5833c7] text-white">
+                    Recomendado
+                  </span>
+                </div>
+                <p className="text-xs text-[#86868b] mt-1">
+                  Archivo de hoja de cálculo con encabezados estilizados en púrpura, cuadrícula activa y celdas numéricas formateadas. Se abre directo en Excel.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleDownloadExcelWorkbook}
+              className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#5833c7] hover:bg-[#4324a3] text-white text-xs font-semibold shadow-apple-sm transition active:scale-[0.98]"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Descargar Hoja de Cálculo Excel (.xls)</span>
+            </button>
+          </div>
+
+          {/* Opción 2: CSV para Excel (Separador ';') */}
           <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-black/[0.06] hover:border-[#34c759] transition">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -360,11 +403,11 @@ export default function ExportModal({
                     CSV Optimizado para Excel
                   </h4>
                   <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#34c759]/10 text-[#34c759]">
-                    Recomendado
+                    Fácil Apertura
                   </span>
                 </div>
                 <p className="text-xs text-[#86868b] mt-1">
-                  Usa separador <code className="text-[#1d1d1f] font-mono font-bold">;</code> y codificación UTF-8 BOM. Se abre en columnas separadas (A, B, C...) automáticamente en Excel.
+                  Usa separador <code className="text-[#1d1d1f] font-mono font-bold">;</code> y codificación UTF-8 BOM.
                 </p>
               </div>
             </div>

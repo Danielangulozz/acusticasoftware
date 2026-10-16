@@ -32,6 +32,7 @@ import {
   detectSpectralPeaks,
 } from '../../utils/measurementUtils';
 import { downloadCsv } from '../../utils/csvUtils';
+import ChartExportMenu from '../common/ChartExportMenu';
 
 /**
  * ==============================================================================
@@ -262,7 +263,7 @@ export default function ModesComparison({
   };
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div id="modes-comparison-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
@@ -280,14 +281,42 @@ export default function ModesComparison({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5833c7] hover:bg-[#4727a8] text-xs font-semibold text-white shadow-sm transition-all"
-        >
-          <Download className="w-4 h-4" />
-          <span>Exportar Comparativa CSV</span>
-        </button>
+        <ChartExportMenu
+          targetId="modes-comparison-card"
+          filename="POZOLE_Comparativa_Modal_Multimetodo"
+          title="Comparativa Modal Multimétodo"
+          headers={[
+            '#',
+            'Modo',
+            'Tipo de Modo',
+            'f Teórica POZOLE (Hz)',
+            'f Experimental (Hz)',
+            'Error Exp (Hz)',
+            'Error Exp (%)',
+            'f REW Sim (Hz)',
+            'Error REW (Hz)',
+            'Error REW (%)',
+            'f FEM COMSOL (Hz)',
+            'Error FEM (Hz)',
+            'Error FEM (%)',
+          ]}
+          rows={comparisonRows.map(r => [
+            r.mode.index,
+            `(${r.mode.nx},${r.mode.ny},${r.mode.nz})`,
+            r.mode.label,
+            Number(r.fTheo.toFixed(2)),
+            r.fExp !== null ? Number(r.fExp.toFixed(2)) : '—',
+            r.expDiff !== null ? Number(r.expDiff.toFixed(2)) : '—',
+            r.expErrPct !== null ? `${r.expErrPct.toFixed(1)}%` : '—',
+            r.fRew !== null ? Number(r.fRew.toFixed(2)) : '—',
+            r.rewDiff !== null ? Number(r.rewDiff.toFixed(2)) : '—',
+            r.rewErrPct !== null ? `${r.rewErrPct.toFixed(1)}%` : '—',
+            r.fFem !== null ? Number(r.fFem.toFixed(2)) : '—',
+            r.femDiff !== null ? Number(r.femDiff.toFixed(2)) : '—',
+            r.femErrPct !== null ? `${r.femErrPct.toFixed(1)}%` : '—',
+          ])}
+          showLabels={true}
+        />
       </div>
 
       {/* 3 Importadores Directos (Experimental, REW, FEM) + Ajuste de Tolerancia */}
