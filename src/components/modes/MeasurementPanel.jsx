@@ -63,7 +63,7 @@ export default function MeasurementPanel({
   roomPolygon = null,
   modes = [],
   measurementData = null,
-  onUpdateMeasurementData = () => {},
+  onUpdateMeasurementData = () => { },
 }) {
   const vertices = useMemo(() => {
     if (roomPolygon?.vertices && roomPolygon.vertices.length >= 3) {
@@ -519,7 +519,7 @@ export default function MeasurementPanel({
     reader.onload = (event) => {
       try {
         const text = event.target.result;
-        
+
         // 1. Detección y parseo de formato REW (Frequency, SPL, Phase)
         const rewData = parseRewMeasurementText(text);
         if (rewData && rewData.length > 5) {
@@ -768,7 +768,7 @@ export default function MeasurementPanel({
 
   return (
     <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
-      
+
       {/* Encabezado con Selector de Malla: Teórica (19 Pts) vs Experimental (7 Pts) */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
@@ -779,11 +779,10 @@ export default function MeasurementPanel({
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
               Pestaña 7: Medición In Situ (ISO / Cuadrícula Experimental)
             </h3>
-            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-              gridMode === 'experimental'
+            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${gridMode === 'experimental'
                 ? 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30'
                 : 'bg-[#5833c7]/15 text-[#5833c7] border border-[#5833c7]/30'
-            }`}>
+              }`}>
               {gridMode === 'experimental' ? 'Sub-malla: 7 Puntos Reales' : 'Malla Completa: 19 Puntos'}
             </span>
           </div>
@@ -797,22 +796,20 @@ export default function MeasurementPanel({
           <button
             type="button"
             onClick={handleSetTheoreticalGrid}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              gridMode === 'theoretical'
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${gridMode === 'theoretical'
                 ? 'bg-white dark:bg-[#25263a] text-[#5833c7] dark:text-purple-300 shadow-2xs'
                 : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-            }`}
+              }`}
           >
             Malla Teórica (19 Pts)
           </button>
           <button
             type="button"
             onClick={handleSetExperimental7Grid}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              gridMode === 'experimental'
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${gridMode === 'experimental'
                 ? 'bg-[#10b981] text-white shadow-2xs'
                 : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-            }`}
+              }`}
           >
             Malla Experimental (7 Pts Reales)
           </button>
@@ -895,11 +892,10 @@ export default function MeasurementPanel({
           {/* Botón Colocar con Clic */}
           <button
             onClick={() => setIsAddMode(!isAddMode)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-              isAddMode
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${isAddMode
                 ? 'bg-[#5833c7] text-white border-[#5833c7] ring-2 ring-[#5833c7]/30 shadow-xs'
                 : 'bg-white dark:bg-[#1c1d2d] text-[#1d1d1f] dark:text-white border-black/[0.08] dark:border-white/[0.08] hover:bg-[#f5f5f7]'
-            }`}
+              }`}
             title="Haz clic en cualquier punto del plano 2D para colocar un micrófono"
           >
             <MousePointerClick className="w-3.5 h-3.5" />
@@ -909,11 +905,10 @@ export default function MeasurementPanel({
           {/* Bloquear / Desbloquear Fuente S0 */}
           <button
             onClick={() => setIsSourceLocked(!isSourceLocked)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-              isSourceLocked
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${isSourceLocked
                 ? 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] border-black/[0.05] dark:border-white/[0.08]'
                 : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/50 shadow-2xs'
-            }`}
+              }`}
             title={isSourceLocked ? 'Fuente fijada (clic para desbloquear y moverla)' : 'Fuente móvil (clic para fijarla y evitar que se mueva por error)'}
           >
             {isSourceLocked ? <Lock className="w-3.5 h-3.5 text-amber-500" /> : <Unlock className="w-3.5 h-3.5 text-emerald-500" />}
@@ -982,7 +977,7 @@ export default function MeasurementPanel({
             </div>
             <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#0071e3] uppercase">Paso 5: Fuente S₀ (Centro)</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Fuente dodecaedro omnidireccional en el centro geométrico ({Lx/2}m, {Ly/2}m) a h = 1.5 m emitiendo Ruido Rosa.</p>
+              <p className="text-[#1d1d1f] dark:text-slate-300">Fuente dodecaedro omnidireccional en el centro geométrico ({Lx / 2}m, {Ly / 2}m) a h = 1.5 m emitiendo Ruido Rosa.</p>
             </div>
             <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#0071e3] uppercase">Paso 6: Sonómetro &bull; Posición</span>
@@ -1015,7 +1010,7 @@ export default function MeasurementPanel({
       {/* Plano 2D SVG y Mapa de Calor IDW */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-        
+
         {/* Visor de Plano Interactivo (2 columnas) */}
         <div className="lg:col-span-2 space-y-3">
           <div className="flex items-center justify-between text-xs text-[#86868b] px-1 font-mono">
@@ -1301,11 +1296,10 @@ export default function MeasurementPanel({
             <div className="flex items-center gap-3">
               <span
                 onClick={() => setSelectedPointId('source')}
-                className={`flex items-center gap-1.5 cursor-pointer px-1.5 py-0.5 rounded-md transition-colors ${
-                  selectedPointId === 'source'
+                className={`flex items-center gap-1.5 cursor-pointer px-1.5 py-0.5 rounded-md transition-colors ${selectedPointId === 'source'
                     ? 'bg-[#ef4444]/15 font-bold text-[#ef4444]'
                     : 'hover:bg-black/5 dark:hover:bg-white/5'
-                }`}
+                  }`}
                 title="Clic para seleccionar y editar la fuente"
               >
                 <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></span>
@@ -1347,11 +1341,10 @@ export default function MeasurementPanel({
                 </div>
                 <button
                   onClick={() => setIsSourceLocked(!isSourceLocked)}
-                  className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
-                    isSourceLocked
+                  className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${isSourceLocked
                       ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
                       : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
-                  }`}
+                    }`}
                   title={isSourceLocked ? 'Fuente bloqueada (haz clic para desbloquear)' : 'Fuente desbloqueada (haz clic para bloquear)'}
                 >
                   {isSourceLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
@@ -1361,11 +1354,10 @@ export default function MeasurementPanel({
               {/* Botón grande de bloqueo/desbloqueo */}
               <button
                 onClick={() => setIsSourceLocked(!isSourceLocked)}
-                className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition-all ${
-                  isSourceLocked
+                className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition-all ${isSourceLocked
                     ? 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] border-black/[0.08] dark:border-white/[0.08] hover:border-emerald-500 hover:text-emerald-600'
                     : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/50 shadow-xs hover:bg-emerald-100'
-                }`}
+                  }`}
               >
                 {isSourceLocked ? <Lock className="w-4 h-4 text-amber-500" /> : <Unlock className="w-4 h-4 text-emerald-500" />}
                 <span>{isSourceLocked ? 'Posición Bloqueada (Fija)' : 'Posición Desbloqueada (Arrastrable)'}</span>
@@ -1537,11 +1529,10 @@ export default function MeasurementPanel({
                   {displayTableBands.map(b => (
                     <div
                       key={b}
-                      className={`flex items-center justify-between px-2 py-1 rounded-lg border text-xs font-mono transition-colors ${
-                        b === selectedBand
+                      className={`flex items-center justify-between px-2 py-1 rounded-lg border text-xs font-mono transition-colors ${b === selectedBand
                           ? 'bg-[#0071e3]/10 dark:bg-[#0071e3]/20 border-[#0071e3]/40'
                           : 'bg-white dark:bg-[#25263a] border-black/[0.04] dark:border-white/[0.05]'
-                      }`}
+                        }`}
                     >
                       <span className={b === selectedBand ? 'text-[#0071e3] dark:text-sky-400 font-bold' : 'text-[#86868b]'}>{b} Hz:</span>
                       <input
@@ -1586,22 +1577,20 @@ export default function MeasurementPanel({
               <button
                 type="button"
                 onClick={() => setTableBandRange('modal')}
-                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
-                  tableBandRange === 'modal'
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${tableBandRange === 'modal'
                     ? 'bg-white dark:bg-[#25263a] text-[#0071e3] dark:text-sky-400 shadow-2xs font-bold'
                     : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                }`}
+                  }`}
               >
                 20 - 500 Hz (Modales)
               </button>
               <button
                 type="button"
                 onClick={() => setTableBandRange('all')}
-                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
-                  tableBandRange === 'all'
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${tableBandRange === 'all'
                     ? 'bg-white dark:bg-[#25263a] text-[#0071e3] dark:text-sky-400 shadow-2xs font-bold'
                     : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                }`}
+                  }`}
               >
                 20 - 4000 Hz (Espectro Completo)
               </button>
@@ -1645,11 +1634,10 @@ export default function MeasurementPanel({
                 {displayTableBands.map(b => (
                   <th
                     key={b}
-                    className={`py-2.5 px-3 text-center whitespace-nowrap cursor-pointer transition-colors ${
-                      b === selectedBand
+                    className={`py-2.5 px-3 text-center whitespace-nowrap cursor-pointer transition-colors ${b === selectedBand
                         ? 'text-[#0071e3] dark:text-sky-400 font-bold bg-[#0071e3]/10 dark:bg-[#0071e3]/20'
                         : 'hover:text-[#1d1d1f] dark:hover:text-white'
-                    }`}
+                      }`}
                     onClick={() => setSelectedBand(b)}
                     title={`Clic para ver mapa de calor en ${b} Hz`}
                   >
@@ -1672,11 +1660,10 @@ export default function MeasurementPanel({
                   <tr
                     key={p.id}
                     onClick={() => setSelectedPointId(p.id)}
-                    className={`cursor-pointer transition-colors ${
-                      p.id === selectedPointId
+                    className={`cursor-pointer transition-colors ${p.id === selectedPointId
                         ? 'bg-[#5833c7]/15 dark:bg-[#5833c7]/25 font-bold'
                         : 'hover:bg-[#fbfbfd] dark:hover:bg-[#18192a]'
-                    }`}
+                      }`}
                   >
                     <td className="py-1 px-3">
                       <input
@@ -1722,18 +1709,16 @@ export default function MeasurementPanel({
                       }}
                       title="Clic para cambiar entre Esquina y Punto Normal"
                     >
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer select-none ${
-                        p.isCorner ? 'bg-[#f59e0b]/20 text-[#f59e0b]' : 'bg-[#0071e3]/20 text-[#0071e3]'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer select-none ${p.isCorner ? 'bg-[#f59e0b]/20 text-[#f59e0b]' : 'bg-[#0071e3]/20 text-[#0071e3]'
+                        }`}>
                         {p.isCorner ? 'Esquina' : 'Malla'}
                       </span>
                     </td>
                     {displayTableBands.map(b => (
                       <td
                         key={b}
-                        className={`py-1 px-2 text-center transition-colors ${
-                          b === selectedBand ? 'bg-[#0071e3]/5 dark:bg-[#0071e3]/10 font-bold' : ''
-                        }`}
+                        className={`py-1 px-2 text-center transition-colors ${b === selectedBand ? 'bg-[#0071e3]/5 dark:bg-[#0071e3]/10 font-bold' : ''
+                          }`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
@@ -1742,9 +1727,8 @@ export default function MeasurementPanel({
                           value={p.spl[b] ?? ''}
                           placeholder="—"
                           onChange={(e) => handleSplChange(p.id, b, e.target.value)}
-                          className={`w-12 text-center bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#5833c7] focus:outline-none font-medium ${
-                            b === selectedBand ? 'text-[#0071e3] dark:text-sky-400 font-bold' : ''
-                          }`}
+                          className={`w-12 text-center bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#5833c7] focus:outline-none font-medium ${b === selectedBand ? 'text-[#0071e3] dark:text-sky-400 font-bold' : ''
+                            }`}
                         />
                       </td>
                     ))}

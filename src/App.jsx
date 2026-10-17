@@ -155,7 +155,7 @@ export default function App() {
       try {
         const legacy = localStorage.getItem('pozole_measurement_data');
         if (legacy) return JSON.parse(legacy);
-      } catch (e) {}
+      } catch (e) { }
     }
     return null;
   });
