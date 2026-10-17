@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   generateMeasurementGrid,
+  generateExperimentalSubgrid7,
   parseFrequencyList,
   matchToTheoreticalModes,
   parseSplCsv,
@@ -168,5 +169,64 @@ Freq(Hz)  SPL(dB)  Phase(degrees)
     // 2. La fuente S0 debe estar estrictamente dentro del polígono
     const sourceInside = isPointInPolygon({ x: grid.source.x, y: grid.source.y }, lShape);
     expect(sourceInside).toBe(true);
+  });
+
+  it('genera submalla experimental personalizada de exactamente 7 puntos dentro de la sala', () => {
+    // Sala de 12 paredes simulada
+    const polygon12 = [
+      { x: 0, y: 0 }, { x: 7.5, y: 0 }, { x: 7.5, y: 3 },
+      { x: 8.5, y: 3 }, { x: 8.5, y: 6 }, { x: 6.5, y: 6 },
+      { x: 6.5, y: 7.2 }, { x: 3, y: 7.2 }, { x: 3, y: 6.5 },
+      { x: 1.5, y: 6.5 }, { x: 1.5, y: 4.5 }, { x: 0, y: 4.5 },
+    ];
+
+    const subgrid = generateExperimentalSubgrid7(8.5, 7.2, polygon12, 1.2);
+    expect(subgrid.points.length).toBe(7);
+    expect(subgrid.points[0].label).toBe('Punto 1');
+    expect(subgrid.points[6].label).toBe('Punto 7');
+
+    // Todos los 7 puntos deben estar dentro del recinto poligonal
+    subgrid.points.forEach(p => {
+      expect(isPointInPolygon({ x: p.x, y: p.y }, polygon12)).toBe(true);
+      expect(p.z).toBeCloseTo(1.2, 1);
+    });
+
+    // La fuente debe ubicarse en el centroide
+    expect(isPointInPolygon({ x: subgrid.source.x, y: subgrid.source.y }, polygon12)).toBe(true);
+  });
+
+  it('parsea correctamente matriz consolidada in situ (Punto, 20 Hz, ..., 4000 Hz) preservando coordenadas', () => {
+    // Puntos existentes en pantalla
+    const existingPoints = [
+      { id: 1, label: 'Punto 1', x: 2.5, y: 3.0, z: 1.2, isCorner: false, spl: {} },
+      { id: 2, label: 'Punto 2', x: 3.5, y: 3.0, z: 1.2, isCorner: false, spl: {} },
+      { id: 3, label: 'Punto 3', x: 4.5, y: 3.0, z: 1.2, isCorner: false, spl: {} },
+    ];
+
+    // CSV consolidado sin columnas X/Y explícitas
+    const consolidatedCsv = `Punto;20 Hz;25 Hz;63 Hz;100 Hz;160 Hz;2000 Hz;4000 Hz
+Punto 1;68.5;71.2;82.4;75.1;70.3;65.0;60.2
+Punto 2;70.1;73.0;85.0;78.3;72.1;66.5;61.0
+Punto 3;69.0;70.5;81.0;74.0;69.8;64.2;59.5`;
+
+    const parsed = parseSplCsv(consolidatedCsv, existingPoints);
+    expect(parsed.points.length).toBe(3);
+
+    // Coordenadas NO deben ser sobreescritas con valores de SPL
+    expect(parsed.points[0].x).toBe(2.5);
+    expect(parsed.points[0].y).toBe(3.0);
+    expect(parsed.points[1].x).toBe(3.5);
+    expect(parsed.points[2].x).toBe(4.5);
+
+    // SPL debe contener todos los valores mapeados por frecuencia numérica
+    expect(parsed.points[0].spl[20]).toBe(68.5);
+    expect(parsed.points[0].spl[63]).toBe(82.4);
+    expect(parsed.points[0].spl[100]).toBe(75.1);
+    expect(parsed.points[0].spl[160]).toBe(70.3);
+    expect(parsed.points[0].spl[2000]).toBe(65.0);
+    expect(parsed.points[0].spl[4000]).toBe(60.2);
+
+    expect(parsed.points[1].spl[63]).toBe(85.0);
+    expect(parsed.points[2].spl[160]).toBe(69.8);
   });
 });

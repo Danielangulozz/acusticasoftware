@@ -279,4 +279,57 @@ describe('Cálculos Modales (modalCalculations)', () => {
     const maxFreq = Math.max(...allModes);
     expect(maxFreq).toBeGreaterThan(285);
   });
+
+  describe('getRectangularDims con Geometría Modal de Referencia para REW', () => {
+    const mockPoly12 = {
+      vertices: [
+        { x: 0, y: 0 }, { x: 7.5, y: 0 }, { x: 7.5, y: 3 },
+        { x: 8.5, y: 3 }, { x: 8.5, y: 6 }, { x: 6.5, y: 6 },
+        { x: 6.5, y: 7.2 }, { x: 3, y: 7.2 }, { x: 3, y: 6.5 },
+        { x: 1.5, y: 6.5 }, { x: 1.5, y: 4.5 }, { x: 0, y: 4.5 },
+      ]
+    };
+    const floorArea = 51.27; // V = 51.27 * 3.0 ≈ 153.8 m³
+
+    it('devuelve dimensiones de volumen equivalente exacto respetando V = 153.8 m³', () => {
+      const dims = getRectangularDims(
+        mockPoly12,
+        3.0,
+        floorArea,
+        'equivalent'
+      );
+      expect(dims.dimensionMode).toBe('equivalent');
+      expect(dims.volume).toBeCloseTo(153.8, 1);
+      expect(dims.Lx * dims.Ly * dims.Lz).toBeCloseTo(153.8, 1);
+      expect(dims.equivalentBox).toBeDefined();
+    });
+
+    it('devuelve dimensiones de rectángulo inscripto / zona medida', () => {
+      const dims = getRectangularDims(
+        mockPoly12,
+        3.0,
+        floorArea,
+        'inscribed'
+      );
+      expect(dims.dimensionMode).toBe('inscribed');
+      expect(dims.Lx).toBeLessThan(8.5);
+      expect(dims.Ly).toBeLessThan(7.2);
+      expect(dims.inscribedBox).toBeDefined();
+    });
+
+    it('devuelve dimensiones manuales si el usuario especifica valores personalizados', () => {
+      const dims = getRectangularDims(
+        mockPoly12,
+        3.0,
+        floorArea,
+        'manual',
+        { manualLx: 6.0, manualLy: 5.0, manualLz: 2.8 }
+      );
+      expect(dims.dimensionMode).toBe('manual');
+      expect(dims.Lx).toBe(6.0);
+      expect(dims.Ly).toBe(5.0);
+      expect(dims.Lz).toBe(2.8);
+      expect(dims.volume).toBeCloseTo(6.0 * 5.0 * 2.8, 1);
+    });
+  });
 });

@@ -320,9 +320,10 @@ export default function App() {
       roomPolygon,
       dimensions.height,
       geometry.floorArea,
-      modalSettings.dimensionMode || 'equivalent'
+      modalSettings.dimensionMode || 'equivalent',
+      modalSettings
     );
-  }, [roomPolygon, dimensions.height, geometry.floorArea, modalSettings.dimensionMode]);
+  }, [roomPolygon, dimensions.height, geometry.floorArea, modalSettings]);
 
   const t60ForSchroeder = useMemo(() => {
     if (modalSettings.t60Source === 'override') {

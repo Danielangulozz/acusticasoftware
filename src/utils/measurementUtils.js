@@ -275,6 +275,7 @@ export function generateMeasurementGrid(Lx, Ly, step = 1.5, margin = 0.7, height
     points,
     source,
     numPoints: points.length,
+    gridType: 'theoretical',
     Lx: polyW,
     Ly: polyH,
     minX: xMin,
@@ -283,6 +284,101 @@ export function generateMeasurementGrid(Lx, Ly, step = 1.5, margin = 0.7, height
     maxY: yMax,
     step: s,
     margin: m,
+    isPolygon,
+    vertices: isPolygon ? polygonVertices : null,
+  };
+}
+
+/**
+ * Genera la sub-malla experimental de 7 puntos in situ para el área central transitable de la sala.
+ * Ubica los 7 receptores respetando holgadamente los límites físicos del recinto.
+ * 
+ * @param {number} Lx - Dimensión en X
+ * @param {number} Ly - Dimensión en Y
+ * @param {Array<{x: number, y: number}>|null} polygonVertices - Vértices si es poligonal
+ * @param {number} heightZ - Altura del receptor (m, por defecto 1.2)
+ */
+export function generateExperimentalSubgrid7(Lx = 10, Ly = 6, polygonVertices = null, heightZ = 1.2) {
+  const isPolygon = Boolean(polygonVertices && Array.isArray(polygonVertices) && polygonVertices.length >= 3);
+
+  let xMin = 0, xMax = Math.max(0.1, Number(Lx) || 10.0), yMin = 0, yMax = Math.max(0.1, Number(Ly) || 6.0);
+  if (isPolygon) {
+    const xs = polygonVertices.map(v => v.x);
+    const ys = polygonVertices.map(v => v.y);
+    xMin = Math.min(...xs);
+    xMax = Math.max(...xs);
+    yMin = Math.min(...ys);
+    yMax = Math.max(...ys);
+  }
+
+  const polyW = Math.max(0.1, xMax - xMin);
+  const polyH = Math.max(0.1, yMax - yMin);
+  const z = Number(heightZ) || 1.2;
+
+  let cx = isPolygon ? calcCentroid(polygonVertices).x : xMin + polyW / 2;
+  let cy = isPolygon ? calcCentroid(polygonVertices).y : yMin + polyH / 2;
+
+  if (isPolygon && (!isPointInPolygon({ x: cx, y: cy }, polygonVertices) || minDistanceToWalls(cx, cy, polygonVertices) < 0.4)) {
+    cx = (xMin + xMax) / 2;
+    cy = (yMin + yMax) / 2;
+  }
+
+  // 7 puntos distribuidos en el área central transitable
+  const offsets = [
+    { dx: 0, dy: 0, label: 'Punto 1' },
+    { dx: 0, dy: -1.2, label: 'Punto 2' },
+    { dx: 0, dy: 1.2, label: 'Punto 3' },
+    { dx: -1.4, dy: 0, label: 'Punto 4' },
+    { dx: 1.4, dy: 0, label: 'Punto 5' },
+    { dx: -1.0, dy: -1.0, label: 'Punto 6' },
+    { dx: 1.0, dy: 1.0, label: 'Punto 7' },
+  ];
+
+  const points = [];
+  offsets.forEach((off, idx) => {
+    let px = cx + off.dx;
+    let py = cy + off.dy;
+
+    if (isPolygon && (!isPointInPolygon({ x: px, y: py }, polygonVertices) || minDistanceToWalls(px, py, polygonVertices) < 0.25)) {
+      px = cx + off.dx * 0.5;
+      py = cy + off.dy * 0.5;
+      if (!isPointInPolygon({ x: px, y: py }, polygonVertices)) {
+        px = cx;
+        py = cy;
+      }
+    }
+
+    points.push({
+      id: idx + 1,
+      label: off.label,
+      x: Number(px.toFixed(2)),
+      y: Number(py.toFixed(2)),
+      z,
+      isCorner: false,
+      spl: {},
+    });
+  });
+
+  const source = {
+    x: Number(cx.toFixed(2)),
+    y: Number(cy.toFixed(2)),
+    z: 1.2,
+    label: 'Fuente S0',
+  };
+
+  return {
+    points,
+    source,
+    numPoints: 7,
+    gridType: 'experimental',
+    Lx: polyW,
+    Ly: polyH,
+    minX: xMin,
+    minY: yMin,
+    maxX: xMax,
+    maxY: yMax,
+    step: 1.5,
+    margin: 0.7,
     isPolygon,
     vertices: isPolygon ? polygonVertices : null,
   };
@@ -360,47 +456,143 @@ export function generateSimulatedSplData(
 }
 
 /**
- * Parsea un texto CSV con datos de medición de SPL por punto
+ * Parsea un texto CSV con datos de medición de SPL por punto.
+ * Soporta matrices consolidadas (Punto, 20 Hz .. 4000 Hz), plantillas completas con X, Y, Z,
+ * matrices transpuestas y delimitadores ';' y ','.
+ *
  * @param {string} csvText
- * @returns {{ points: Array, bands: Array<number> }}
+ * @param {Array} currentPoints - Puntos ya colocados en pantalla para preservar sus coordenadas
+ * @returns {{ points: Array, bands: Array<number>, hasExplicitCoords: boolean }}
  */
-export function parseSplCsv(csvText) {
+export function parseSplCsv(csvText, currentPoints = []) {
   const rows = parseCsvText(csvText);
   if (!rows || rows.length < 2) {
     throw new Error('El archivo CSV no contiene suficientes filas.');
   }
 
-  const header = rows[0].map(h => h.trim());
-  const freqCols = [];
+  const rawHeader = rows[0].map(h => (h || '').trim());
 
-  // Detectar columnas de frecuencia (ej. "50 Hz", "50", "63 Hz")
-  header.forEach((col, idx) => {
-    const num = parseFloat(col.replace(/hz/i, '').replace(/,/g, '.').trim());
-    if (!isNaN(num) && num > 0) {
+  // 1. Verificar si es una matriz transpuesta (Frecuencia en col 0, y col 1..N son Puntos)
+  const isTransposed = /frecuencia|frequency|banda|fc|hz/i.test(rawHeader[0]) &&
+    rawHeader.slice(1).some(h => /punto|p\d+|receptor/i.test(h));
+
+  if (isTransposed) {
+    const pointLabels = rawHeader.slice(1);
+    const parsedPoints = pointLabels.map((pLabel, pIdx) => {
+      const existing = currentPoints.find(p =>
+        p.label?.toLowerCase() === pLabel.toLowerCase() ||
+        p.id === pIdx + 1
+      ) || currentPoints[pIdx];
+
+      return {
+        id: pIdx + 1,
+        label: pLabel || `Punto ${pIdx + 1}`,
+        x: existing?.x ?? Number((1.5 + pIdx * 1.0).toFixed(2)),
+        y: existing?.y ?? 2.0,
+        z: existing?.z ?? 1.2,
+        isCorner: existing?.isCorner ?? false,
+        spl: {},
+      };
+    });
+
+    const bands = [];
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row || row.length === 0 || !row[0]) continue;
+      const fNum = parseFloat(row[0].replace(/hz/i, '').replace(/,/g, '.').trim());
+      if (isNaN(fNum) || fNum <= 0) continue;
+      bands.push(fNum);
+
+      for (let pIdx = 0; pIdx < parsedPoints.length; pIdx++) {
+        const valStr = row[pIdx + 1];
+        if (valStr !== undefined && valStr !== null) {
+          const val = parseFloat(String(valStr).replace(/,/g, '.'));
+          if (!isNaN(val)) {
+            parsedPoints[pIdx].spl[fNum] = Number(val.toFixed(1));
+          }
+        }
+      }
+    }
+
+    return {
+      points: parsedPoints,
+      bands,
+      isTransposed: true,
+      hasExplicitCoords: false,
+    };
+  }
+
+  // 2. Matriz estándar (Filas = Puntos, Columnas = Frecuencias):
+  const freqCols = [];
+  rawHeader.forEach((col, idx) => {
+    const cleaned = col.replace(/hz/i, '').replace(/,/g, '.').trim();
+    const num = parseFloat(cleaned);
+    if (!isNaN(num) && num >= 15 && num <= 25000 && !/^coord|^pos|^dist/i.test(col)) {
       freqCols.push({ index: idx, freq: num });
     }
   });
+
+  // Detectar columnas explícitas de coordenadas si existen
+  const xColIdx = rawHeader.findIndex(h => /^(x\b|coord.*x|x\s*\(m\))/i.test(h));
+  const yColIdx = rawHeader.findIndex(h => /^(y\b|coord.*y|y\s*\(m\))/i.test(h));
+  const zColIdx = rawHeader.findIndex(h => /^(z\b|coord.*z|z\s*\(m\)|alt)/i.test(h));
+  const cornerColIdx = rawHeader.findIndex(h => /^(esquina|corner|tipo)/i.test(h));
+
+  const hasExplicitCoords = xColIdx >= 0 && yColIdx >= 0;
 
   const parsedPoints = [];
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (!row || row.length === 0 || !row[0]) continue;
 
-    const label = row[0];
-    const x = parseFloat(row[1]?.replace(/,/g, '.')) || 0;
-    const y = parseFloat(row[2]?.replace(/,/g, '.')) || 0;
-    const z = parseFloat(row[3]?.replace(/,/g, '.')) || 1.2;
-    const isCorner = /si|yes|true/i.test(row[4] || '');
+    const rawLabel = (row[0] || '').trim();
+    if (!rawLabel) continue;
+
+    const labelNumMatch = rawLabel.match(/\d+/);
+    const labelNum = labelNumMatch ? parseInt(labelNumMatch[0], 10) : null;
+
+    const matchedPoint = currentPoints.find(p => {
+      if (p.label && p.label.toLowerCase() === rawLabel.toLowerCase()) return true;
+      if (p.label && p.label.toLowerCase().replace(/\s+/g, '') === rawLabel.toLowerCase().replace(/\s+/g, '')) return true;
+      if (labelNum !== null && p.id === labelNum) return true;
+      return false;
+    }) || currentPoints[r - 1];
+
+    let x = 0;
+    let y = 0;
+    let z = 1.2;
+    let isCorner = false;
+
+    if (hasExplicitCoords) {
+      x = parseFloat(row[xColIdx]?.replace(/,/g, '.')) || 0;
+      y = parseFloat(row[yColIdx]?.replace(/,/g, '.')) || 0;
+      z = zColIdx >= 0 ? (parseFloat(row[zColIdx]?.replace(/,/g, '.')) || 1.2) : 1.2;
+      isCorner = cornerColIdx >= 0 ? /si|yes|true|esquina/i.test(row[cornerColIdx] || '') : false;
+    } else if (matchedPoint) {
+      // PRESERVAR coordenadas exactas en la sala
+      x = matchedPoint.x;
+      y = matchedPoint.y;
+      z = matchedPoint.z ?? 1.2;
+      isCorner = matchedPoint.isCorner ?? false;
+    } else {
+      // Fallback
+      x = Number((1.5 + (r - 1) * 0.8).toFixed(2));
+      y = 2.0;
+      z = 1.2;
+    }
 
     const spl = {};
     freqCols.forEach(({ index, freq }) => {
-      const val = parseFloat(row[index]?.replace(/,/g, '.'));
-      if (!isNaN(val)) spl[freq] = val;
+      const cellVal = row[index];
+      if (cellVal !== undefined && cellVal !== null && cellVal !== '') {
+        const val = parseFloat(String(cellVal).replace(/,/g, '.'));
+        if (!isNaN(val)) spl[freq] = Number(val.toFixed(1));
+      }
     });
 
     parsedPoints.push({
       id: r,
-      label,
+      label: rawLabel,
       x,
       y,
       z,
@@ -412,6 +604,7 @@ export function parseSplCsv(csvText) {
   return {
     points: parsedPoints,
     bands: freqCols.map(f => f.freq),
+    hasExplicitCoords,
   };
 }
 

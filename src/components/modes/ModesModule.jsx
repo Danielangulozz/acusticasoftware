@@ -13,6 +13,9 @@ import {
   Sparkles,
   MapPin,
   GitCompare,
+  Copy,
+  Check,
+  Box,
 } from 'lucide-react';
 import ModesTable from './ModesTable';
 import ModesHistogram from './ModesHistogram';
@@ -56,6 +59,8 @@ export default function ModesModule({
   const [activeTab, setActiveTab] = useState('table');
   const [selectedMode, setSelectedMode] = useState(null);
   const [tempInput, setTempInput] = useState(modalSettings.tempC ?? 20);
+  const [copiedRew, setCopiedRew] = useState(false);
+  const [copiedField, setCopiedField] = useState(null);
 
   const {
     c = 343,
@@ -75,6 +80,19 @@ export default function ModesModule({
       const newC = speedOfSoundFromTemperature(t);
       onUpdateModalSettings({ ...modalSettings, tempC: t, c: newC });
     }
+  };
+
+  const handleCopyRewDimensions = () => {
+    const text = `Lx=${dimensions.Lx}m, Ly=${dimensions.Ly}m, Lz=${dimensions.Lz}m`;
+    navigator.clipboard.writeText(text);
+    setCopiedRew(true);
+    setTimeout(() => setCopiedRew(false), 2500);
+  };
+
+  const handleCopySingleVal = (label, val) => {
+    navigator.clipboard.writeText(String(val));
+    setCopiedField(label);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   // Las 8 sub-pestañas completas del Módulo 6
@@ -105,45 +123,247 @@ export default function ModesModule({
         onNavigateToGeometry={onNavigateToGeometry}
       />
 
-      {/* Banner de Aviso de Planta No Rectangular si aplica */}
-      {!dimensions.isRectangular && (
-        <div className="p-4 rounded-2xl bg-[#f59e0b]/10 border border-[#f59e0b]/30 flex items-start gap-3 text-xs text-[#1d1d1f] dark:text-slate-300">
-          <AlertTriangle className="w-5 h-5 text-[#f59e0b] shrink-0 mt-0.5" />
-          <div className="flex-1 space-y-2">
-            <div>
-              <strong className="text-[#f59e0b] font-bold block mb-0.5">
-                Geometría No Rectangular o con Paredes Curvas
-              </strong>
-              La sala actual tiene una planta arquitectónica libre ({dimensions.floorArea ? `${dimensions.floorArea.toFixed(1)} m²` : ''}, V = {(dimensions.volume || geometry.volume || 153.8).toFixed(1)} m³). El cálculo analítico de modos propios se realiza mediante:
+      {/* PANEL DESTACADO: GEOMETRÍA MODAL DE REFERENCIA (PARA TEORÍA Y REW ROOM SIM) */}
+      <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 shadow-apple-sm space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-300">
+              <Box className="w-5 h-5" />
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-[#86868b]">Modelo dimensional:</span>
-              <button
-                type="button"
-                onClick={() => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'equivalent' })}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                  (dimensions.dimensionMode || 'equivalent') === 'equivalent'
-                    ? 'bg-[#5833c7] text-white shadow-sm'
-                    : 'bg-black/5 dark:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                }`}
-              >
-                Área Equivalente (Exacto V) &bull; {dimensions.equivalentBox?.Lx || dimensions.Lx}m × {dimensions.equivalentBox?.Ly || dimensions.Ly}m
-              </button>
-              <button
-                type="button"
-                onClick={() => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'bounding' })}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                  dimensions.dimensionMode === 'bounding'
-                    ? 'bg-[#5833c7] text-white shadow-sm'
-                    : 'bg-black/5 dark:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                }`}
-              >
-                Caja Envolvente Máxima (Bounding Box) &bull; {dimensions.boundingBox?.width || dimensions.Lx}m × {dimensions.boundingBox?.length || dimensions.Ly}m
-              </button>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-black text-[#1d1d1f] dark:text-white">
+                  Geometría Modal de Referencia para REW Room Sim y Cálculo Teórico
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#5833c7]/10 text-[#5833c7] dark:bg-[#5833c7]/20 dark:text-purple-300 uppercase tracking-wide">
+                  {dimensions.dimensionMode === 'inscribed' ? 'Zona Medida' : dimensions.dimensionMode === 'bounding' ? 'Bounding Box' : 'Volumen Equivalente'}
+                </span>
+              </div>
+              <p className="text-xs text-[#86868b] mt-0.5">
+                La ecuación analítica de modos propios requiere 3 dimensiones ortogonales (<code className="font-mono font-bold text-[#5833c7]">Lx, Ly, Lz</code>). Introduce exactamente estos 3 números en la herramienta <strong>Room Sim</strong> de REW.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopyRewDimensions}
+            className="self-start lg:self-center inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#5833c7] hover:bg-[#4324a3] text-white text-xs font-bold shadow-apple-sm transition active:scale-95 shrink-0"
+            title="Copiar dimensiones formateadas para REW Room Sim"
+          >
+            {copiedRew ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+            <span>{copiedRew ? '¡Copiado para REW Room Sim!' : 'Copiar (Lx, Ly, Lz) para REW'}</span>
+          </button>
+        </div>
+
+        {/* Selector de Criterios Físicos */}
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-[#1d1d1f] dark:text-slate-200">
+            Criterio Dimensional para la Sala {!dimensions.isRectangular ? `Irregular (${geometry?.floorArea ? geometry.floorArea.toFixed(1) + ' m²' : ''}, V = ${(geometry?.volume || 153.8).toFixed(1)} m³)` : 'Rectangular'}:
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
+            {/* Opción a: Rectángulo Inscripto / Zona Medida */}
+            <button
+              type="button"
+              onClick={() => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'inscribed' })}
+              className={`p-3 rounded-2xl text-left border transition-all ${
+                dimensions.dimensionMode === 'inscribed'
+                  ? 'bg-[#5833c7]/10 border-[#5833c7] text-[#1d1d1f] dark:text-white shadow-xs'
+                  : 'bg-[#fbfbfd] dark:bg-[#18192a] border-black/[0.06] dark:border-white/[0.06] text-[#86868b] hover:border-gray-400'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black text-[#5833c7] dark:text-purple-300">
+                  a) Rectángulo Inscripto / Zona Medida
+                </span>
+                {dimensions.dimensionMode === 'inscribed' && <span className="w-2 h-2 rounded-full bg-[#5833c7]"></span>}
+              </div>
+              <p className="text-[11px] text-[#86868b] leading-tight mb-2">
+                Área central rectangular transitable donde se colocaron los receptores reales in situ.
+              </p>
+              <div className="text-xs font-mono font-bold text-[#1d1d1f] dark:text-white">
+                {dimensions.inscribedBox?.Lx || 6.21}m × {dimensions.inscribedBox?.Ly || 6.30}m × {dimensions.Lz}m
+              </div>
+            </button>
+
+            {/* Opción b: Rectángulo de Volumen Equivalente */}
+            <button
+              type="button"
+              onClick={() => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'equivalent' })}
+              className={`p-3 rounded-2xl text-left border transition-all ${
+                (dimensions.dimensionMode || 'equivalent') === 'equivalent'
+                  ? 'bg-[#5833c7]/10 border-[#5833c7] text-[#1d1d1f] dark:text-white shadow-xs'
+                  : 'bg-[#fbfbfd] dark:bg-[#18192a] border-black/[0.06] dark:border-white/[0.06] text-[#86868b] hover:border-gray-400'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black text-[#5833c7] dark:text-purple-300">
+                  b) Rectángulo de Volumen Equivalente
+                </span>
+                {(dimensions.dimensionMode || 'equivalent') === 'equivalent' && <span className="w-2 h-2 rounded-full bg-[#5833c7]"></span>}
+              </div>
+              <p className="text-[11px] text-[#86868b] leading-tight mb-2">
+                Conserva con exactitud matemática el volumen real del recinto (V = {(geometry.volume || 153.8).toFixed(1)} m³).
+              </p>
+              <div className="text-xs font-mono font-bold text-[#1d1d1f] dark:text-white">
+                {dimensions.equivalentBox?.Lx || dimensions.Lx}m × {dimensions.equivalentBox?.Ly || dimensions.Ly}m × {dimensions.Lz}m
+              </div>
+            </button>
+
+            {/* Opción c: Caja Envolvente Máxima */}
+            <button
+              type="button"
+              onClick={() => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'bounding' })}
+              className={`p-3 rounded-2xl text-left border transition-all ${
+                dimensions.dimensionMode === 'bounding'
+                  ? 'bg-[#5833c7]/10 border-[#5833c7] text-[#1d1d1f] dark:text-white shadow-xs'
+                  : 'bg-[#fbfbfd] dark:bg-[#18192a] border-black/[0.06] dark:border-white/[0.06] text-[#86868b] hover:border-gray-400'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black text-[#5833c7] dark:text-purple-300">
+                  c) Bounding Box Máximo
+                </span>
+                {dimensions.dimensionMode === 'bounding' && <span className="w-2 h-2 rounded-full bg-[#5833c7]"></span>}
+              </div>
+              <p className="text-[11px] text-[#86868b] leading-tight mb-2">
+                Envolvente ortogonal exterior máxima de las paredes extremas (ΔX × ΔY).
+              </p>
+              <div className="text-xs font-mono font-bold text-[#1d1d1f] dark:text-white">
+                {dimensions.boundingBox?.width || dimensions.Lx}m × {dimensions.boundingBox?.length || dimensions.Ly}m × {dimensions.Lz}m
+              </div>
+            </button>
+
+            {/* Opción d: Personalizado / Manual */}
+            <div className={`p-3 rounded-2xl border transition-all ${
+              dimensions.dimensionMode === 'manual'
+                ? 'bg-[#5833c7]/10 border-[#5833c7] text-[#1d1d1f] dark:text-white shadow-xs'
+                : 'bg-[#fbfbfd] dark:bg-[#18192a] border-black/[0.06] dark:border-white/[0.06]'
+            }`}>
+              <div className="flex items-center justify-between mb-1">
+                <button
+                  type="button"
+                  onClick={() => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'manual', manualLx: modalSettings.manualLx || dimensions.Lx, manualLy: modalSettings.manualLy || dimensions.Ly, manualLz: modalSettings.manualLz || dimensions.Lz })}
+                  className="text-xs font-black text-[#5833c7] dark:text-purple-300 hover:underline"
+                >
+                  d) Personalizado Manual
+                </button>
+                {dimensions.dimensionMode === 'manual' && <span className="w-2 h-2 rounded-full bg-[#5833c7]"></span>}
+              </div>
+              <p className="text-[11px] text-[#86868b] leading-tight mb-2">
+                Ajuste fino de dimensiones para contrastar con REW Room Sim.
+              </p>
+              <div className="grid grid-cols-3 gap-1 text-[11px] font-mono">
+                <input
+                  type="number"
+                  step="0.05"
+                  value={modalSettings.manualLx ?? dimensions.Lx}
+                  onChange={(e) => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'manual', manualLx: parseFloat(e.target.value) || dimensions.Lx })}
+                  className="w-full px-1.5 py-0.5 rounded bg-white dark:bg-[#25263a] border text-center font-bold"
+                  title="Lx manual"
+                />
+                <input
+                  type="number"
+                  step="0.05"
+                  value={modalSettings.manualLy ?? dimensions.Ly}
+                  onChange={(e) => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'manual', manualLy: parseFloat(e.target.value) || dimensions.Ly })}
+                  className="w-full px-1.5 py-0.5 rounded bg-white dark:bg-[#25263a] border text-center font-bold"
+                  title="Ly manual"
+                />
+                <input
+                  type="number"
+                  step="0.05"
+                  value={modalSettings.manualLz ?? dimensions.Lz}
+                  onChange={(e) => onUpdateModalSettings({ ...modalSettings, dimensionMode: 'manual', manualLz: parseFloat(e.target.value) || dimensions.Lz })}
+                  className="w-full px-1.5 py-0.5 rounded bg-white dark:bg-[#25263a] border text-center font-bold"
+                  title="Lz manual"
+                />
+              </div>
             </div>
           </div>
         </div>
-      )}
+
+        {/* TARJETAS KPI DE VALORES RESULTANTES PARA REW */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-black/[0.04] dark:border-white/[0.04]">
+          {/* Lx */}
+          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.04] flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[11px] text-[#86868b]">
+              <span className="font-bold">Longitud (Lx)</span>
+              <button
+                type="button"
+                onClick={() => handleCopySingleVal('Lx', dimensions.Lx)}
+                className="hover:text-[#5833c7] transition"
+                title="Copiar Lx para REW"
+              >
+                {copiedField === 'Lx' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <div className="text-xl font-black font-mono text-[#1d1d1f] dark:text-white mt-1">
+              {dimensions.Lx} <span className="text-xs font-normal text-[#86868b]">m</span>
+            </div>
+          </div>
+
+          {/* Ly */}
+          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.04] flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[11px] text-[#86868b]">
+              <span className="font-bold">Anchura (Ly)</span>
+              <button
+                type="button"
+                onClick={() => handleCopySingleVal('Ly', dimensions.Ly)}
+                className="hover:text-[#5833c7] transition"
+                title="Copiar Ly para REW"
+              >
+                {copiedField === 'Ly' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <div className="text-xl font-black font-mono text-[#1d1d1f] dark:text-white mt-1">
+              {dimensions.Ly} <span className="text-xs font-normal text-[#86868b]">m</span>
+            </div>
+          </div>
+
+          {/* Lz */}
+          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.04] flex flex-col justify-between">
+            <div className="flex items-center justify-between text-[11px] text-[#86868b]">
+              <span className="font-bold">Altura (Lz)</span>
+              <button
+                type="button"
+                onClick={() => handleCopySingleVal('Lz', dimensions.Lz)}
+                className="hover:text-[#5833c7] transition"
+                title="Copiar Lz para REW"
+              >
+                {copiedField === 'Lz' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <div className="text-xl font-black font-mono text-[#1d1d1f] dark:text-white mt-1">
+              {dimensions.Lz} <span className="text-xs font-normal text-[#86868b]">m</span>
+            </div>
+          </div>
+
+          {/* Volumen Modal */}
+          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.04] flex flex-col justify-between">
+            <div className="text-[11px] text-[#86868b] font-bold">Volumen Modal (V)</div>
+            <div className="text-xl font-black font-mono text-[#0071e3] dark:text-sky-400 mt-1">
+              {Number(dimensions.volume || (dimensions.Lx * dimensions.Ly * dimensions.Lz)).toFixed(1)} <span className="text-xs font-normal text-[#86868b]">m³</span>
+            </div>
+          </div>
+
+          {/* Área Modal */}
+          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.04] flex flex-col justify-between">
+            <div className="text-[11px] text-[#86868b] font-bold">Área en Planta (S)</div>
+            <div className="text-xl font-black font-mono text-[#10b981] dark:text-emerald-400 mt-1">
+              {Number(dimensions.Lx * dimensions.Ly).toFixed(1)} <span className="text-xs font-normal text-[#86868b]">m²</span>
+            </div>
+          </div>
+
+          {/* Proporción */}
+          <div className="p-3 rounded-2xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 border border-[#5833c7]/20 flex flex-col justify-between">
+            <div className="text-[11px] text-[#5833c7] dark:text-purple-300 font-bold">Proporción 1:p:q</div>
+            <div className="text-sm font-black font-mono text-[#5833c7] dark:text-purple-300 mt-1">
+              1 : {(dimensions.Ly / dimensions.Lz).toFixed(2)} : {(dimensions.Lx / dimensions.Lz).toFixed(2)}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Barra Superior de Parámetros Globales del Módulo */}
       <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 shadow-apple-sm transition-colors space-y-4">

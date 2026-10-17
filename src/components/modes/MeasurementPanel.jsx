@@ -40,6 +40,7 @@ import {
 } from 'recharts';
 import {
   generateMeasurementGrid,
+  generateExperimentalSubgrid7,
   buildSplTemplateCsv,
   parseSplCsv,
   interpolateIdw2D,
@@ -142,6 +143,7 @@ export default function MeasurementPanel({
   const [isSourceLocked, setIsSourceLocked] = useState(false);
   const [isHoveredSource, setIsHoveredSource] = useState(false);
   const [showProtocolGuide, setShowProtocolGuide] = useState(false);
+  const [tableBandRange, setTableBandRange] = useState('modal'); // 'modal' (20-500Hz) | 'all' (20-4000Hz)
 
   const [gridData, setGridData] = useState(() => {
     if (measurementData && measurementData.points?.length > 0) {
@@ -153,6 +155,10 @@ export default function MeasurementPanel({
       return measurementData;
     }
     return generateMeasurementGrid(roomW, roomH, 1.5, 0.7, 1.2, isPolygonRoom ? vertices : null);
+  });
+
+  const [gridMode, setGridMode] = useState(() => {
+    return gridData?.gridType || (gridData?.points?.length <= 7 ? 'experimental' : 'theoretical');
   });
 
   // Adaptar automáticamente la cuadrícula cuando cambia la geometría del recinto si no hay datos medidos
@@ -167,12 +173,18 @@ export default function MeasurementPanel({
       const outside = (gridData.points || []).filter(p => !isPointInPolygon({ x: p.x, y: p.y }, vertices));
       const hasActualMeasurements = (gridData.points || []).some(p => Object.keys(p.spl || {}).length > 0);
       if (outside.length > 0 && !hasActualMeasurements) {
-        const newGrid = generateMeasurementGrid(roomW, roomH, step, margin, 1.2, isPolygonRoom ? vertices : null);
-        setGridData(newGrid);
-        onUpdateMeasurementData(newGrid);
+        if (gridMode === 'experimental') {
+          const newGrid = generateExperimentalSubgrid7(roomW, roomH, isPolygonRoom ? vertices : null, 1.2);
+          setGridData(newGrid);
+          onUpdateMeasurementData(newGrid);
+        } else {
+          const newGrid = generateMeasurementGrid(roomW, roomH, step, margin, 1.2, isPolygonRoom ? vertices : null);
+          setGridData(newGrid);
+          onUpdateMeasurementData(newGrid);
+        }
       }
     }
-  }, [vertices, isPolygonRoom, roomW, roomH, step, margin, gridData.points, onUpdateMeasurementData]);
+  }, [vertices, isPolygonRoom, roomW, roomH, step, margin, gridData.points, gridMode, onUpdateMeasurementData]);
 
   const fileInputRef = useRef(null);
   const heatmapCanvasRef = useRef(null);
@@ -184,21 +196,85 @@ export default function MeasurementPanel({
     return gridData.points.filter(p => !isPointInPolygon({ x: p.x, y: p.y }, vertices)).length;
   }, [gridData?.points, vertices]);
 
-  // Bandas relevantes para análisis modal (hasta 500 Hz)
+  // Todas las bandas de 1/3 de octava disponibles hasta 4000 Hz
+  const allBands = useMemo(() => {
+    return THIRD_OCTAVE_BANDS.filter(b => b <= 4000);
+  }, []);
+
+  // Bandas modales (hasta 500 Hz) para análisis modal estricto
   const modalBands = useMemo(() => {
     return THIRD_OCTAVE_BANDS.filter(b => b <= 500);
   }, []);
 
+  // Bandas visibles en la tabla (conmutable entre modales y espectro completo)
+  const displayTableBands = useMemo(() => {
+    if (tableBandRange === 'modal') {
+      return modalBands;
+    }
+    return allBands;
+  }, [tableBandRange, modalBands, allBands]);
+
+  // Cambiar a Malla Experimental Personalizada (7 Puntos Reales)
+  const handleSetExperimental7Grid = () => {
+    const existingSpls = gridData.points.map(p => p.spl || {});
+    const subgrid = generateExperimentalSubgrid7(roomW, roomH, isPolygonRoom ? vertices : null, 1.2);
+    // Conservar mediciones si ya existían
+    const mergedPoints = subgrid.points.map((p, idx) => ({
+      ...p,
+      spl: existingSpls[idx] || {},
+    }));
+    const updated = {
+      ...subgrid,
+      points: mergedPoints,
+      gridType: 'experimental',
+    };
+    setGridData(updated);
+    setGridMode('experimental');
+    setSelectedPointId(1);
+    onUpdateMeasurementData(updated);
+  };
+
+  // Cambiar a Malla Teórica Completa (19 Puntos ISO)
+  const handleSetTheoreticalGrid = () => {
+    const newGrid = generateMeasurementGrid(roomW, roomH, step, margin, 1.2, isPolygonRoom ? vertices : null);
+    const updated = { ...newGrid, gridType: 'theoretical' };
+    setGridData(updated);
+    setGridMode('theoretical');
+    setSelectedPointId(1);
+    onUpdateMeasurementData(updated);
+  };
+
+  // Eliminar puntos no medidos (deja exclusivamente los puntos que tienen mediciones registradas)
+  const handleRemoveUnmeasuredPoints = () => {
+    const measuredOnly = gridData.points.filter(p => Object.keys(p.spl || {}).length > 0);
+    if (measuredOnly.length === 0) {
+      alert('No se detectaron mediciones registradas aún. Por favor introduce datos en la tabla o carga tu archivo CSV primero.');
+      return;
+    }
+    const updated = {
+      ...gridData,
+      points: measuredOnly,
+      numPoints: measuredOnly.length,
+      gridType: 'experimental',
+    };
+    setGridData(updated);
+    setGridMode('experimental');
+    setSelectedPointId(measuredOnly[0]?.id || 1);
+    onUpdateMeasurementData(updated);
+  };
+
   // Regenerar cuadrícula adaptada al recinto
   const handleRegenerateGrid = () => {
-    const newGrid = generateMeasurementGrid(roomW, roomH, step, margin, 1.2, isPolygonRoom ? vertices : null);
-    setGridData(newGrid);
-    onUpdateMeasurementData(newGrid);
+    if (gridMode === 'experimental') {
+      handleSetExperimental7Grid();
+    } else {
+      handleSetTheoreticalGrid();
+    }
   };
 
   // Descargar plantilla CSV
   const handleDownloadTemplate = () => {
-    const rows = buildSplTemplateCsv(gridData.points, modalBands);
+    const rows = buildSplTemplateCsv(gridData.points, allBands);
     downloadCsv(rows, `Plantilla_Medicion_SPL_${roomW.toFixed(1)}x${roomH.toFixed(1)}m.csv`, ';');
   };
 
@@ -209,7 +285,7 @@ export default function MeasurementPanel({
 
   // Cargar datos de muestra simulados basados en resonancias modales físicas
   const handleLoadSampleData = () => {
-    const simulatedPoints = generateSimulatedSplData(gridData.points, modalBands, roomW, roomH, Lz, 343, bounds);
+    const simulatedPoints = generateSimulatedSplData(gridData.points, allBands, roomW, roomH, Lz, 343, bounds);
     const updated = { ...gridData, points: simulatedPoints };
     setGridData(updated);
     onUpdateMeasurementData(updated);
@@ -447,7 +523,7 @@ export default function MeasurementPanel({
         // 1. Detección y parseo de formato REW (Frequency, SPL, Phase)
         const rewData = parseRewMeasurementText(text);
         if (rewData && rewData.length > 5) {
-          const mappedBands = mapCurveToThirdOctaveBands(rewData, modalBands);
+          const mappedBands = mapCurveToThirdOctaveBands(rewData, allBands);
           const targetId = (selectedPointId === 'source' || !selectedPointId)
             ? (gridData.points[0]?.id || 1)
             : selectedPointId;
@@ -471,16 +547,34 @@ export default function MeasurementPanel({
           return;
         }
 
-        // 2. Formato matriz CSV multi-punto
-        const parsed = parseSplCsv(text);
+        // 2. Formato matriz CSV multi-punto (compatible con matriz_insitu_completa.csv)
+        const parsed = parseSplCsv(text, gridData.points);
         if (parsed && parsed.points?.length > 0) {
+          const is7Pts = parsed.points.length === 7;
           const updated = {
             ...gridData,
             points: parsed.points,
+            numPoints: parsed.points.length,
+            gridType: is7Pts || parsed.points.length <= 7 ? 'experimental' : gridData.gridType,
           };
           setGridData(updated);
+          if (is7Pts || parsed.points.length <= 7) {
+            setGridMode('experimental');
+          }
           onUpdateMeasurementData(updated);
-          alert(`¡Matriz CSV de ${parsed.points.length} puntos cargada exitosamente!`);
+          setSelectedPointId(parsed.points[0]?.id || 1);
+
+          // Si la banda actual no tiene datos pero el archivo sí incluye otras, seleccionar primera con datos
+          if (parsed.bands && parsed.bands.length > 0) {
+            const hasCurrent = parsed.points.some(p => p.spl?.[selectedBand] !== undefined);
+            if (!hasCurrent) {
+              const firstWithData = parsed.bands.find(b => parsed.points.some(p => p.spl?.[b] !== undefined));
+              if (firstWithData) setSelectedBand(firstWithData);
+            }
+          }
+
+          alert(`¡Matriz in situ cargada exitosamente!\n\n• ${parsed.points.length} puntos procesados.\n• ${parsed.bands.length} bandas de frecuencia (desde ${parsed.bands[0]} Hz hasta ${parsed.bands[parsed.bands.length - 1]} Hz).\n• Valores asignados y Heatmap 2D actualizado en tiempo real.`);
+          return;
         }
       } catch (err) {
         alert(`Error al importar el archivo: ${err.message}`);
@@ -527,17 +621,27 @@ export default function MeasurementPanel({
     canvas.width = Math.round(canvasRes * (vbW / maxVbDim));
     canvas.height = Math.round(canvasRes * (vbH / maxVbDim));
 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     const scaleX = canvas.width / vbW;
     const scaleY = canvas.height / vbH;
     const toPixelX = (x) => (x - vbX) * scaleX;
     const toPixelY = (y) => (y - vbY) * scaleY;
 
-    // Extraer puntos con valor en la banda elegida
-    const knownPoints = gridData.points.map(p => ({
-      x: p.x,
-      y: p.y,
-      value: p.spl[selectedBand] !== undefined ? p.spl[selectedBand] : 70,
-    }));
+    // Extraer EXCLUSIVAMENTE los puntos que tengan medición real para la banda seleccionada
+    // (evita inyectar valores ficticios por defecto y respeta los 7 puntos medidos reales)
+    const knownPoints = (gridData.points || [])
+      .filter(p => p.spl && p.spl[selectedBand] !== undefined && p.spl[selectedBand] !== null && !isNaN(Number(p.spl[selectedBand])))
+      .map(p => ({
+        x: p.x,
+        y: p.y,
+        value: Number(p.spl[selectedBand]),
+      }));
+
+    if (knownPoints.length === 0) {
+      // Si ningún punto tiene medición en esta banda, dejar el lienzo limpio
+      return;
+    }
 
     const idw = interpolateIdw2D(knownPoints, roomW, roomH, 50, 2, bounds);
     if (!idw) return;
@@ -639,7 +743,10 @@ export default function MeasurementPanel({
 
     // Fallback: usar bandas de 1/3 de octava (ej. muestras o ingresadas manualmente)
     if (!selectedPoint.spl) return { chartData: [], peaks: [], hasData: false, isContinuous: false, pointsCount: 0 };
-    const relevantBands = modalBands.filter(b => b <= 200);
+    const hasHighFreq = Object.keys(selectedPoint.spl).some(k => Number(k) > 200 && selectedPoint.spl[k] !== undefined && selectedPoint.spl[k] !== null);
+    const relevantBands = hasHighFreq
+      ? allBands.filter(b => selectedPoint.spl[b] !== undefined || b <= 500)
+      : modalBands.filter(b => b <= 200);
     const chartData = relevantBands.map(b => ({
       freq: b,
       freqLabel: `${b} Hz`,
@@ -657,27 +764,63 @@ export default function MeasurementPanel({
       isContinuous: false,
       pointsCount: chartData.length,
     };
-  }, [selectedPoint, modalBands]);
+  }, [selectedPoint, modalBands, allBands]);
 
   return (
     <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
-      {/* Encabezado */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+      {/* Encabezado con Selector de Malla: Teórica (19 Pts) vs Experimental (7 Pts) */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3] dark:text-sky-400">
               <MapPin className="w-5 h-5" />
             </span>
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
               Pestaña 7: Medición In Situ (ISO / Cuadrícula Experimental)
             </h3>
+            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+              gridMode === 'experimental'
+                ? 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30'
+                : 'bg-[#5833c7]/15 text-[#5833c7] border border-[#5833c7]/30'
+            }`}>
+              {gridMode === 'experimental' ? 'Sub-malla: 7 Puntos Reales' : 'Malla Completa: 19 Puntos'}
+            </span>
           </div>
           <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
-            Protocolo experimental de laboratorio según norma: cuadrícula de 1.5m, 4 esquinas críticas, fuente central S₀ y carga directa desde REW.
+            Alterna entre la cuadrícula teórica completa del polígono y la sub-malla experimental de 7 puntos medida in situ.
           </p>
         </div>
 
+        {/* SELECTOR SEGMENTADO: Malla Teórica vs Sub-malla Experimental */}
+        <div className="flex items-center p-1 bg-[#f5f5f7] dark:bg-[#18192a] rounded-2xl border border-black/[0.06] dark:border-white/[0.06] shrink-0">
+          <button
+            type="button"
+            onClick={handleSetTheoreticalGrid}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              gridMode === 'theoretical'
+                ? 'bg-white dark:bg-[#25263a] text-[#5833c7] dark:text-purple-300 shadow-2xs'
+                : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+            }`}
+          >
+            Malla Teórica (19 Pts)
+          </button>
+          <button
+            type="button"
+            onClick={handleSetExperimental7Grid}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              gridMode === 'experimental'
+                ? 'bg-[#10b981] text-white shadow-2xs'
+                : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+            }`}
+          >
+            Malla Experimental (7 Pts Reales)
+          </button>
+        </div>
+      </div>
+
+      {/* Barra de Acciones y Controles Rápidos */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
         <div className="flex items-center gap-2 flex-wrap">
           <input
             type="file"
@@ -687,28 +830,34 @@ export default function MeasurementPanel({
             className="hidden"
           />
 
-          {/* Botón Nuevo Punto */}
+          {/* Botón Importar Matriz in situ / REW */}
           <button
-            onClick={() => handleAddPoint()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0071e3] hover:bg-[#005bb5] text-xs font-semibold text-white shadow-sm transition-all"
-            title="Añadir un punto de medición en la sala"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4324a3] text-xs font-bold text-white shadow-apple-sm transition-all"
+            title="Cargar matriz_insitu_completa.csv o archivo de barrido continuo REW"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>+ Nuevo Punto</span>
+            <Upload className="w-3.5 h-3.5" />
+            <span>Cargar Matriz In Situ (.csv)</span>
           </button>
 
-          {/* Botón Colocar con Clic */}
+          {/* Botón Ajustar a 7 Puntos Reales */}
           <button
-            onClick={() => setIsAddMode(!isAddMode)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-              isAddMode
-                ? 'bg-[#5833c7] text-white border-[#5833c7] ring-2 ring-[#5833c7]/30 shadow-xs'
-                : 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#1d1d1f] dark:text-white border-black/[0.05] dark:border-white/[0.08] hover:bg-[#e8e8ed] dark:hover:bg-[#25263a]'
-            }`}
-            title="Haz clic en cualquier punto del plano 2D para colocar un micrófono"
+            onClick={handleSetExperimental7Grid}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 text-xs font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/50 shadow-2xs transition-all"
+            title="Ajustar cuadrícula exactamente a los 7 puntos medidos en el área central transitable"
           >
-            <MousePointerClick className="w-3.5 h-3.5" />
-            <span>{isAddMode ? 'Haz clic en el plano' : 'Ubicar con Clic'}</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Ajustar a 7 Puntos</span>
+          </button>
+
+          {/* Botón Eliminar Puntos Sin Datos */}
+          <button
+            onClick={handleRemoveUnmeasuredPoints}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] hover:bg-amber-50 dark:hover:bg-amber-950/30 text-xs font-semibold text-[#86868b] hover:text-amber-700 dark:hover:text-amber-300 border border-black/[0.05] dark:border-white/[0.08] transition-all"
+            title="Eliminar puntos que no tengan datos medidos para dejar limpia la sub-malla"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-amber-500" />
+            <span>Limpiar Sin Datos</span>
           </button>
 
           {/* Botón Datos de Muestra */}
@@ -721,34 +870,40 @@ export default function MeasurementPanel({
             <span>Datos Muestra</span>
           </button>
 
-          {/* Botón Importar REW / CSV */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 hover:bg-[#0071e3]/20 dark:hover:bg-[#0071e3]/30 text-xs font-semibold text-[#0071e3] dark:text-sky-300 border border-[#0071e3]/30 transition-all shadow-xs"
-            title="Importar archivo .txt exportado de REW o archivo .csv multi-punto"
-          >
-            <Upload className="w-3.5 h-3.5 text-[#0071e3]" />
-            <span>Importar REW / CSV</span>
-          </button>
-
           {/* Botón Plantilla CSV */}
           <button
             onClick={handleDownloadTemplate}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] hover:bg-[#e8e8ed] dark:hover:bg-[#25263a] text-xs font-semibold text-[#1d1d1f] dark:text-white border border-black/[0.05] dark:border-white/[0.08] transition-all"
-            title="Descargar plantilla CSV para llenarla en Excel"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#1c1d2d] hover:bg-[#f5f5f7] text-xs font-semibold text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.08] transition-all shadow-2xs"
+            title="Descargar plantilla CSV con todos los puntos y bandas"
           >
             <Download className="w-3.5 h-3.5 text-[#5833c7]" />
-            <span>Plantilla</span>
+            <span>Plantilla CSV</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botón Nuevo Punto Manual */}
+          <button
+            onClick={() => handleAddPoint()}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0071e3] hover:bg-[#005bb5] text-xs font-semibold text-white shadow-2xs transition-all"
+            title="Añadir un receptor libre en la sala"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ Punto</span>
           </button>
 
-          {/* Botón Regenerar Malla */}
+          {/* Botón Colocar con Clic */}
           <button
-            onClick={handleRegenerateGrid}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4727a8] text-xs font-semibold text-white shadow-sm transition-all"
-            title="Generar cuadrícula estándar con paso de 1.5m"
+            onClick={() => setIsAddMode(!isAddMode)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+              isAddMode
+                ? 'bg-[#5833c7] text-white border-[#5833c7] ring-2 ring-[#5833c7]/30 shadow-xs'
+                : 'bg-white dark:bg-[#1c1d2d] text-[#1d1d1f] dark:text-white border-black/[0.08] dark:border-white/[0.08] hover:bg-[#f5f5f7]'
+            }`}
+            title="Haz clic en cualquier punto del plano 2D para colocar un micrófono"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Malla ISO</span>
+            <MousePointerClick className="w-3.5 h-3.5" />
+            <span>{isAddMode ? 'Clic en plano...' : 'Ubicar Clic'}</span>
           </button>
 
           {/* Bloquear / Desbloquear Fuente S0 */}
@@ -756,7 +911,7 @@ export default function MeasurementPanel({
             onClick={() => setIsSourceLocked(!isSourceLocked)}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
               isSourceLocked
-                ? 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] border-black/[0.05] dark:border-white/[0.08] hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                ? 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] border-black/[0.05] dark:border-white/[0.08]'
                 : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/50 shadow-2xs'
             }`}
             title={isSourceLocked ? 'Fuente fijada (clic para desbloquear y moverla)' : 'Fuente móvil (clic para fijarla y evitar que se mueva por error)'}
@@ -769,8 +924,8 @@ export default function MeasurementPanel({
           {gridData.points.length > 0 && (
             <button
               onClick={handleClearAllPoints}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold text-[#86868b] hover:text-rose-600 dark:hover:text-rose-400 border border-black/[0.05] dark:border-white/[0.08] transition-all"
-              title="Vaciar todos los puntos para definir los tuyos propios desde cero"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-[#1c1d2d] hover:bg-rose-50 text-xs font-semibold text-[#86868b] hover:text-rose-600 border border-black/[0.08] transition-all"
+              title="Vaciar todos los puntos para comenzar de cero"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Vaciar</span>
@@ -876,7 +1031,7 @@ export default function MeasurementPanel({
                 onChange={(e) => setSelectedBand(Number(e.target.value))}
                 className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.08] dark:border-white/[0.08] text-xs font-bold text-[#1d1d1f] dark:text-white"
               >
-                {modalBands.map(b => (
+                {allBands.map(b => (
                   <option key={b} value={b}>{b} Hz</option>
                 ))}
               </select>
@@ -1372,16 +1527,23 @@ export default function MeasurementPanel({
 
               {/* Espectro SPL del punto seleccionado */}
               <div className="pt-2 border-t border-black/[0.06] dark:border-white/[0.06] space-y-2">
-                <div className="text-xs font-bold text-[#1d1d1f] dark:text-white">
-                  Niveles SPL por Banda (dB):
+                <div className="flex items-center justify-between text-xs font-bold text-[#1d1d1f] dark:text-white">
+                  <span>Niveles SPL por Banda (dB):</span>
+                  <span className="text-[10px] font-mono text-[#86868b]">
+                    {tableBandRange === 'modal' ? '20-500 Hz' : '20-4000 Hz'}
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
-                  {modalBands.map(b => (
+                  {displayTableBands.map(b => (
                     <div
                       key={b}
-                      className="flex items-center justify-between px-2 py-1 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.04] dark:border-white/[0.05] text-xs font-mono"
+                      className={`flex items-center justify-between px-2 py-1 rounded-lg border text-xs font-mono transition-colors ${
+                        b === selectedBand
+                          ? 'bg-[#0071e3]/10 dark:bg-[#0071e3]/20 border-[#0071e3]/40'
+                          : 'bg-white dark:bg-[#25263a] border-black/[0.04] dark:border-white/[0.05]'
+                      }`}
                     >
-                      <span className="text-[#86868b]">{b} Hz:</span>
+                      <span className={b === selectedBand ? 'text-[#0071e3] dark:text-sky-400 font-bold' : 'text-[#86868b]'}>{b} Hz:</span>
                       <input
                         type="number"
                         step="0.5"
@@ -1413,11 +1575,38 @@ export default function MeasurementPanel({
 
       {/* Tabla Completa de Mediciones Editable */}
       <div className="pt-4 border-t border-black/[0.06] dark:border-white/[0.06] space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400 flex items-center gap-1.5">
-            <Table className="w-3.5 h-3.5" />
-            <span>Matriz de Puntos y Valores de Presión Sonora (SPL dB)</span>
-          </h4>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400 flex items-center gap-1.5">
+              <Table className="w-3.5 h-3.5" />
+              <span>Matriz de Puntos y Valores de Presión Sonora (SPL dB)</span>
+            </h4>
+            {/* Selector de Rango de Bandas Visible en Tabla */}
+            <div className="inline-flex items-center p-0.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.06] dark:border-white/[0.06] text-[11px]">
+              <button
+                type="button"
+                onClick={() => setTableBandRange('modal')}
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                  tableBandRange === 'modal'
+                    ? 'bg-white dark:bg-[#25263a] text-[#0071e3] dark:text-sky-400 shadow-2xs font-bold'
+                    : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                }`}
+              >
+                20 - 500 Hz (Modales)
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableBandRange('all')}
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                  tableBandRange === 'all'
+                    ? 'bg-white dark:bg-[#25263a] text-[#0071e3] dark:text-sky-400 shadow-2xs font-bold'
+                    : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                }`}
+              >
+                20 - 4000 Hz (Espectro Completo)
+              </button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleAddPoint()}
@@ -1453,8 +1642,19 @@ export default function MeasurementPanel({
                 <th className="py-2.5 px-3">X (m)</th>
                 <th className="py-2.5 px-3">Y (m)</th>
                 <th className="py-2.5 px-3">Tipo</th>
-                {modalBands.map(b => (
-                  <th key={b} className="py-2.5 px-3 text-center whitespace-nowrap">{b} Hz</th>
+                {displayTableBands.map(b => (
+                  <th
+                    key={b}
+                    className={`py-2.5 px-3 text-center whitespace-nowrap cursor-pointer transition-colors ${
+                      b === selectedBand
+                        ? 'text-[#0071e3] dark:text-sky-400 font-bold bg-[#0071e3]/10 dark:bg-[#0071e3]/20'
+                        : 'hover:text-[#1d1d1f] dark:hover:text-white'
+                    }`}
+                    onClick={() => setSelectedBand(b)}
+                    title={`Clic para ver mapa de calor en ${b} Hz`}
+                  >
+                    {b} Hz
+                  </th>
                 ))}
                 <th className="py-2.5 px-2 text-center w-10"></th>
               </tr>
@@ -1462,7 +1662,7 @@ export default function MeasurementPanel({
             <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
               {gridData.points.length === 0 ? (
                 <tr>
-                  <td colSpan={modalBands.length + 5} className="py-10 text-center text-[#86868b] space-y-2">
+                  <td colSpan={displayTableBands.length + 5} className="py-10 text-center text-[#86868b] space-y-2">
                     <p className="font-semibold text-xs">No hay puntos de medición definidos en la sala.</p>
                     <p className="text-[11px]">Haz clic en &ldquo;Añadir Punto&rdquo; para colocar tus micrófonos o pulsa &ldquo;Malla ISO&rdquo; para regenerar la cuadrícula completa.</p>
                   </td>
@@ -1528,15 +1728,23 @@ export default function MeasurementPanel({
                         {p.isCorner ? 'Esquina' : 'Malla'}
                       </span>
                     </td>
-                    {modalBands.map(b => (
-                      <td key={b} className="py-1 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                    {displayTableBands.map(b => (
+                      <td
+                        key={b}
+                        className={`py-1 px-2 text-center transition-colors ${
+                          b === selectedBand ? 'bg-[#0071e3]/5 dark:bg-[#0071e3]/10 font-bold' : ''
+                        }`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="number"
                           step="0.5"
                           value={p.spl[b] ?? ''}
                           placeholder="—"
                           onChange={(e) => handleSplChange(p.id, b, e.target.value)}
-                          className="w-12 text-center bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#5833c7] focus:outline-none font-medium"
+                          className={`w-12 text-center bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#5833c7] focus:outline-none font-medium ${
+                            b === selectedBand ? 'text-[#0071e3] dark:text-sky-400 font-bold' : ''
+                          }`}
                         />
                       </td>
                     ))}

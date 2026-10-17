@@ -50,26 +50,32 @@ export function calcPolygonArea(vertices) {
 
 /**
  * Obtiene las dimensiones rectangulares Lx, Ly, Lz a partir del polígono de la sala.
- * Soporta dos modos para recintos irregulares:
- * - 'equivalent': Rectángulo de Área/Volumen Equivalente (Lx_eq * Ly_eq = S_suelo, aspect = ΔX/ΔY)
+ * Soporta cuatro modos para recintos irregulares:
+ * - 'equivalent': Rectángulo de Volumen Equivalente (Lx_eq * Ly_eq = S_suelo, aspect = ΔX/ΔY, exacto V)
+ * - 'inscribed': Rectángulo Inscripto / Zona Medida (zona rectangular central transitable donde se midió)
  * - 'bounding': Caja Envolvente Máxima (Bounding Box: Lx = ΔX, Ly = ΔY)
+ * - 'manual': Dimensiones personalizadas introducidas por el usuario
  */
-export function getRectangularDims(roomPolygon, fallbackHeight = 3.0, floorArea = null, dimensionMode = 'equivalent') {
+export function getRectangularDims(roomPolygon, fallbackHeight = 3.0, floorArea = null, dimensionMode = 'equivalent', customDims = null) {
   const vertices = roomPolygon?.vertices || [];
-  const H = Math.max(0.1, Number(roomPolygon?.height || fallbackHeight || 3.0));
+  const H = Math.max(0.1, Number(customDims?.Lz || roomPolygon?.height || fallbackHeight || 3.0));
 
   if (!vertices || vertices.length < 3) {
+    const lx = Number(customDims?.Lx) || 10.0;
+    const ly = Number(customDims?.Ly) || 6.0;
+    const lz = Number(customDims?.Lz) || H;
     return {
-      Lx: 10.0,
-      Ly: 6.0,
-      Lz: H,
+      Lx: lx,
+      Ly: ly,
+      Lz: lz,
       isRectangular: true,
       hasCurvatures: false,
-      dimensionMode: 'bounding',
-      floorArea: 60.0,
-      volume: 60.0 * H,
-      boundingBox: { minX: 0, maxX: 10, minY: 0, maxY: 6, width: 10, length: 6, height: H, area: 60, volume: 60 * H },
-      equivalentBox: { Lx: 10, Ly: 6, Lz: H, area: 60, volume: 60 * H },
+      dimensionMode: dimensionMode || 'bounding',
+      floorArea: lx * ly,
+      volume: lx * ly * lz,
+      boundingBox: { minX: 0, maxX: lx, minY: 0, maxY: ly, width: lx, length: ly, height: lz, area: lx * ly, volume: lx * ly * lz },
+      equivalentBox: { Lx: lx, Ly: ly, Lz: lz, area: lx * ly, volume: lx * ly * lz },
+      inscribedBox: { Lx: lx, Ly: ly, Lz: lz, area: lx * ly, volume: lx * ly * lz },
     };
   }
 
@@ -107,7 +113,7 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0, floorArea 
     : Math.max(0.1, calcPolygonArea(vertices));
   const realVolume = Number((realFloorArea * H).toFixed(2));
 
-  // Dimensiones de Área Equivalente:
+  // 1. Dimensiones de Área / Volumen Equivalente:
   // aspect = ΔX / ΔY
   // Lx_eq = sqrt(S_suelo * aspect)
   // Ly_eq = sqrt(S_suelo / aspect)
@@ -117,13 +123,46 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0, floorArea 
   const Ly_eq = Number(Math.sqrt(realFloorArea / aspect).toFixed(3));
   const Lz_eq = H;
 
+  // 2. Dimensiones de Rectángulo Inscripto / Zona Medida (zona central transitable de medición):
+  // Si se proporcionaron dimensiones manuales para la zona inscrita, usarlas;
+  // de lo contrario, aproximar la zona central transitable (relación empírica ~68% del bounding box)
+  const Lx_ins = customDims?.inscribedLx && customDims.inscribedLx > 0
+    ? Number(customDims.inscribedLx)
+    : Number((bbWidth * 0.68).toFixed(2));
+  const Ly_ins = customDims?.inscribedLy && customDims.inscribedLy > 0
+    ? Number(customDims.inscribedLy)
+    : Number((bbLength * 0.68).toFixed(2));
+  const Lz_ins = customDims?.inscribedLz && customDims.inscribedLz > 0
+    ? Number(customDims.inscribedLz)
+    : H;
+
   // Si no es rectangular, por defecto se usa el modelo de Área Equivalente
   const effectiveMode = isRectangular ? 'bounding' : (dimensionMode || 'equivalent');
-  const useEquivalent = effectiveMode === 'equivalent';
 
-  const finalLx = useEquivalent ? Lx_eq : bbWidth;
-  const finalLy = useEquivalent ? Ly_eq : bbLength;
-  const finalLz = Lz_eq;
+  let finalLx = Lx_eq;
+  let finalLy = Ly_eq;
+  let finalLz = Lz_eq;
+
+  if (effectiveMode === 'bounding') {
+    finalLx = bbWidth;
+    finalLy = bbLength;
+    finalLz = H;
+  } else if (effectiveMode === 'inscribed') {
+    finalLx = Lx_ins;
+    finalLy = Ly_ins;
+    finalLz = Lz_ins;
+  } else if (effectiveMode === 'manual' && customDims?.manualLx && customDims?.manualLy) {
+    finalLx = Number(customDims.manualLx);
+    finalLy = Number(customDims.manualLy);
+    finalLz = Number(customDims.manualLz || H);
+  } else {
+    // 'equivalent' por defecto
+    finalLx = Lx_eq;
+    finalLy = Ly_eq;
+    finalLz = Lz_eq;
+  }
+
+  const finalVolume = Number((finalLx * finalLy * finalLz).toFixed(2));
 
   return {
     Lx: finalLx,
@@ -133,7 +172,7 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0, floorArea 
     hasCurvatures,
     dimensionMode: effectiveMode,
     floorArea: realFloorArea,
-    volume: useEquivalent ? realVolume : bbVolume,
+    volume: finalVolume,
     boundingBox: {
       minX,
       maxX,
@@ -144,6 +183,9 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0, floorArea 
       height: H,
       area: bbArea,
       volume: bbVolume,
+      Lx: bbWidth,
+      Ly: bbLength,
+      Lz: H,
     },
     equivalentBox: {
       Lx: Lx_eq,
@@ -151,6 +193,13 @@ export function getRectangularDims(roomPolygon, fallbackHeight = 3.0, floorArea 
       Lz: Lz_eq,
       area: realFloorArea,
       volume: realVolume,
+    },
+    inscribedBox: {
+      Lx: Lx_ins,
+      Ly: Ly_ins,
+      Lz: Lz_ins,
+      area: Number((Lx_ins * Ly_ins).toFixed(2)),
+      volume: Number((Lx_ins * Ly_ins * Lz_ins).toFixed(2)),
     },
   };
 }
