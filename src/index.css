@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -299,11 +299,11 @@
   }
 
   /* Ajustes tipográficos para pantallas móviles */
-  h1 {
+  h1:not(.pz-site h1) {
     font-size: 1.45rem !important;
     line-height: 1.25 !important;
   }
-  h2 {
+  h2:not(.pz-site h2) {
     font-size: 1.2rem !important;
     line-height: 1.3 !important;
   }
@@ -337,3 +337,70 @@
   }
 }
 
+
+/* ==========================================================================
+   SITIO POZOLE ACUSTIC — tokens de tema (canales RGB para Tailwind)
+   ========================================================================== */
+:root {
+  --pz-canvas: 245 245 247;   /* gris claro suave, igual que la suite */
+  --pz-surface: 255 255 255;
+  --pz-surface2: 250 250 252;
+  --pz-ink: 29 29 31;
+  --pz-brand: 88 51 199;
+  --pz-accent: 184 115 10;    /* ámbar oscurecido para contraste sobre claro */
+}
+
+.dark {
+  --pz-canvas: 8 8 12;
+  --pz-surface: 11 11 16;
+  --pz-surface2: 16 16 23;
+  --pz-ink: 237 237 242;
+  --pz-brand: 135 103 249;
+  --pz-accent: 242 184 75;
+}
+
+.font-serif-accent {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.pz-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pz-reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+.pz-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+@keyframes pz-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.pz-marquee {
+  animation: pz-marquee 40s linear infinite;
+}
+
+@keyframes pz-ray {
+  from { stroke-dashoffset: 400; }
+  to { stroke-dashoffset: 0; }
+}
+.pz-ray {
+  stroke-dasharray: 8 10;
+  animation: pz-ray 6s linear infinite;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .pz-reveal { opacity: 1; transform: none; transition: none; }
+  .pz-marquee, .pz-ray { animation: none; }
+}

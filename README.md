@@ -1,4 +1,4 @@
-# 🔊 POZOLE
+# 🔊 POZOLE ACUSTIC
 ### **P**ropagación de **O**ndas en **Z**onas y **O**ptimización de **L**ímites **E**spaciales
 
 > **Simulador Profesional e Interactivo de Campo Sonoro y Acústica de Recintos**  

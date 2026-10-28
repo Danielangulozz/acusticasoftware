@@ -29,6 +29,7 @@ import { getDefaultPolygonMaterials } from './utils/defaultMaterials';
 import { ROOM_PRESETS } from './utils/roomPresets';
 import ModesModule from './components/modes/ModesModule';
 import IntelligibilityModule from './components/IntelligibilityModule';
+import DiffuserModule from './components/diffusers/DiffuserModule';
 import ActiveRoom3DPreview from './components/ActiveRoom3DPreview';
 import {
   getRectangularDims,
@@ -56,9 +57,11 @@ function loadSavedProjectState() {
  * Componente Principal de la Suite Acústica — POZOLE v3.0
  * Ahora con polígono de planta libre (editor de geometría arbitraria) y Dark Mode
  */
-export default function App() {
+export default function App({ initialSection }) {
   // Estado de navegación lateral
-  const [activeSection, setActiveSection] = useState('welcome');
+  const [activeSection, setActiveSection] = useState(() =>
+    initialSection || (typeof window !== 'undefined' && window.location.hash === '#difusores' ? 'diffusers' : 'welcome')
+  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
 
   // Estado del Modo Oscuro
@@ -724,7 +727,14 @@ export default function App() {
             </div>
           )}
 
-          {/* 8. Vista Completa (Todo el Estudio) */}
+          {/* 8. Diseño de Difusores */}
+          {activeSection === 'diffusers' && (
+            <div className="animate-fadeIn">
+              <DiffuserModule isDarkMode={isDarkMode} />
+            </div>
+          )}
+
+          {/* Vista Completa (Todo el Estudio) */}
           {activeSection === 'all' && (
             <div className="space-y-8 animate-fadeIn">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

@@ -41,6 +41,8 @@ export default function Header({
     results: '4. Parámetros Acústicos',
     charts: '5. Gráficas Interactivas',
     modes: '6. Acústica Ondulatoria y Modos Propios',
+    intelligibility: '7. Inteligibilidad de la Palabra',
+    diffusers: '8. Diseño de Difusores',
     all: 'Estudio Completo de la Sala',
   };
 

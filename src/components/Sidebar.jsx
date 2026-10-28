@@ -21,9 +21,12 @@ import {
   Sun,
   Moon,
   MessageSquare,
+  Home,
+  Grid3x3,
 } from 'lucide-react';
 import { ROOM_PRESETS } from '../utils/roomPresets';
 import { PozoleLogo } from './PozoleLogo';
+import { linkProps } from '../router';
 
 /**
  * Componente de Navegación Lateral (Sidebar) estilo Apple / Tesla
@@ -109,6 +112,13 @@ export default function Sidebar({
       badge: 'Módulo 7',
     },
     {
+      id: 'diffusers',
+      label: '8. Diseño de Difusores',
+      subtitle: 'QRD • PRD • MLS • Policilíndrico',
+      icon: Grid3x3,
+      badge: 'Módulo 8',
+    },
+    {
       id: 'all',
       label: 'Vista de Estudio Completo',
       subtitle: 'Ver todos los módulos juntos',
@@ -145,10 +155,10 @@ export default function Sidebar({
               <PozoleLogo size={36} className="transition-transform duration-200 group-hover:scale-105 shrink-0" />
               <div>
                 <h1 className="text-sm font-bold tracking-tight text-[#1d1d1f] dark:text-white leading-tight group-hover:text-[#5833c7] dark:group-hover:text-[#9d7eff] transition-colors">
-                  POZOLE
+                  POZOLE Suite
                 </h1>
                 <p className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 truncate max-w-[130px]" title="Propagación de Ondas en Zonas y Optimización de Límites Espaciales">
-                  Propagación de Ondas...
+                  por POZOLE ACUSTIC
                 </p>
               </div>
 
@@ -173,6 +183,15 @@ export default function Sidebar({
               <X className="w-5 h-5" />
             </button>
           </div>
+
+          {/* Acceso al sitio de la empresa */}
+          <a
+            {...linkProps('/')}
+            className="mt-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold text-[#1d1d1f] dark:text-slate-200 bg-[#f5f5f7] dark:bg-[#181928] hover:bg-[#e8e8ed] dark:hover:bg-[#222438] border border-black/[0.04] dark:border-white/[0.06] transition"
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span>Sitio POZOLE ACUSTIC</span>
+          </a>
         </div>
 
         {/* Lista de Navegación por Módulos */}

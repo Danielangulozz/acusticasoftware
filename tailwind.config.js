@@ -8,6 +8,13 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Tokens del sitio POZOLE ACUSTIC (claro suave / oscuro), definidos en index.css
+        canvas: 'rgb(var(--pz-canvas) / <alpha-value>)',
+        surface: 'rgb(var(--pz-surface) / <alpha-value>)',
+        surface2: 'rgb(var(--pz-surface2) / <alpha-value>)',
+        ink: 'rgb(var(--pz-ink) / <alpha-value>)',
+        brand: 'rgb(var(--pz-brand) / <alpha-value>)',
+        accent: 'rgb(var(--pz-accent) / <alpha-value>)',
         apple: {
           bg: '#f5f5f7',
           card: '#ffffff',
