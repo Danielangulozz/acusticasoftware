@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Menu, Moon, Sun, X } from 'lucide-react';
+import { ArrowUpRight, Compass, Menu, Moon, Sun, X } from 'lucide-react';
 import { BrandLockup } from './BrandMark';
 import { linkProps } from '../router';
 
 const NAV = [
   { label: 'Servicios', path: '/', hash: 'servicios' },
+  { label: 'Cómo funciona', path: '/', hash: 'como-funciona' },
   { label: 'Proceso', path: '/', hash: 'proceso' },
-  { label: 'Difusores', path: '/suite', hash: 'difusores' },
-  { label: 'Software', path: '/', hash: 'software' },
+  { label: 'Difusor Lab', path: '/', hash: 'difusor-lab' },
+  { label: 'Simulador', path: '/', hash: 'software' },
   { label: 'Equipo', path: '/', hash: 'equipo' },
 ];
 
@@ -25,23 +26,23 @@ export function SiteNav({ current = '/', isDark, onToggleTheme }) {
   return (
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-        scrolled || open ? 'bg-canvas/80 backdrop-blur-xl border-b border-ink/[0.07]' : 'border-b border-transparent'
+        scrolled || open ? 'bg-canvas/85 backdrop-blur-xl border-b border-ink/[0.08]' : 'border-b border-transparent'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         <a {...linkProps('/')} className="shrink-0" aria-label="POZOLE ACUSTIC, inicio">
           <BrandLockup />
         </a>
 
-        <nav className="hidden md:flex items-center gap-1 text-[13px]">
+        <nav className="hidden lg:flex items-center gap-0.5 text-[13px] rounded-full border border-ink/[0.08] bg-surface/70 backdrop-blur px-2 py-1">
           {NAV.map((item) => {
             const active = !item.hash && current === item.path;
             return (
               <a
                 key={item.label}
                 {...linkProps(item.path, item.hash)}
-                className={`px-3 py-2 rounded-full transition-colors ${
-                  active ? 'text-ink bg-ink/[0.08]' : 'text-ink/60 hover:text-ink'
+                className={`px-3 py-1.5 rounded-full transition-colors font-medium ${
+                  active ? 'text-ink bg-ink/[0.08]' : 'text-ink/65 hover:text-ink hover:bg-ink/[0.04]'
                 }`}
               >
                 {item.label}
@@ -52,8 +53,13 @@ export function SiteNav({ current = '/', isDark, onToggleTheme }) {
 
         <div className="hidden md:flex items-center gap-2">
           <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />
-          <a {...linkProps('/suite')} className="text-[13px] text-ink/60 hover:text-ink px-3 py-2 transition-colors">
-            Abrir simulador
+          <a
+            {...linkProps('/suite')}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink border border-ink/15 bg-ink/[0.04] hover:bg-ink/[0.09] rounded-full px-3.5 py-2 transition-colors"
+            title="Entrar al simulador acústico interactivo POZOLE Suite"
+          >
+            <Compass className="w-3.5 h-3.5 text-brand" />
+            <span>Abrir Simulador</span>
           </a>
           <a
             {...linkProps('/', 'contacto')}
@@ -78,17 +84,35 @@ export function SiteNav({ current = '/', isDark, onToggleTheme }) {
       </div>
 
       {open && (
-        <nav className="md:hidden border-t border-ink/[0.07] px-4 pb-5 pt-2 flex flex-col">
-          {[...NAV, { label: 'Abrir simulador', path: '/suite' }, { label: 'Cotizar proyecto', path: '/', hash: 'contacto' }].map((item) => (
+        <nav className="md:hidden border-t border-ink/[0.07] bg-canvas/95 backdrop-blur-xl px-4 pb-5 pt-2 flex flex-col">
+          {NAV.map((item) => (
             <a
               key={item.label}
               {...linkProps(item.path, item.hash)}
               onClickCapture={() => setOpen(false)}
-              className="py-3 text-[15px] text-ink/80 border-b border-ink/[0.05] last:border-0"
+              className="py-3 text-[15px] text-ink/80 border-b border-ink/[0.05]"
             >
               {item.label}
             </a>
           ))}
+          <div className="grid grid-cols-2 gap-2.5 pt-4">
+            <a
+              {...linkProps('/suite')}
+              onClickCapture={() => setOpen(false)}
+              className="inline-flex justify-center items-center gap-1.5 rounded-full border border-ink/20 bg-ink/[0.04] text-ink font-semibold text-xs py-3 px-3"
+            >
+              <Compass className="w-3.5 h-3.5 text-brand" />
+              Abrir Simulador
+            </a>
+            <a
+              {...linkProps('/', 'contacto')}
+              onClickCapture={() => setOpen(false)}
+              className="inline-flex justify-center items-center gap-1.5 rounded-full bg-ink text-canvas font-semibold text-xs py-3 px-3"
+            >
+              Cotizar proyecto
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
         </nav>
       )}
     </header>

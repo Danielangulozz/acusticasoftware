@@ -40,6 +40,48 @@ import {
 
 const STORAGE_KEY_V3 = 'pozole_project_state_v3';
 
+const HASH_SECTION_MAP = {
+  welcome: 'welcome',
+  inicio: 'welcome',
+  overview: 'overview',
+  resumen: 'overview',
+  geometry: 'geometry',
+  geometria: 'geometry',
+  materials: 'materials',
+  materiales: 'materials',
+  source: 'source',
+  fuente: 'source',
+  results: 'results',
+  resultados: 'results',
+  charts: 'charts',
+  graficas: 'charts',
+  modes: 'modes',
+  modos: 'modes',
+  intelligibility: 'intelligibility',
+  inteligibilidad: 'intelligibility',
+  diffusers: 'diffusers',
+  difusores: 'diffusers',
+  all: 'all',
+};
+
+function resolveSectionFromHash() {
+  if (typeof window === 'undefined') return null;
+  const raw = window.location.hash.replace(/^#/, '').trim().toLowerCase();
+  return HASH_SECTION_MAP[raw] || null;
+}
+
+const STEP_FLOW = [
+  { id: 'overview', label: 'Panel General', hint: 'Resumen ejecutivo y vista 3D' },
+  { id: 'geometry', label: 'Paso 1 · Geometría de Sala', hint: 'Define el tamaño y forma de la planta' },
+  { id: 'materials', label: 'Paso 2 · Materiales y Caras', hint: 'Elige recubrimientos de piso, techo y paredes' },
+  { id: 'source', label: 'Paso 3 · Fuente y Oyente', hint: 'Ajusta potencia sonora, directividad y distancia' },
+  { id: 'results', label: 'Paso 4 · Resultados y Tablas', hint: 'Revisa el tiempo de eco RT60 y niveles sonoros' },
+  { id: 'charts', label: 'Paso 5 · Gráficas Acústicas', hint: 'Explora curvas por frecuencia y distancia' },
+  { id: 'modes', label: 'Lab · Modos Propios (Graves)', hint: 'Analiza resonancias de baja frecuencia y Bonello' },
+  { id: 'intelligibility', label: 'Lab · Inteligibilidad (%ALcons)', hint: 'Evalúa la claridad de la voz en la sala' },
+  { id: 'diffusers', label: 'Lab · Diseño de Difusores', hint: 'Calcula ranuras QRD, PRD o MLS a medida' },
+];
+
 // Carga segura del estado inicial persistente
 function loadSavedProjectState() {
   if (typeof window === 'undefined') return null;
@@ -60,9 +102,26 @@ function loadSavedProjectState() {
 export default function App({ initialSection }) {
   // Estado de navegación lateral
   const [activeSection, setActiveSection] = useState(() =>
-    initialSection || (typeof window !== 'undefined' && window.location.hash === '#difusores' ? 'diffusers' : 'welcome')
+    initialSection || resolveSectionFromHash() || 'welcome'
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
+
+  // Escuchar cambios de hash para navegar directamente a un módulo
+  useEffect(() => {
+    const onHashChange = () => {
+      const target = resolveSectionFromHash();
+      if (target) setActiveSection(target);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  // Desplazar suavemente hacia arriba al cambiar de módulo
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [activeSection]);
 
   // Estado del Modo Oscuro
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -484,6 +543,7 @@ export default function App({ initialSection }) {
         onClose={() => setIsSidebarOpen(false)}
         geometry={geometry}
         rt500={rt500Sabine}
+        optimumRT={optimumRT}
         criticalDistance={activeCriticalDistance}
         selectedPresetId={selectedPresetId}
         onLoadPreset={handleLoadPreset}
@@ -506,6 +566,7 @@ export default function App({ initialSection }) {
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           isSidebarOpen={isSidebarOpen}
           activeSection={activeSection}
+          setActiveSection={setActiveSection}
           onReset={handleReset}
           onExportCSV={() => setIsExportOpen(true)}
           onOpenReport={() => setIsReportOpen(true)}
@@ -539,6 +600,9 @@ export default function App({ initialSection }) {
           {activeSection === 'welcome' && (
             <WelcomeHero
               onEnter={() => setActiveSection('overview')}
+              onNavigate={setActiveSection}
+              onLoadPreset={handleLoadPreset}
+              selectedPresetId={selectedPresetId}
               onOpenGeometry={() => setActiveSection('geometry')}
               onOpenResults={() => setActiveSection('results')}
               roomPolygon={roomPolygon}
@@ -864,6 +928,66 @@ export default function App({ initialSection }) {
               </div>
             </div>
           )}
+
+          {/* Barra Inferior de Navegación Guiada Paso a Paso */}
+          {(() => {
+            const idx = STEP_FLOW.findIndex((s) => s.id === activeSection);
+            if (idx === -1) return null;
+            const prevStep = idx > 0 ? STEP_FLOW[idx - 1] : null;
+            const nextStep = idx < STEP_FLOW.length - 1 ? STEP_FLOW[idx + 1] : null;
+            return (
+              <div className="bg-white dark:bg-[#141622] rounded-2xl border border-black/[0.08] dark:border-white/10 p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-apple-sm no-print">
+                <div className="flex items-center gap-3">
+                  {prevStep ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection(prevStep.id)}
+                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-xs font-bold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/10 transition cursor-pointer shrink-0"
+                    >
+                      ← {prevStep.label}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection('welcome')}
+                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-xs font-bold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/10 transition cursor-pointer shrink-0"
+                    >
+                      ← Guía de Inicio
+                    </button>
+                  )}
+                  <div className="hidden md:block">
+                    <div className="text-[11px] font-bold text-[#1d1d1f] dark:text-white">
+                      {STEP_FLOW[idx].label}
+                    </div>
+                    <div className="text-[10px] text-[#86868b] dark:text-slate-400">
+                      {STEP_FLOW[idx].hint}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  {['results', 'charts', 'modes', 'intelligibility', 'diffusers'].includes(activeSection) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsReportOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-xs font-bold text-[#5833c7] dark:text-[#a78bfa] border border-[#5833c7]/25 transition cursor-pointer"
+                    >
+                      Ver Informe PDF
+                    </button>
+                  )}
+                  {nextStep && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection(nextStep.id)}
+                      className="px-4 py-2 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] text-white text-xs font-bold shadow-sm transition cursor-pointer"
+                    >
+                      Siguiente: {nextStep.label} →
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
         </main>
 

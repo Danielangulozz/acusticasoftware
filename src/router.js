@@ -9,10 +9,15 @@ import { useEffect, useState } from 'react';
 const listeners = new Set();
 
 export function navigate(path, { hash } = {}) {
+  const targetUrl = path + (hash ? `#${hash}` : '');
+  const currentUrl = window.location.pathname + window.location.hash;
   if (window.location.pathname !== path) {
-    window.history.pushState({}, '', path + (hash ? `#${hash}` : ''));
+    window.history.pushState({}, '', targetUrl);
     listeners.forEach((fn) => fn(path));
     window.scrollTo({ top: 0 });
+  } else if (currentUrl !== targetUrl) {
+    window.history.pushState({}, '', targetUrl);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
   }
   if (hash) {
     requestAnimationFrame(() => document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth' }));
