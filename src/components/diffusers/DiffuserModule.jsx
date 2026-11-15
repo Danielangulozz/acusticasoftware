@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -10,10 +10,13 @@ import {
   ReferenceArea,
   Legend,
 } from 'recharts';
-import { Download, FileCode2, RotateCcw, BookOpen, AlertTriangle, Info, Grid3x3 } from 'lucide-react';
+import { Download, FileCode2, RotateCcw, BookOpen, AlertTriangle, Info, Grid3x3, ShieldCheck } from 'lucide-react';
 import { ProfileView, IsoView, PolarPlot, HemisphereMap, diffuserPalette } from './DiffuserViews';
+import { DIFFUSER_DEFAULTS, designFromConfig, loadDiffuserConfig, saveDiffuserConfig } from './diffuserConfig';
+
+// El render 3D usa WebGL (three.js): se carga solo cuando se abre esa vista
+const DiffuserRender = lazy(() => import('./DiffuserRender'));
 import {
-  designDiffuser,
   surfaceElements,
   flatElements,
   polarResponse,
@@ -35,27 +38,14 @@ import {
  */
 
 const TYPES = [
-  { id: 'qrd', label: 'QRD 1D', hint: 'sₙ = n² mod p' },
-  { id: 'qrd2d', label: 'QRD 2D', hint: 'sₘₙ = (m² + n²) mod p' },
-  { id: 'prd', label: 'PRD', hint: 'sₙ = gⁿ mod p' },
-  { id: 'mls', label: 'MLS', hint: 'binaria 2ᵐ − 1' },
-  { id: 'poly', label: 'Policilíndrico', hint: 'R < 5 m' },
+  { id: 'qrd', label: 'QRD 1D', hint: 'Ranuras · difunde en un plano' },
+  { id: 'qrd2d', label: 'QRD 2D', hint: 'Bloques skyline · dos planos' },
+  { id: 'prd', label: 'PRD', hint: 'Anula la reflexión directa' },
+  { id: 'mls', label: 'MLS', hint: 'Delgado · una octava' },
+  { id: 'poly', label: 'Policilíndrico', hint: 'Superficies curvas' },
 ];
 
-const DEFAULTS = {
-  type: 'qrd',
-  f0: 500,
-  fMax: 2000,
-  c: 343,
-  Tmm: 5,
-  lobeOrder: 2,
-  periods: 1,
-  primeOverride: 0,
-  g: 0,
-  mlsOrder: 4,
-  panelHeight: 60,
-  poly: { radius: 1.2, chord: 0.6, count: 4 },
-};
+const DEFAULTS = DIFFUSER_DEFAULTS;
 
 // Ejemplos resueltos en la clase de Diseño de Difusores
 const CLASS_EXAMPLES = {
@@ -76,7 +66,8 @@ const SELECT = 'apple-input w-full px-3 py-2 text-sm';
 const fmtCm = (m, dec = 1) => `${(m * 100).toFixed(dec)} cm`;
 
 export default function DiffuserModule({ isDarkMode = false }) {
-  const [cfg, setCfg] = useState(DEFAULTS);
+  const [cfg, setCfg] = useState(loadDiffuserConfig);
+  useEffect(() => saveDiffuserConfig(cfg), [cfg]);
   const [view, setView] = useState('profile');
   const [freq, setFreq] = useState(1000);
   const [incidence, setIncidence] = useState(0);
@@ -86,24 +77,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
   const set = (k) => (v) => setCfg((c) => ({ ...c, [k]: v }));
   const setPoly = (k) => (v) => setCfg((c) => ({ ...c, poly: { ...c.poly, [k]: v } }));
 
-  const design = useMemo(
-    () =>
-      designDiffuser({
-        type: cfg.type,
-        f0: cfg.f0,
-        fMax: Math.max(cfg.fMax, cfg.f0 * 1.2),
-        c: cfg.c,
-        T: cfg.Tmm / 1000,
-        lobeOrder: cfg.lobeOrder,
-        periods: cfg.periods,
-        primeOverride: cfg.primeOverride || undefined,
-        g: cfg.g || undefined,
-        mlsOrder: cfg.mlsOrder,
-        panelHeight: cfg.panelHeight / 100,
-        poly: cfg.poly,
-      }),
-    [cfg]
-  );
+  const design = useMemo(() => designFromConfig(cfg), [cfg]);
 
   const deferredDesign = useDeferredValue(design);
   const deferredFreq = useDeferredValue(freq);
@@ -145,7 +119,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
 
   const exportCSV = () => {
     const rows = [
-      ['POZOLE ACUSTIC — Diseño de Difusores'],
+      ['POZOLE ACÚSTICA — Diseño de Difusores'],
       ['Tipo', TYPES.find((t) => t.id === design.type)?.label],
       ['c (m/s)', design.c],
       ['f0 (Hz)', design.f0],
@@ -192,7 +166,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
               <h2 className={`text-xl font-bold ${TITLE}`}>Diseño de Difusores Acústicos</h2>
             </div>
             <p className={`text-xs sm:text-sm ${MUTED} mt-1`}>
-              Procedimiento de Schroeder, respuesta polar por modelo de Fraunhofer y coeficiente de difusión AES-4id / ISO 17497-2.
+              Indica qué frecuencias quieres dispersar y obtén las medidas de cada pieza, cómo reparte el sonido y la lista de corte para fabricarlo.
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -302,9 +276,9 @@ export default function DiffuserModule({ isDarkMode = false }) {
             {isSchroeder && <Kpi label="Ranuras por período" value={`p = ${design.p}`} sub={design.type === 'prd' ? `g = ${design.g} · ${design.p - 1} ranuras` : `${design.lobes} lóbulos en f₀`} />}
             {design.type === 'mls' && <Kpi label="Longitud MLS" value={`${design.p} tramos`} sub={`orden m = ${design.order}`} />}
             {design.type === 'poly' && <Kpi label="Flecha del arco" value={fmtCm(design.sagitta)} sub={`R = ${design.radius.toFixed(2)} m`} />}
-            {design.W !== undefined && <Kpi label="Ancho de ranura W" value={fmtCm(design.W)} sub={design.type === 'mls' ? 'λ₀/2 − T' : 'c / 2f_max − T'} />}
+            {design.W !== undefined && <Kpi label="Ancho de ranura W" value={fmtCm(design.W)} sub="cada ranura, sin la aleta" />}
             {design.type === 'poly' && <Kpi label="Cuerda" value={fmtCm(design.chord)} sub={`${design.count} cilindros`} />}
-            <Kpi label="Profundidad máxima" value={fmtCm(design.maxDepth)} sub={isSchroeder ? `λ₀/2p = ${fmtCm(design.depthUnit, 2)}` : design.type === 'mls' ? 'λ₀/4' : 'fondo del panel'} />
+            <Kpi label="Profundidad máxima" value={fmtCm(design.maxDepth)} sub={isSchroeder ? `en pasos de ${fmtCm(design.depthUnit, 2)}` : 'fondo que ocupa el panel'} />
             <Kpi label="Ancho total" value={fmtCm(design.totalWidth)} sub={design.type === 'qrd2d' ? 'por lado' : `${design.periods} período(s)`} accent />
           </div>
 
@@ -320,15 +294,26 @@ export default function DiffuserModule({ isDarkMode = false }) {
             title="Geometría"
             right={
               <div className="inline-flex p-1 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] text-xs font-semibold">
-                {[['profile', 'Corte'], ['iso', '3D']].map(([id, l]) => (
+                {[['profile', 'Corte'], ['iso', '3D'], ['render', 'Render']].map(([id, l]) => (
                   <button key={id} onClick={() => setView(id)} className={`px-3 py-1 rounded-lg transition ${view === id ? 'bg-[#5833c7] text-white' : `${MUTED} hover:text-[#1d1d1f] dark:hover:text-white`}`}>{l}</button>
                 ))}
               </div>
             }
           >
             <div className="rounded-2xl overflow-hidden border border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#121322] p-2">
-              {view === 'profile' ? <ProfileView ref={profileRef} design={design} isDark={isDarkMode} /> : <IsoView design={design} isDark={isDarkMode} />}
+              {view === 'profile' && <ProfileView ref={profileRef} design={design} isDark={isDarkMode} />}
+              {view === 'iso' && <IsoView design={design} isDark={isDarkMode} />}
+              {view === 'render' && (
+                <Suspense fallback={<p className={`p-10 text-center text-xs ${MUTED}`}>Preparando el render 3D…</p>}>
+                  <DiffuserRender design={design} />
+                </Suspense>
+              )}
             </div>
+            {view === 'render' && (
+              <p className={`text-xs ${MUTED} mt-2`}>
+                Este render se dibuja con las medidas que ves arriba: cambia la banda, los períodos o el espesor y se actualiza. Arrastra para girarlo.
+              </p>
+            )}
             {design.type === 'qrd2d' && view === 'profile' && (
               <p className={`text-xs ${MUTED} mt-2`}>Corte por la fila m = 0. Cambia a 3D para ver la matriz completa (vista tipo skyline).</p>
             )}
@@ -465,7 +450,21 @@ export default function DiffuserModule({ isDarkMode = false }) {
             </Card>
           </div>
 
-          <Theory type={design.type} />
+          <a
+            href="#fichas/difusores"
+            className={`${CARD} flex items-center justify-between gap-4 hover:border-[#5833c7]/40 group`}
+          >
+            <span className="flex items-center gap-3">
+              <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa]">
+                <ShieldCheck className="w-5 h-5" />
+              </span>
+              <span>
+                <span className={`block text-sm font-bold ${TITLE}`}>¿Cómo se calcula todo esto?</span>
+                <span className={`block text-xs ${MUTED}`}>Fórmulas, normas y una verificación con este mismo diseño, en la ficha técnica.</span>
+              </span>
+            </span>
+            <span className="text-xs font-semibold text-[#5833c7] dark:text-[#a78bfa] whitespace-nowrap group-hover:underline">Ver ficha técnica →</span>
+          </a>
         </div>
       </div>
     </div>
@@ -602,58 +601,5 @@ function Matrix({ seq, unit }) {
       </div>
       <p className={`text-xs font-mono ${MUTED}`}>dₘₙ = sₘₙ · {(unit * 100).toFixed(2)} cm · pasa el cursor sobre una celda</p>
     </div>
-  );
-}
-
-function Theory({ type }) {
-  const blocks = {
-    qrd: [
-      ['Ancho de ranura', 'W = c / (2·f_max) − T'],
-      ['Número primo', 'p ≥ 2n·(f_max / f₀) → siguiente primo'],
-      ['Secuencia', 'sₙ = n² mod p,  n = 0 … p−1'],
-      ['Profundidad', 'dₙ = sₙ · λ₀ / (2p)'],
-      ['Ancho total', 'W_T = p·(W + T)·N'],
-    ],
-    qrd2d: [
-      ['Ancho de celda', 'W = c / (2·f_max) − T'],
-      ['Secuencia', 'sₘₙ = (m² + n²) mod p'],
-      ['Profundidad', 'dₘₙ = sₘₙ · λ₀ / (2p)'],
-      ['Lado total', 'W_T = p·(W + T)·N'],
-    ],
-    prd: [
-      ['Secuencia', 'sₙ = gⁿ mod p,  n = 1 … p−1'],
-      ['Raíz primitiva', 'g genera los p−1 residuos distintos'],
-      ['Profundidad', 'dₙ = sₙ · λ₀ / (2p)'],
-      ['Uso', 'Cancelador de eco: reflexión especular mínima en f₀'],
-    ],
-    mls: [
-      ['Secuencia', 'LFSR de orden m, longitud 2ᵐ − 1, valores {0, 1}'],
-      ['Ancho', 'W = λ₀/2 − T'],
-      ['Profundidad', 'd = λ₀/4 donde sₙ = 1'],
-      ['Rango útil', '≈ 1 octava alrededor de f₀'],
-    ],
-    poly: [
-      ['Radio', 'R < 5 m difunde; R ≥ 5 m refleja como plano'],
-      ['Flecha', 'h = R − √(R² − (c/2)²)'],
-      ['Cobertura', 'Menor R → mayor cobertura y menor nivel por reflexión'],
-    ],
-  }[type];
-  const common = [
-    ['Presión dispersada (Fraunhofer)', 'p(θ) ∝ Σ Rₑ·wₑ·sinc(k wₑ (sinθ+sinψ)/2)·e^{jk xₑ (sinθ+sinψ)}'],
-    ['Coef. de difusión (AES-4id)', 'd = [(Σ Iᵢ)² − Σ Iᵢ²] / [(n−1) Σ Iᵢ²]'],
-    ['Normalizado', 'dₙ = (d − d_plano) / (1 − d_plano)'],
-    ['Dispersión teórica', 's = 1 − |(1/N) Σ e^{−2jk dₙ}|²'],
-  ];
-  return (
-    <Card title="Fundamento teórico">
-      <div className="grid md:grid-cols-2 gap-x-8 gap-y-2">
-        {[...blocks, ...common].map(([k, f]) => (
-          <div key={k} className="py-2 border-b border-black/[0.05] dark:border-white/[0.05]">
-            <div className={`text-[11px] ${MUTED}`}>{k}</div>
-            <div className={`font-mono text-[13px] mt-0.5 break-words ${TITLE}`}>{f}</div>
-          </div>
-        ))}
-      </div>
-    </Card>
   );
 }

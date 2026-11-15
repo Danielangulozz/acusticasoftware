@@ -644,26 +644,25 @@ export default function IntelligibilityModule({
               </ResponsiveContainer>
             </div>
 
-            {/* Fórmulas explicadas de Peutz */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-[#fbfbfd] dark:bg-[#18192a] p-3.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.05] font-mono">
+            {/* Lectura del resultado (las fórmulas están en la ficha técnica) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-[#fbfbfd] dark:bg-[#18192a] p-3.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
               <div>
-                <span className="font-bold text-[#1d1d1f] dark:text-white block">1. Para d ≤ D_lim ({DLim_untreated}m):</span>
-                <span className="text-[#86868b]">
-                  %ALcons = (200 · d² · RT60²) / (V · Q) + a
-                </span>
+                <span className="font-bold text-[#1d1d1f] dark:text-white block">Cerca de quien habla (hasta {DLim_untreated} m)</span>
+                <span className="text-[#86868b]">La pérdida de consonantes crece a medida que el oyente se aleja.</span>
                 <span className="text-[11px] text-[#0071e3] block mt-1">
-                  d = {evalDistance}m → %ALcons = {result_untreated.alcons}%
+                  A {evalDistance} m se pierde el {result_untreated.alcons} %
                 </span>
               </div>
               <div>
-                <span className="font-bold text-[#1d1d1f] dark:text-white block">2. Para d &gt; D_lim (Meseta Reverberante):</span>
-                <span className="text-[#86868b]">
-                  %ALcons = 9 · RT60 + a = 9 · ({RT60_untreated}) + {listenerFactorA}%
-                </span>
+                <span className="font-bold text-[#1d1d1f] dark:text-white block">Más lejos (domina el eco de la sala)</span>
+                <span className="text-[#86868b]">La pérdida se estanca en un valor que solo depende de la sala.</span>
                 <span className="text-[11px] text-[#5833c7] block mt-1">
-                  Meseta máxima = {(9 * RT60_untreated + listenerFactorA).toFixed(2)}%
+                  Máximo de esta sala: {(9 * RT60_untreated + listenerFactorA).toFixed(2)} %
                 </span>
               </div>
+              <a href="#fichas/alcons" className="md:col-span-2 text-[11px] font-semibold text-[#5833c7] dark:text-[#a78bfa] hover:underline">
+                Ver cómo se calcula (ficha técnica) →
+              </a>
             </div>
 
           </div>

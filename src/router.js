@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 /**
  * Enrutador mínimo basado en History API (Vercel ya reescribe todo a index.html).
- *   /           → sitio de POZOLE ACUSTIC
+ *   /           → sitio de POZOLE ACÚSTICA
  *   /suite      → simulador de recintos
  *   /difusores  → laboratorio de difusores
  */

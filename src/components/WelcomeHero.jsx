@@ -9,6 +9,7 @@ import {
   Grid3x3,
   FolderOpen,
   LayoutDashboard,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { PozoleLogo } from './PozoleLogo';
 import RoomVisualizer from './RoomVisualizer';
@@ -20,6 +21,51 @@ const QUICK_PRESETS = [
   { id: 'usb_medellin_example', label: 'Sala USB Medellín', sub: '4 × 3 × 2.5 m · %ALcons' },
 ];
 
+// Laboratorios especializados, cada uno con su render conceptual
+const LABS = [
+  {
+    id: 'modes',
+    icon: Waves,
+    badge: 'Bajas Frecuencias',
+    tone: 'bg-[#5833c7]/10 dark:bg-[#5833c7]/25 text-[#5833c7] dark:text-[#a78bfa]',
+    title: 'Laboratorio de Modos Propios (Graves)',
+    text: 'Descubre dónde retumban o se cancelan los bajos en cuartos pequeños, evalúa el criterio de Bonello y optimiza las proporciones con el diagrama de Bolt.',
+    cta: 'Abrir análisis modal',
+    render: 'producto-trampa',
+  },
+  {
+    id: 'intelligibility',
+    icon: MessageSquare,
+    badge: 'Claridad de Palabra',
+    tone: 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+    title: 'Laboratorio de Inteligibilidad (%ALcons y STI)',
+    text: 'Verifica si en un salón de clases, auditorio o templo se entienden claramente las consonantes, añade personas y compara antes vs. después del tratamiento.',
+    cta: 'Evaluar claridad de voz',
+    render: 'juntas',
+    themed: true,
+  },
+  {
+    id: 'diffusers',
+    icon: Grid3x3,
+    badge: 'Fabricación a Medida',
+    tone: 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',
+    title: 'Laboratorio de Difusores (QRD / PRD / MLS)',
+    text: 'Calcula las ranuras y profundidades de tu difusor acústico según la banda de frecuencia, visualiza su respuesta polar y descarga la lista de corte.',
+    cta: 'Diseñar un difusor',
+    render: 'producto-skyline',
+  },
+  {
+    id: 'renders',
+    icon: ImageIcon,
+    badge: 'Nuevo',
+    tone: 'bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400',
+    title: 'Estudio de renders',
+    text: 'Crea tus propias imágenes 3D: elige la sala o el tratamiento, cambia medidas, colores, luz y cámara, y descárgalas en alta calidad.',
+    cta: 'Crear un render',
+    render: 'estudio-tratado',
+    themed: true,
+  },
+];
 /**
  * WelcomeHero — Guía de Inicio Rápido e Introducción Intuitiva a POZOLE Suite
  */
@@ -36,6 +82,7 @@ export default function WelcomeHero({
   criticalDistance,
   materials,
   selectedBand = 1000,
+  isDarkMode = false,
 }) {
   const handleEnter = onEnterStudio || onEnter;
   const goTo = (section) => {
@@ -54,7 +101,7 @@ export default function WelcomeHero({
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#5833c7]/10 dark:bg-[#5833c7]/20 border border-[#5833c7]/30 text-[#5833c7] dark:text-[#a78bfa] text-xs font-bold font-mono">
               <span className="w-2 h-2 rounded-full bg-[#5833c7] dark:bg-[#a78bfa] animate-pulse" />
-              <span>Guía Rápida · Simulador Acústico v3.0</span>
+              <span>Empieza aquí · Simulador acústico</span>
             </div>
 
             <div>
@@ -218,7 +265,7 @@ export default function WelcomeHero({
                 <FolderOpen className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#a78bfa]" />
                 <span>¿Prefieres probar con una sala ya configurada? Haz clic en un ejemplo:</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {QUICK_PRESETS.map((p) => {
                   const isSelected = selectedPresetId === p.id;
                   return (
@@ -249,84 +296,49 @@ export default function WelcomeHero({
       {/* =========================================================================
           FILA INFERIOR: LABORATORIOS ESPECIALIZADOS (ACCESO DIRECTO)
           ========================================================================= */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button
-          type="button"
-          onClick={() => goTo('modes')}
-          className="text-left bg-white dark:bg-[#141622] p-5 rounded-2xl border border-black/[0.08] dark:border-white/10 hover:border-[#5833c7]/50 shadow-apple-sm transition group cursor-pointer flex flex-col justify-between gap-3"
-        >
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="w-9 h-9 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa] flex items-center justify-center">
-                <Waves className="w-4 h-4" />
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {LABS.map((lab) => {
+          const Icon = lab.icon;
+          const render = lab.themed && isDarkMode ? `${lab.render}-noche` : lab.render;
+          return (
+            <button
+              key={lab.id}
+              type="button"
+              onClick={() => goTo(lab.id)}
+              className="text-left bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 hover:border-[#5833c7]/50 shadow-apple-sm hover:shadow-apple transition group cursor-pointer flex flex-col overflow-hidden"
+            >
+              {/* Render conceptual generado por tools/render-lab */}
+              <div className="relative h-40 w-full bg-gradient-to-b from-black/[0.015] to-black/[0.06] dark:from-white/[0.02] dark:to-white/[0.07]">
+                <img
+                  src={`/renders/${render}.webp`}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
+                />
+                <span className={`absolute top-3 right-3 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full backdrop-blur ${lab.tone}`}>
+                  {lab.badge}
+                </span>
               </div>
-              <span className="text-[10px] font-mono font-bold text-[#5833c7] dark:text-[#a78bfa] bg-[#5833c7]/10 px-2 py-0.5 rounded-full">
-                Bajas Frecuencias
-              </span>
-            </div>
-            <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#a78bfa] transition">
-              Laboratorio de Modos Propios (Graves)
-            </h4>
-            <p className="text-xs text-[#86868b] dark:text-slate-400 leading-relaxed">
-              Descubre dónde retumban o se cancelan los bajos en cuartos pequeños, evalúa el criterio de Bonello y optimiza las proporciones con el diagrama de Bolt.
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-[#5833c7] dark:text-[#a78bfa] inline-flex items-center gap-1">
-            Abrir análisis modal <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => goTo('intelligibility')}
-          className="text-left bg-white dark:bg-[#141622] p-5 rounded-2xl border border-black/[0.08] dark:border-white/10 hover:border-[#5833c7]/50 shadow-apple-sm transition group cursor-pointer flex flex-col justify-between gap-3"
-        >
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <MessageSquare className="w-4 h-4" />
+              <div className="p-5 flex-1 flex flex-col justify-between gap-3">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${lab.tone}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#a78bfa] transition">
+                      {lab.title}
+                    </h4>
+                  </div>
+                  <p className="text-xs text-[#86868b] dark:text-slate-400 leading-relaxed">{lab.text}</p>
+                </div>
+                <span className="text-xs font-semibold text-[#5833c7] dark:text-[#a78bfa] inline-flex items-center gap-1">
+                  {lab.cta} <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
+                </span>
               </div>
-              <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                Claridad de Palabra
-              </span>
-            </div>
-            <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#a78bfa] transition">
-              Laboratorio de Inteligibilidad (%ALcons y STI)
-            </h4>
-            <p className="text-xs text-[#86868b] dark:text-slate-400 leading-relaxed">
-              Verifica si en un salón de clases, auditorio o templo se entienden claramente las consonantes, añade personas y compara antes vs. después del tratamiento.
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-[#5833c7] dark:text-[#a78bfa] inline-flex items-center gap-1">
-            Evaluar claridad de voz <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => goTo('diffusers')}
-          className="text-left bg-white dark:bg-[#141622] p-5 rounded-2xl border border-black/[0.08] dark:border-white/10 hover:border-[#5833c7]/50 shadow-apple-sm transition group cursor-pointer flex flex-col justify-between gap-3"
-        >
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                <Grid3x3 className="w-4 h-4" />
-              </div>
-              <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                Fabricación a Medida
-              </span>
-            </div>
-            <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#a78bfa] transition">
-              Laboratorio de Difusores (QRD / PRD / MLS)
-            </h4>
-            <p className="text-xs text-[#86868b] dark:text-slate-400 leading-relaxed">
-              Calcula las ranuras y profundidades de tu difusor acústico según la banda de frecuencia, visualiza su respuesta polar y descarga la lista de corte.
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-[#5833c7] dark:text-[#a78bfa] inline-flex items-center gap-1">
-            Diseñar un difusor <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
-          </span>
-        </button>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

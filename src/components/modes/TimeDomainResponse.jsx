@@ -391,9 +391,9 @@ export default function TimeDomainResponse({
 
         {/* Ecuación canónica desplegada */}
         <div className="mt-4 pt-4 border-t border-[#5833c7]/15 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="font-mono bg-white/70 dark:bg-black/30 px-3.5 py-1.5 rounded-xl border border-black/[0.06] dark:border-white/[0.06] text-[#5833c7] dark:text-purple-300 font-bold">
-            p(x, y, z, t) = P₀ &middot; &Psi;(x, y, z) &middot; e<sup>-&delta;&middot;t</sup> &middot; cos(2&pi;f t + &phi;)
-          </div>
+          <a href="#fichas/amortiguamiento" className="font-semibold text-[#5833c7] dark:text-[#a78bfa] hover:underline">
+            Cómo se calcula el decaimiento de un modo (ficha técnica) →
+          </a>
           <div className="flex items-center gap-4 text-[#86868b] dark:text-slate-400 text-[11px]">
             <span><strong>&delta;</strong> = {dampingMetrics.delta} s⁻¹</span>
             <span>&bull;</span>
@@ -689,7 +689,7 @@ export default function TimeDomainResponse({
             <span className="text-xs font-normal text-[#86868b] ml-0.5">s⁻¹</span>
           </div>
           <div className="text-[10px] text-[#86868b] mt-1 font-mono">
-            &delta; = 3&middot;ln(10) / RT₆₀
+            Qué tan rápido se apaga el modo
           </div>
         </div>
 

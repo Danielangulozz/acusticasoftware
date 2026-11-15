@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>POZOLE · Laboratorio de renders</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; background: #121218; color: #e8e8ef; font: 13px/1.5 system-ui, sans-serif; }
+      header { padding: 16px 20px; border-bottom: 1px solid #ffffff14; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+      h1 { font-size: 15px; margin: 0; }
+      main { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 20px; }
+      #shots { display: grid; gap: 6px; }
+      #shots label { display: flex; gap: 8px; align-items: baseline; }
+      code { color: #9c8cf5; font-size: 11px; }
+      select, button, input[type='color'] { background: #1e1e28; color: inherit; border: 1px solid #ffffff22; border-radius: 8px; padding: 6px 10px; font: inherit; }
+      button { background: #6d4be0; border-color: transparent; font-weight: 600; cursor: pointer; }
+      canvas { max-width: 100%; height: auto; border-radius: 12px; background: repeating-conic-gradient(#1b1b24 0 25%, #20202b 0 50%) 0 0 / 24px 24px; }
+      pre { color: #a8a8b8; max-height: 180px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>POZOLE · Laboratorio de renders</h1>
+      <select id="quality"><option value="draft">Borrador</option><option value="final">Final</option></select>
+      <label><input type="checkbox" id="save" /> Guardar en public/renders</label>
+      <label>Fondo de vista previa <input type="color" id="matte" value="#f5f5f7" /></label>
+      <button id="go">Renderizar</button>
+      <span id="status">En espera</span>
+    </header>
+    <main>
+      <div id="shots"></div>
+      <div>
+        <canvas id="view" width="800" height="600"></canvas>
+        <pre id="log"></pre>
+      </div>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

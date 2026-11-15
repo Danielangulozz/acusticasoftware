@@ -99,7 +99,7 @@ El software implementa los tres modelos canónicos, con interruptor para habilit
    - $Q = 4$: Cuarto de esfera (en arista $\pi$)
    - $Q = 8$: Octavo de esfera (en esquina $\pi/2$)
 4. **Distancia Crítica ($D_c$)** (Distancia donde campo directo = campo reverberado):
-   $$D_c = \sqrt{\frac{Q \cdot R}{16 \pi}} \approx 0.057 \cdot \sqrt{Q \cdot R} \quad [\text{m}]$$
+   $$D_c = \sqrt{\frac{Q \cdot R}{16 \pi}} \approx 0.141 \cdot \sqrt{Q \cdot R} \quad [\text{m}]$$
 5. **Nivel de Presión Sonora Total en el Receptor ($L_p(r)$):**
    $$L_p(r) = L_w + 10 \cdot \log_{10} \left( \frac{Q}{4\pi r^2} + \frac{4}{R} \right) - \Delta L_{\text{aire}}$$
    $$\Delta L_{\text{aire}} = 4.3429 \cdot m \cdot r \quad [\text{dB}]$$
@@ -317,7 +317,7 @@ Para evitar la aglomeración de modos axiales y tangenciales, las dimensiones de
 | $m$ | Atenuación atmosférica del aire | $\text{m}^{-1}$ | ISO 9613-1 |
 | $Q$ | Factor de directividad espacial de la fuente | Adimensional ($1, 2, 4, 8$) | Fuente Sonora |
 | $R$ | Constante de sala | $\text{m}^2$ | $A / (1 - \bar{\alpha})$ |
-| $D_c$ | Distancia crítica | $\text{m}$ | $0.057\sqrt{QR}$ |
+| $D_c$ | Distancia crítica | $\text{m}$ | $0.141\sqrt{QR}$ |
 | $L_w$ | Nivel de potencia acústica | $\text{dB re } 10^{-12}\text{ W}$ | Fuente Sonora |
 | $L_p$ | Nivel de presión sonora total | $\text{dB re } 2\times 10^{-5}\text{ Pa}$ | Campo Directo + Reverberado |
 | $c$ | Velocidad del sonido | $\text{m/s}$ | $331.3\sqrt{1+T/273.15}$ |

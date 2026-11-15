@@ -23,6 +23,8 @@ export default function RoomVisualizer({
   materials = {},
   onChangeMaterials,
   selectedBand = 1000,
+  sceneObjects = [],
+  onOpenRenders = null,
   isReportGraphic = false, // Modo sin controles UI para informe técnico imprimible
 }) {
   // Vertices de polígono con fallback seguro
@@ -59,6 +61,7 @@ export default function RoomVisualizer({
   const [showRays, setShowRays] = useState(true);
   const [viewPreset, setViewPreset] = useState('3d');
   const [ceilingMode, setCeilingMode] = useState('translucent');
+  const [isLiteMode, setIsLiteMode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const containerRef = useRef(null);
@@ -263,7 +266,7 @@ export default function RoomVisualizer({
       const v1 = vertices[j];
       const bulge = curvatures[i] || 0;
       if (Math.abs(bulge) > 0.02) {
-        const arcPts = getEdgeArcPoints(v0, v1, bulge, 12, isCCW);
+        const arcPts = getEdgeArcPoints(v0, v1, bulge, isLiteMode ? 5 : 12, isCCW);
         for (let k = 0; k < arcPts.length - 1; k++) {
           sampledPerimeter.push(arcPts[k]);
         }
@@ -315,7 +318,7 @@ export default function RoomVisualizer({
       const isCurved = Math.abs(bulge) > 0.02;
 
       if (isCurved) {
-        const arcPts = getEdgeArcPoints(v0, v1, bulge, 12, isCCW);
+        const arcPts = getEdgeArcPoints(v0, v1, bulge, isLiteMode ? 5 : 12, isCCW);
         const arcLen = chordLen + (8 * bulge * bulge) / (3 * Math.max(0.01, chordLen));
 
         // Arco inferior en el piso (z = 0)
@@ -362,7 +365,7 @@ export default function RoomVisualizer({
 
     allFaces.sort((a, b) => b.depth - a.depth);
     return allFaces;
-  }, [vertices, H, project3D, geometry, ceilingMode, roomPolygon?.curvatures, isCCW]);
+  }, [vertices, H, project3D, geometry, ceilingMode, roomPolygon?.curvatures, isCCW, isLiteMode]);
 
   // Bounding box y extremos del polígono
   const xs = useMemo(() => vertices.map(v => v.x), [vertices]);
@@ -820,6 +823,31 @@ export default function RoomVisualizer({
             <RotateCcw className="w-3 h-3" />
           </button>
 
+          {/* Modo Ligero (Bajo Consumo) */}
+          <button
+            onClick={() => setIsLiteMode(prev => !prev)}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
+              isLiteMode
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'bg-[#f5f5f7] dark:bg-[#181a28] text-[#86868b] border-black/[0.04]'
+            }`}
+            title="Modo Ligero de bajo consumo gráfico"
+          >
+            ⚡ Ligero
+          </button>
+
+          {/* Acceso directo al Estudio 3D de Muebles, Paneles y Difusores */}
+          {onOpenRenders && (
+            <button
+              onClick={onOpenRenders}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 text-[10px] font-bold border border-amber-500/30 transition"
+              title="Agregar muebles, paneles acústicos y difusores a medida en 3D"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span className="hidden sm:inline">Muebles y Paneles 3D ({Array.isArray(sceneObjects) ? sceneObjects.filter(x => x.enabled !== false).length : 0})</span>
+            </button>
+          )}
+
           {/* Botón Maximizar / Modal 3D Grande */}
           <button
             onClick={() => setIsModalOpen(true)}
@@ -874,8 +902,8 @@ export default function RoomVisualizer({
           {/* Fondo blanco luminoso */}
           <rect width={SVG_W} height={SVG_H} fill="#ffffff" className="dark:fill-[#0c0d18]" />
 
-          {/* Grilla 3D proyectada en el piso */}
-          {floor3DGrid.map((l, i) => (
+          {/* Grilla 3D proyectada en el piso (omitida en Modo Ligero) */}
+          {!isLiteMode && floor3DGrid.map((l, i) => (
             <line
               key={`floor-grid-${i}`}
               x1={l.p1.x} y1={l.p1.y}
@@ -895,14 +923,14 @@ export default function RoomVisualizer({
 
             return (
               <g key={face.id}>
-                {isFloor && (
+                {isFloor && !isLiteMode && (
                   <polygon
                     points={face.points}
                     fill="url(#lightFloorTiles3d)"
                     style={{ pointerEvents: 'none' }}
                   />
                 )}
-                {isCeiling && ceilingMode === 'translucent' && (
+                {isCeiling && ceilingMode === 'translucent' && !isLiteMode && (
                   <polygon
                     points={face.points}
                     fill="url(#lightCeilingTiles3d)"

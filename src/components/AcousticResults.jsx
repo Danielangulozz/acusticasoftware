@@ -215,7 +215,7 @@ export default function AcousticResults({
             </div>
 
             <div className="text-[11px] text-[#86868b] dark:text-slate-400 mt-3 pt-2 border-t border-black/[0.04] dark:border-white/[0.06] font-mono">
-              Dc = 0.057 · √(Q · R)
+              Hasta aquí domina el sonido directo
             </div>
           </div>
 

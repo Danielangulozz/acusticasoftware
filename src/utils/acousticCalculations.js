@@ -701,8 +701,9 @@ export function calculateRoomConstant(A, alphaMean) {
 /**
  * Calcula la Distancia Crítica Dc [m] (donde la energía de campo directo iguala a la de campo reverberado).
  * 
- * Fórmula:
- * Dc = 0.057 · √(Q · R)
+ * Fórmula (igualando campo directo Q/(4πr²) y reverberado 4/R):
+ * Dc = √(Q · R / (16π)) ≈ 0.141 · √(Q · R)
+ * (El coeficiente 0.057 corresponde a la forma con volumen y tiempo: Dc ≈ 0.057 · √(Q · V / T60).)
  * 
  * @param {number} directivity - Factor de directividad de la fuente Q (1, 2, 4, 8)
  * @param {number} roomConstant - Constante de sala R [m²]
@@ -711,7 +712,7 @@ export function calculateRoomConstant(A, alphaMean) {
 export function calculateCriticalDistance(directivity, roomConstant) {
   const Q = Math.max(1, Number(directivity) || 1);
   const R = Math.max(0.01, Number(roomConstant) || 0.01);
-  return 0.057 * Math.sqrt(Q * R);
+  return Math.sqrt((Q * R) / (16 * Math.PI));
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Diseño de difusores acústicos — POZOLE ACOUSTIC
+ * Diseño de difusores acústicos — POZOLE ACÚSTICA
  *
  * Implementa el procedimiento de la clase "Diseño de Difusores" (Acústica de Salas 2026-2):
  *   - QRD unidimensional y bidimensional (Schroeder, residuo cuadrático)

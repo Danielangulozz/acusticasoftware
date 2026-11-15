@@ -1,15 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowUpRight, Compass, Menu, Moon, Sun, X } from 'lucide-react';
 import { BrandLockup } from './BrandMark';
 import { linkProps } from '../router';
+import { BRAND } from './siteConfig';
+import { ScrollProgressBar } from './motion';
 
 const NAV = [
+  { label: 'Resultados', path: '/', hash: 'antes-despues' },
   { label: 'Servicios', path: '/', hash: 'servicios' },
-  { label: 'Cómo funciona', path: '/', hash: 'como-funciona' },
+  { label: 'Tratamientos', path: '/', hash: 'tratamientos' },
+  { label: 'Espacios', path: '/', hash: 'espacios' },
   { label: 'Proceso', path: '/', hash: 'proceso' },
-  { label: 'Difusor Lab', path: '/', hash: 'difusor-lab' },
   { label: 'Simulador', path: '/', hash: 'software' },
-  { label: 'Equipo', path: '/', hash: 'equipo' },
 ];
 
 export function SiteNav({ current = '/', isDark, onToggleTheme }) {
@@ -30,7 +32,7 @@ export function SiteNav({ current = '/', isDark, onToggleTheme }) {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        <a {...linkProps('/')} className="shrink-0" aria-label="POZOLE ACUSTIC, inicio">
+        <a {...linkProps('/')} className="shrink-0" aria-label={`${BRAND.full}, inicio`}>
           <BrandLockup />
         </a>
 
@@ -82,6 +84,8 @@ export function SiteNav({ current = '/', isDark, onToggleTheme }) {
           </button>
         </div>
       </div>
+
+      <ScrollProgressBar />
 
       {open && (
         <nav className="md:hidden border-t border-ink/[0.07] bg-canvas/95 backdrop-blur-xl px-4 pb-5 pt-2 flex flex-col">
@@ -144,8 +148,8 @@ export function SiteFooter() {
             Ingeniería acústica de recintos: medimos, simulamos y diseñamos tratamiento para que cada espacio suene como debe.
           </p>
         </div>
-        <FooterCol title="Empresa" links={[['Servicios', '/', 'servicios'], ['Proceso', '/', 'proceso'], ['Equipo', '/', 'equipo'], ['Contacto', '/', 'contacto']]} />
-        <FooterCol title="Herramientas" links={[['Diseño de difusores', '/suite', 'difusores'], ['POZOLE Suite', '/suite']]} />
+        <FooterCol title="Empresa" links={[['Servicios', '/', 'servicios'], ['Tratamientos', '/', 'tratamientos'], ['Planes', '/', 'planes'], ['Equipo', '/', 'equipo'], ['Contacto', '/', 'contacto']]} />
+        <FooterCol title="Herramientas" links={[['POZOLE Suite', '/suite'], ['Diseño de difusores', '/suite', 'diffusers'], ['Calculadora de RT60', '/', 'software']]} />
         <div className="md:col-span-3 space-y-3">
           <div className="font-mono text-[10px] tracking-[0.2em] text-ink/40">NORMATIVA DE REFERENCIA</div>
           <div className="flex flex-wrap gap-1.5">
@@ -157,8 +161,8 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-ink/[0.05]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row gap-2 justify-between text-xs text-ink/35">
-          <span>© {new Date().getFullYear()} POZOLE ACUSTIC</span>
-          <span className="font-mono">Acústica de Recintos · 2026</span>
+          <span>© {new Date().getFullYear()} {BRAND.full} · Proyecto académico de Acústica de Recintos</span>
+          <span className="font-mono">Renders e imágenes de elaboración propia</span>
         </div>
       </div>
     </footer>
@@ -177,37 +181,6 @@ function FooterCol({ title, links }) {
         ))}
       </ul>
     </div>
-  );
-}
-
-/** Aparece suavemente al entrar en el viewport. */
-export function Reveal({ as: Tag = 'div', delay = 0, className = '', children, ...rest }) {
-  const ref = useRef(null);
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShown(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: '0px 0px -8% 0px' }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return (
-    <Tag
-      ref={ref}
-      className={`pz-reveal ${shown ? 'pz-reveal-in' : ''} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-      {...rest}
-    >
-      {children}
-    </Tag>
   );
 }
 

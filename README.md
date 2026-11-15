@@ -1,4 +1,4 @@
-# 🔊 POZOLE ACUSTIC
+# 🔊 POZOLE ACÚSTICA
 ### **P**ropagación de **O**ndas en **Z**onas y **O**ptimización de **L**ímites **E**spaciales
 
 > **Simulador Profesional e Interactivo de Campo Sonoro y Acústica de Recintos**  
@@ -19,6 +19,29 @@
 **POZOLE** es una suite de ingeniería física e interfaz interactiva desarrollada en **React 18** y **Vite** con diseño minimalista inspirado en los estándares de Apple y Tesla. La herramienta permite simular, analizar y optimizar el comportamiento acústico de recintos cerrados en bandas de octava estándar (**125 Hz a 4000 Hz**) y en bajas frecuencias mediante **acústica ondulatoria y modos propios** (**20 Hz a 20 kHz** en bandas de 1/3 de octava ISO 266).
 
 Implementa de forma matemática rigurosa los tres modelos clásicos de tiempo de reverberación ($RT_{60}$): **Sabine**, **Norris-Eyring** y **Millington-Sette**, considerando la disipación atmosférica del aire ($4mV$), directividad espacial de la fuente ($Q = 1, 2, 4, 8$), constante de sala ($R$), distancia crítica ($D_c$), nivel de presión sonora espacial ($L_p$), propagación en campo directo y reverberado, y ahora el análisis completo de modos propios de vibración, frecuencia de Schroeder, criterio de Bonello y proporciones óptimas de Bolt.
+
+---
+
+## 🌐 Sitio de la empresa y renders propios
+
+El proyecto se presenta como **POZOLE ACÚSTICA**, una empresa conceptual de acústica de recintos creada para la asignatura:
+
+- `/` — página principal: servicios, comparador **antes / después** (RT60 estimado con Norris-Eyring sobre un caso de estudio conceptual), catálogo de tratamientos, espacios, planes, calculadora exprés de RT60 y contacto. Modo claro y oscuro.
+- `/suite` — **POZOLE Suite**, el simulador. Su menú se organiza en cinco grupos (definidos en `src/components/suiteSections.js`): *Proyecto*, *Tu sala* (geometría, materiales, fuente), *Resultados* (reverberación, gráficas, modos, inteligibilidad), *Herramientas* (diseño de difusores y estudio de renders) y *Respaldo técnico* (fichas técnicas).
+
+### Fichas técnicas: cómo se calcula cada cosa
+
+Las fórmulas no se muestran dentro de los módulos; viven en **Fichas técnicas** (`#fichas`). Cada ficha indica qué se calcula, la fórmula, por qué se eligió, cuándo es válida, la referencia (autor o norma) y en qué módulo se usa. Además repite la cuenta paso a paso con los datos de la sala abierta y la compara con el valor que entrega el motor de cálculo. Esa misma comparación corre como prueba automática sobre cuatro salas distintas (`src/components/fichas/__tests__/fichas.test.js`).
+
+### Renders propios
+
+**Todas las imágenes son de elaboración propia.** El motor está en `src/render/`: un render por acumulación escrito para este proyecto (sombras suaves, luz de cielo con oclusión ambiental y versiones de día y de noche). Los difusores se modelan con las mismas secuencias que calcula la suite y las texturas son procedurales; no se usan fotos ni modelos de terceros. Usa `three`, que se descarga solo cuando se abre una vista 3D.
+
+- **Estudio de renders** (`#renders`, dentro de la suite): salas a medida (estudio, cine en casa, sala de juntas), tratamientos sueltos o el difusor diseñado, con paletas, madera, luz, cámara, tamaño y calidad; descarga en PNG o WebP.
+- **Render en vivo del difusor**: la vista «Render» del módulo de difusores se reconstruye con cada cambio de parámetros.
+- **Imágenes del sitio** (`public/renders/`): se regeneran con `npm run dev` abriendo `/tools/render-lab/index.html` (elegir tomas, calidad «Final», «Guardar en public/renders»).
+
+Los datos de marca y contacto están en `src/site/siteConfig.js`; los textos, en `src/site/content.js`; el caso de estudio, en `src/site/caseStudy.js`.
 
 ---
 
@@ -63,7 +86,7 @@ Implementa de forma matemática rigurosa los tres modelos clásicos de tiempo de
 - **Constante de Sala ($R$)**:
   $$R = \frac{A}{1 - \bar{\alpha}} \quad [\text{m}^2]$$
 - **Distancia Crítica ($D_c$)**:
-  $$D_c = 0.057 \cdot \sqrt{Q \cdot R} \quad [\text{m}]$$
+  $$D_c = \sqrt{\frac{Q \cdot R}{16\pi}} \approx 0.141 \cdot \sqrt{Q \cdot R} \quad [\text{m}]$$
 - **Nivel de Presión Sonora Total ($L_p$)**:
   $$L_p(r) = L_w + 10 \cdot \log_{10} \left( \frac{Q}{4\pi r^2} + \frac{4}{R} \right) - \Delta L_{\text{aire}}$$
 - **Relación Directo / Reverberado (DRR)**:

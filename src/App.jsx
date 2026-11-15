@@ -1,15 +1,15 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, lazy, Suspense } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import OverviewDashboard from './components/OverviewDashboard';
 import RoomDimensions from './components/RoomDimensions';
+import QuickDimensions from './components/QuickDimensions';
 import RoomVisualizer from './components/RoomVisualizer';
 import SurfaceMaterials from './components/SurfaceMaterials';
 import SourceReceiver from './components/SourceReceiver';
 import AcousticResults from './components/AcousticResults';
 import AcousticCharts from './components/AcousticCharts';
 import ReportModal from './components/ReportModal';
-import TheoryModal from './components/TheoryModal';
 import ExportModal from './components/ExportModal';
 import Footer from './components/Footer';
 import WelcomeHero from './components/WelcomeHero';
@@ -25,11 +25,18 @@ import {
   getOptimumReverberationTime,
   AIR_ABSORPTION_COEFFS,
 } from './utils/acousticCalculations';
-import { getDefaultPolygonMaterials } from './utils/defaultMaterials';
+import { DEFAULT_MATERIALS_DATABASE, getDefaultPolygonMaterials } from './utils/defaultMaterials';
+import { loadMaterialsFromCookie, saveMaterialsToCookie } from './utils/cookieStorage';
 import { ROOM_PRESETS } from './utils/roomPresets';
 import ModesModule from './components/modes/ModesModule';
 import IntelligibilityModule from './components/IntelligibilityModule';
 import DiffuserModule from './components/diffusers/DiffuserModule';
+import FichasModule from './components/fichas/FichasModule';
+import { STEP_FLOW, sectionFromHash } from './components/suiteSections';
+
+// El Estudio de renders usa WebGL (three.js): se descarga solo al abrirlo
+const RenderStudio = lazy(() => import('./components/render/RenderStudio'));
+import { calculateSceneObjectsAbsorption, generateStarterSceneItems } from './render/catalog';
 import ActiveRoom3DPreview from './components/ActiveRoom3DPreview';
 import {
   getRectangularDims,
@@ -40,47 +47,10 @@ import {
 
 const STORAGE_KEY_V3 = 'pozole_project_state_v3';
 
-const HASH_SECTION_MAP = {
-  welcome: 'welcome',
-  inicio: 'welcome',
-  overview: 'overview',
-  resumen: 'overview',
-  geometry: 'geometry',
-  geometria: 'geometry',
-  materials: 'materials',
-  materiales: 'materials',
-  source: 'source',
-  fuente: 'source',
-  results: 'results',
-  resultados: 'results',
-  charts: 'charts',
-  graficas: 'charts',
-  modes: 'modes',
-  modos: 'modes',
-  intelligibility: 'intelligibility',
-  inteligibilidad: 'intelligibility',
-  diffusers: 'diffusers',
-  difusores: 'diffusers',
-  all: 'all',
-};
-
 function resolveSectionFromHash() {
   if (typeof window === 'undefined') return null;
-  const raw = window.location.hash.replace(/^#/, '').trim().toLowerCase();
-  return HASH_SECTION_MAP[raw] || null;
+  return sectionFromHash(window.location.hash);
 }
-
-const STEP_FLOW = [
-  { id: 'overview', label: 'Panel General', hint: 'Resumen ejecutivo y vista 3D' },
-  { id: 'geometry', label: 'Paso 1 · Geometría de Sala', hint: 'Define el tamaño y forma de la planta' },
-  { id: 'materials', label: 'Paso 2 · Materiales y Caras', hint: 'Elige recubrimientos de piso, techo y paredes' },
-  { id: 'source', label: 'Paso 3 · Fuente y Oyente', hint: 'Ajusta potencia sonora, directividad y distancia' },
-  { id: 'results', label: 'Paso 4 · Resultados y Tablas', hint: 'Revisa el tiempo de eco RT60 y niveles sonoros' },
-  { id: 'charts', label: 'Paso 5 · Gráficas Acústicas', hint: 'Explora curvas por frecuencia y distancia' },
-  { id: 'modes', label: 'Lab · Modos Propios (Graves)', hint: 'Analiza resonancias de baja frecuencia y Bonello' },
-  { id: 'intelligibility', label: 'Lab · Inteligibilidad (%ALcons)', hint: 'Evalúa la claridad de la voz en la sala' },
-  { id: 'diffusers', label: 'Lab · Diseño de Difusores', hint: 'Calcula ranuras QRD, PRD o MLS a medida' },
-];
 
 // Carga segura del estado inicial persistente
 function loadSavedProjectState() {
@@ -160,14 +130,24 @@ export default function App({ initialSection }) {
     };
   });
 
-  // 2. Materiales y coeficientes de absorción (dinámicos según el número de paredes)
+  // 2. Materiales y coeficientes de absorción (dinámicos según el número de paredes, persistidos en Cookies y LocalStorage)
   const [materials, setMaterials] = useState(() => {
+    const cookieMats = loadMaterialsFromCookie(DEFAULT_MATERIALS_DATABASE);
+    if (cookieMats && Object.keys(cookieMats).length > 0) {
+      const count = savedState?.roomPolygon?.vertices?.length || 4;
+      return getDefaultPolygonMaterials(count, cookieMats);
+    }
     if (savedState?.materials && Object.keys(savedState.materials).length > 0) {
       return savedState.materials;
     }
     const count = savedState?.roomPolygon?.vertices?.length || 4;
     return getDefaultPolygonMaterials(count);
   });
+
+  // Guardar siempre en Cookies los materiales elegidos por el usuario
+  useEffect(() => {
+    saveMaterialsToCookie(materials);
+  }, [materials]);
 
   // Sincronizar materiales cuando cambia el número de vértices
   const prevVertexCount = useRef(roomPolygon.vertices.length);
@@ -227,6 +207,15 @@ export default function App({ initialSection }) {
     return savedState?.comparisonData || null;
   });
 
+  // 8. Objetos 3D del Estudio de Renders (Mobiliario, Paneles Acústicos, Trampas y Difusores)
+  const [sceneObjects, setSceneObjects] = useState(() => {
+    if (Array.isArray(savedState?.sceneObjects)) return savedState.sceneObjects;
+    return generateStarterSceneItems('studio', { W: 10, D: 6, H: 3, wallCount: 4 });
+  });
+  const [applySceneObjectsToProject, setApplySceneObjectsToProject] = useState(() => {
+    return savedState?.applySceneObjectsToProject !== undefined ? savedState.applySceneObjectsToProject : false;
+  });
+
   // Estado del indicador visual de autoguardado ('saved' | 'saving')
   const [saveStatus, setSaveStatus] = useState('saved');
   const isInitialMount = useRef(true);
@@ -253,6 +242,8 @@ export default function App({ initialSection }) {
           modalSettings,
           measurementData,
           comparisonData,
+          sceneObjects,
+          applySceneObjectsToProject,
         };
         localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(payload));
         // Mantener compatibilidad con módulo de medición
@@ -278,6 +269,8 @@ export default function App({ initialSection }) {
     modalSettings,
     measurementData,
     comparisonData,
+    sceneObjects,
+    applySceneObjectsToProject,
   ]);
 
   const handleUpdateMeasurementData = useCallback((data) => {
@@ -286,7 +279,6 @@ export default function App({ initialSection }) {
 
   // Modales
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const [isTheoryOpen, setIsTheoryOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // ============================================================================
@@ -306,14 +298,23 @@ export default function App({ initialSection }) {
     shape: 'polygon',
   }), [geometry, roomPolygon.height]);
 
+  // Absorción adicional aportada por objetos 3D colocados en el Estudio de Renders (si está sincronizado)
+  const activeSceneAbsorption = useMemo(() => {
+    if (!applySceneObjectsToProject || !Array.isArray(sceneObjects) || sceneObjects.length === 0) {
+      return null;
+    }
+    return calculateSceneObjectsAbsorption(sceneObjects).totalByBand;
+  }, [applySceneObjectsToProject, sceneObjects]);
+
   // 2. Absorción equivalente A(f)
   const absorptionData = useMemo(() => {
     return calculateRoomAbsorption(
       geometry.surfaceAreas,
       geometry.totalSurfaceArea,
-      materials
+      materials,
+      activeSceneAbsorption
     );
-  }, [geometry.surfaceAreas, geometry.totalSurfaceArea, materials]);
+  }, [geometry.surfaceAreas, geometry.totalSurfaceArea, materials, activeSceneAbsorption]);
 
   // 3. Tiempos de Reverberación RT60
   const reverberationData = useMemo(() => {
@@ -323,7 +324,8 @@ export default function App({ initialSection }) {
       geometry.surfaceAreas,
       absorptionData,
       materials,
-      includeAirAbsorption
+      includeAirAbsorption,
+      activeSceneAbsorption
     );
   }, [
     geometry.volume,
@@ -332,6 +334,7 @@ export default function App({ initialSection }) {
     absorptionData,
     materials,
     includeAirAbsorption,
+    activeSceneAbsorption,
   ]);
 
   // 4. Campo Sonoro
@@ -525,6 +528,8 @@ export default function App({ initialSection }) {
     });
     setMeasurementData(null);
     setComparisonData(null);
+    setSceneObjects(generateStarterSceneItems('studio', { W: 10, D: 6, H: 3, wallCount: 4 }));
+    setApplySceneObjectsToProject(false);
     setRoomType('speech');
     setSelectedPresetId('');
     setSelectedBand(1000);
@@ -533,7 +538,7 @@ export default function App({ initialSection }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#0B0F19] text-[#1d1d1f] dark:text-[#f5f5f7] font-sans antialiased flex flex-col lg:flex-row transition-colors duration-200">
+    <div className="pz-suite-ambient min-h-screen bg-[#f5f5f7] dark:bg-[#0B0F19] text-[#1d1d1f] dark:text-[#f5f5f7] font-sans antialiased flex flex-col lg:flex-row transition-colors duration-200">
 
       {/* Navegación Lateral (Sidebar) */}
       <Sidebar
@@ -545,16 +550,11 @@ export default function App({ initialSection }) {
         rt500={rt500Sabine}
         optimumRT={optimumRT}
         criticalDistance={activeCriticalDistance}
-        selectedPresetId={selectedPresetId}
-        onLoadPreset={handleLoadPreset}
         onOpenReport={() => setIsReportOpen(true)}
-        onOpenTheory={() => setIsTheoryOpen(true)}
         onExportCSV={() => setIsExportOpen(true)}
         onReset={handleReset}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(prev => !prev)}
-        schroederFreq={schroederData?.fsApprox}
-        modalCount={calculatedModes.length}
       />
 
       {/* Área de Contenido Principal */}
@@ -570,7 +570,6 @@ export default function App({ initialSection }) {
           onReset={handleReset}
           onExportCSV={() => setIsExportOpen(true)}
           onOpenReport={() => setIsReportOpen(true)}
-          onOpenTheoryModal={() => setIsTheoryOpen(true)}
           onLoadPreset={handleLoadPreset}
           selectedPresetId={selectedPresetId}
           isDarkMode={isDarkMode}
@@ -611,6 +610,7 @@ export default function App({ initialSection }) {
               criticalDistance={activeCriticalDistance}
               materials={materials}
               selectedBand={selectedBand}
+              isDarkMode={isDarkMode}
             />
           )}
 
@@ -640,7 +640,8 @@ export default function App({ initialSection }) {
 
           {/* 2. Geometría y Sala (Estudio Compacto 2D + 3D Sincronizado) */}
           {activeSection === 'geometry' && (
-            <div className="animate-fadeIn">
+            <div className="animate-fadeIn space-y-6">
+              <QuickDimensions roomPolygon={roomPolygon} onChangePolygon={setRoomPolygon} geometry={geometry} onOpenRenders={() => setActiveSection('renders')} />
               <RoomDimensions
                 roomPolygon={roomPolygon}
                 onChangePolygon={setRoomPolygon}
@@ -669,6 +670,8 @@ export default function App({ initialSection }) {
                     materials={materials}
                     onChangeMaterials={setMaterials}
                     selectedBand={selectedBand}
+                    sceneObjects={sceneObjects}
+                    onOpenRenders={() => setActiveSection('renders')}
                   />
                 }
               />
@@ -795,6 +798,50 @@ export default function App({ initialSection }) {
           {activeSection === 'diffusers' && (
             <div className="animate-fadeIn">
               <DiffuserModule isDarkMode={isDarkMode} />
+            </div>
+          )}
+
+          {/* Estudio de renders */}
+          {activeSection === 'renders' && (
+            <div className="animate-fadeIn">
+              <Suspense fallback={<p className="p-10 text-center text-sm text-[#86868b] dark:text-slate-400">Preparando el estudio de renders…</p>}>
+                <RenderStudio
+                  geometry={geometry}
+                  roomPolygon={roomPolygon}
+                  materials={materials}
+                  includeAirAbsorption={includeAirAbsorption}
+                  optimumRT={optimumRT}
+                  sceneObjects={sceneObjects}
+                  onChangeSceneObjects={setSceneObjects}
+                  applySceneObjectsToProject={applySceneObjectsToProject}
+                  onToggleApplySceneObjects={setApplySceneObjectsToProject}
+                  isDarkMode={isDarkMode}
+                />
+              </Suspense>
+            </div>
+          )}
+
+          {/* Fichas técnicas: fórmulas, normas y comprobación con la sala abierta */}
+          {activeSection === 'fichas' && (
+            <div className="animate-fadeIn">
+              <FichasModule
+                onNavigate={setActiveSection}
+                geometry={geometry}
+                materials={materials}
+                absorptionData={absorptionData}
+                reverberationData={reverberationData}
+                soundFieldData={soundFieldData}
+                sourceReceiver={sourceReceiver}
+                includeAirAbsorption={includeAirAbsorption}
+                selectedBand={selectedBand}
+                roomType={roomType}
+                optimumRT={optimumRT}
+                modalDimensions={modalDimensions}
+                modalSettings={modalSettings}
+                t60ForSchroeder={t60ForSchroeder}
+                schroederData={schroederData}
+                calculatedModes={calculatedModes}
+              />
             </div>
           )}
 
@@ -944,7 +991,7 @@ export default function App({ initialSection }) {
                       onClick={() => setActiveSection(prevStep.id)}
                       className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-xs font-bold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/10 transition cursor-pointer shrink-0"
                     >
-                      ← {prevStep.label}
+                      ← {prevStep.title}
                     </button>
                   ) : (
                     <button
@@ -952,12 +999,12 @@ export default function App({ initialSection }) {
                       onClick={() => setActiveSection('welcome')}
                       className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-xs font-bold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/10 transition cursor-pointer shrink-0"
                     >
-                      ← Guía de Inicio
+                      ← Inicio
                     </button>
                   )}
                   <div className="hidden md:block">
                     <div className="text-[11px] font-bold text-[#1d1d1f] dark:text-white">
-                      {STEP_FLOW[idx].label}
+                      {STEP_FLOW[idx].title}
                     </div>
                     <div className="text-[10px] text-[#86868b] dark:text-slate-400">
                       {STEP_FLOW[idx].hint}
@@ -981,7 +1028,7 @@ export default function App({ initialSection }) {
                       onClick={() => setActiveSection(nextStep.id)}
                       className="px-4 py-2 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] text-white text-xs font-bold shadow-sm transition cursor-pointer"
                     >
-                      Siguiente: {nextStep.label} →
+                      Siguiente: {nextStep.title} →
                     </button>
                   )}
                 </div>
@@ -1021,11 +1068,6 @@ export default function App({ initialSection }) {
         }}
       />
 
-      {/* Modal de Formulario Físico */}
-      <TheoryModal
-        isOpen={isTheoryOpen}
-        onClose={() => setIsTheoryOpen(false)}
-      />
 
       {/* Modal de Exportación Excel / CSV / Copiar */}
       <ExportModal
