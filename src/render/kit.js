@@ -2440,8 +2440,14 @@ function resolveFloorMaterialFromProject(M, matId, fallbackFloor, fallbackFloorC
 /**
  * Construye una cinta extruida continua para una pared (recta o curva) entre las alturas [yBottom, yTop]
  * y el rango de distancia longitudinal [sStart, sEnd] sobre `wInfo.segments`.
+ * `offset` la desplaza hacia el exterior del muro (revestimiento de fachada) y `extStart` / `extEnd`
+ * fijan cuánto se prolonga en cada extremo para cerrar las esquinas.
  */
-function buildWallRibbonMesh(wInfo, { yBottom = 0, yTop = 2.7, thickness = 0.13, sStart = 0, sEnd = null }, material) {
+function buildWallRibbonMesh(
+  wInfo,
+  { yBottom = 0, yTop = 2.7, thickness = 0.13, sStart = 0, sEnd = null, offset = 0, extStart = null, extEnd = null },
+  material
+) {
   const maxS = wInfo.length;
   const a = clamp(sStart, 0, maxS);
   const b = clamp(sEnd ?? maxS, 0, maxS);
@@ -2453,24 +2459,35 @@ function buildWallRibbonMesh(wInfo, { yBottom = 0, yTop = 2.7, thickness = 0.13,
   const outerPts = [];
   const steps = wInfo.segments.length > 1 ? Math.max(4, Math.ceil(((b - a) / maxS) * wInfo.segments.length)) : 1;
 
+  const straight = wInfo.segments.length === 1 ? wInfo.segments[0] : null;
   for (let k = 0; k <= steps; k++) {
     const dist = a + (k / steps) * (b - a);
     const alongFromMid = dist - maxS / 2;
-    const pt = sampleWallPoint(wInfo, alongFromMid);
+    // Un muro recto llega exactamente hasta sus esquinas (sampleWallPoint deja 8 cm de margen)
+    const pt = straight
+      ? {
+          x: straight.p0.x + (dist / maxS) * (straight.p1.x - straight.p0.x),
+          z: straight.p0.z + (dist / maxS) * (straight.p1.z - straight.p0.z),
+          inX: straight.inX,
+          inZ: straight.inZ,
+        }
+      : sampleWallPoint(wInfo, alongFromMid);
     // En los extremos de paredes rectas extendemos ligeramente para cerrar esquinas limpiamente
     let extX = 0;
     let extZ = 0;
     if (wInfo.segments.length === 1) {
       if (k === 0 && a <= 0.001) {
-        extX = -wInfo.tx * (thickness * 0.45);
-        extZ = -wInfo.tz * (thickness * 0.45);
+        const e = extStart ?? thickness * 0.45;
+        extX = -wInfo.tx * e;
+        extZ = -wInfo.tz * e;
       } else if (k === steps && b >= maxS - 0.001) {
-        extX = wInfo.tx * (thickness * 0.45);
-        extZ = wInfo.tz * (thickness * 0.45);
+        const e = extEnd ?? thickness * 0.45;
+        extX = wInfo.tx * e;
+        extZ = wInfo.tz * e;
       }
     }
-    const ix = pt.x + extX;
-    const iz = pt.z + extZ;
+    const ix = pt.x + extX - pt.inX * offset;
+    const iz = pt.z + extZ - pt.inZ * offset;
     const ox = ix - pt.inX * thickness;
     const oz = iz - pt.inZ * thickness;
     innerPts.push({ x: ix, z: iz });
@@ -2507,15 +2524,21 @@ const CATALOG_WINDOW_TYPES = new Set([
  * los vanos de todas las puertas y ventanas (`openings`: `{ sLeft, sRight, yBottom, yTop }`)
  * para que las puertas se vean de ambos lados de la pared y los ventanales sean transparentes de lado a lado.
  */
-function addWallWithOpenings(parentGroup, wInfo, { wallH, thickness, openings = [], wallMat, skirtMat, isFullWall }) {
+function addWallWithOpenings(
+  parentGroup,
+  wInfo,
+  { wallH, thickness, openings = [], wallMat, skirtMat, isFullWall, offset = 0, extStart = null, extEnd = null }
+) {
   const L = wInfo.length;
+  const ribbon = (range, material) => buildWallRibbonMesh(wInfo, { thickness, offset, extStart, extEnd, ...range }, material);
+  const skirt = (range) => buildWallRibbonMesh(wInfo, { ...range, yBottom: 0, yTop: 0.08, thickness: -0.014 }, skirtMat);
+  const add = (mesh) => {
+    if (mesh) parentGroup.add(mesh);
+  };
+
   if (!isFullWall || openings.length === 0) {
-    const wallMesh = buildWallRibbonMesh(wInfo, { yBottom: 0, yTop: wallH, thickness }, wallMat);
-    if (wallMesh) parentGroup.add(wallMesh);
-    if (isFullWall && skirtMat) {
-      const skirtMesh = buildWallRibbonMesh(wInfo, { yBottom: 0, yTop: 0.08, thickness: -0.014 }, skirtMat);
-      if (skirtMesh) parentGroup.add(skirtMesh);
-    }
+    add(ribbon({ yBottom: 0, yTop: wallH }, wallMat));
+    if (isFullWall && skirtMat) add(skirt({}));
     return;
   }
 
@@ -2538,28 +2561,19 @@ function addWallWithOpenings(parentGroup, wInfo, { wallH, thickness, openings = 
 
     // Tramo sólido antes del vano
     if (left - cursor > 0.02) {
-      const segMesh = buildWallRibbonMesh(wInfo, { sStart: cursor, sEnd: left, yBottom: 0, yTop: wallH, thickness }, wallMat);
-      if (segMesh) parentGroup.add(segMesh);
-      if (skirtMat) {
-        const sk = buildWallRibbonMesh(wInfo, { sStart: cursor, sEnd: left, yBottom: 0, yTop: 0.08, thickness: -0.014 }, skirtMat);
-        if (sk) parentGroup.add(sk);
-      }
+      add(ribbon({ sStart: cursor, sEnd: left, yBottom: 0, yTop: wallH }, wallMat));
+      if (skirtMat) add(skirt({ sStart: cursor, sEnd: left }));
     }
 
     // Antepecho inferior bajo el vano (si es ventana con alféizar > 0)
     if (op.yBottom > 0.02) {
-      const sillMesh = buildWallRibbonMesh(wInfo, { sStart: left, sEnd: right, yBottom: 0, yTop: op.yBottom, thickness }, wallMat);
-      if (sillMesh) parentGroup.add(sillMesh);
-      if (skirtMat && op.yBottom >= 0.08) {
-        const sk = buildWallRibbonMesh(wInfo, { sStart: left, sEnd: right, yBottom: 0, yTop: 0.08, thickness: -0.014 }, skirtMat);
-        if (sk) parentGroup.add(sk);
-      }
+      add(ribbon({ sStart: left, sEnd: right, yBottom: 0, yTop: op.yBottom }, wallMat));
+      if (skirtMat && op.yBottom >= 0.08) add(skirt({ sStart: left, sEnd: right }));
     }
 
     // Dintel superior sobre la puerta o ventana
     if (wallH - op.yTop > 0.02) {
-      const lintelMesh = buildWallRibbonMesh(wInfo, { sStart: left, sEnd: right, yBottom: op.yTop, yTop: wallH, thickness }, wallMat);
-      if (lintelMesh) parentGroup.add(lintelMesh);
+      add(ribbon({ sStart: left, sEnd: right, yBottom: op.yTop, yTop: wallH }, wallMat));
     }
 
     cursor = right;
@@ -2567,20 +2581,85 @@ function addWallWithOpenings(parentGroup, wInfo, { wallH, thickness, openings = 
 
   // Tramo sólido final después del último vano
   if (L - cursor > 0.02) {
-    const tailMesh = buildWallRibbonMesh(wInfo, { sStart: cursor, sEnd: L, yBottom: 0, yTop: wallH, thickness }, wallMat);
-    if (tailMesh) parentGroup.add(tailMesh);
-    if (skirtMat) {
-      const sk = buildWallRibbonMesh(wInfo, { sStart: cursor, sEnd: L, yBottom: 0, yTop: 0.08, thickness: -0.014 }, skirtMat);
-      if (sk) parentGroup.add(sk);
-    }
+    add(ribbon({ sStart: cursor, sEnd: L, yBottom: 0, yTop: wallH }, wallMat));
+    if (skirtMat) add(skirt({ sStart: cursor, sEnd: L }));
   }
+}
+
+/** Desplaza un contorno cerrado hacia afuera `d` metros (unión a inglete con límite). */
+function offsetOutline(points, d, isCCW) {
+  const n = points.length;
+  const sign = isCCW ? -1 : 1;
+  return points.map((p, i) => {
+    const prev = points[(i - 1 + n) % n];
+    const next = points[(i + 1) % n];
+    const a = { x: p.x - prev.x, z: p.z - prev.z };
+    const b = { x: next.x - p.x, z: next.z - p.z };
+    const la = Math.hypot(a.x, a.z) || 1;
+    const lb = Math.hypot(b.x, b.z) || 1;
+    // normales exteriores de las dos aristas que se encuentran en el vértice
+    const n1 = { x: (-sign * a.z) / la, z: (sign * a.x) / la };
+    const n2 = { x: (-sign * b.z) / lb, z: (sign * b.x) / lb };
+    let mx = n1.x + n2.x;
+    let mz = n1.z + n2.z;
+    const ml = Math.hypot(mx, mz);
+    if (ml < 1e-4) return { x: p.x + n1.x * d, z: p.z + n1.z * d };
+    mx /= ml;
+    mz /= ml;
+    const cosHalf = Math.max(0.35, mx * n1.x + mz * n1.z);
+    return { x: p.x + (mx * d) / cosHalf, z: p.z + (mz * d) / cosHalf };
+  });
+}
+
+function outlineShape(points) {
+  const shape = new THREE.Shape();
+  shape.moveTo(points[0].x, -points[0].z);
+  for (let i = 1; i < points.length; i++) shape.lineTo(points[i].x, -points[i].z);
+  shape.closePath();
+  return shape;
+}
+
+/** Capa de los objetos que tapan el sol pero dejan pasar la luz del cielo (ver engine.js). */
+const SUN_ONLY_LAYER = 1;
+
+/**
+ * Decide qué muros se levantan completos y cuáles quedan recortados a un zócalo.
+ * `decide(part)` → true si el muro va completo. Devuelve true si algo cambió.
+ */
+export function setWallCut(shell, decide) {
+  const parts = shell?.userData?.wallParts;
+  if (!parts) return false;
+  let changed = false;
+  parts.forEach((part) => {
+    const up = Boolean(decide(part));
+    if (part.full.visible !== up) {
+      part.full.visible = up;
+      part.stub.visible = !up;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+/** Reglas fijas de corte (las que usaba el render estático). */
+export function staticWallCut(cutMode, part, wallCount) {
+  if (cutMode === 'full') return true;
+  if (cutMode === 'none') return false;
+  if (cutMode === 'back_left') return part.inZ > 0.15 || part.inX > 0.15 || part.index === 0 || part.index === wallCount - 1;
+  return part.inX * 0.58 + part.inZ * 0.81 >= -0.05;
 }
 
 /**
  * Construye el cascarón 3D de una sala con cualquier planta poligonal (`roomPolygon`),
- * incluyendo paredes en ángulo o curvas suaves, modo de corte arquitectónico (`cutMode`),
- * sincronización automática con los materiales de superficie del usuario (`materials`)
- * y recorte de vanos reales para todas las puertas y ventanales (sincronizados o del catálogo).
+ * incluyendo paredes en ángulo o curvas suaves, sincronización automática con los materiales de
+ * superficie del usuario (`materials`) y recorte de vanos reales para todas las puertas y
+ * ventanales (sincronizados o del catálogo).
+ *
+ * Cada muro se construye dos veces: completo (`wall_i`) y recortado a un zócalo (`wall_stub_i`).
+ * `cutMode` fija cuál se ve al principio ('auto' | 'back_left' | 'full' | 'none') y el visor puede
+ * cambiarlo en cada cuadro con `setWallCut` para que la maqueta siempre deje ver el interior.
+ * El techo y la cubierta (`userData.ceiling`) nacen ocultos: se muestran al entrar a la sala o al
+ * verla desde afuera.
  */
 export function polygonRoomShell(
   M,
@@ -2597,14 +2676,19 @@ export function polygonRoomShell(
     t = 0.13,
     cut = 0x3a3842,
     skirting = 0xfaf9f6,
-    cutMode = 'auto', // 'auto' | 'back_left' | 'full'
+    cutMode = 'auto', // 'auto' | 'back_left' | 'full' | 'none'
+    facade = 0xe8e2d6, // color del revestimiento exterior; null para no ponerlo
+    ceilingColor = 0xffffff,
   } = {}
 ) {
   const layout = getPolygonLayout(roomPolygon);
-  const { H, outlinePoints, walls } = layout;
+  const { H, outlinePoints, walls, isCCW } = layout;
   const g = new THREE.Group();
   const capMat = M.plastic(cut, { roughness: 0.7 });
   const skirtMat = M.paint(skirting, { roughness: 0.6 });
+  const facadeMat = facade !== null && facade !== undefined ? M.paint(facade, { roughness: 0.96 }) : null;
+  const plinthMat = M.concrete(0xa7abb2);
+  const cladding = 0.03;
 
   // Determinar el material general de las paredes del recinto (para que si el usuario puso "Puerta" o "Vidrio"
   // en una pared, el resto de esa pared conserve el material general del recinto)
@@ -2633,12 +2717,7 @@ export function polygonRoomShell(
 
   // 1. Piso poligonal extruido (incluyendo contorno curvo)
   if (outlinePoints.length >= 3) {
-    const shape = new THREE.Shape();
-    shape.moveTo(outlinePoints[0].x, -outlinePoints[0].z);
-    for (let i = 1; i < outlinePoints.length; i++) {
-      shape.lineTo(outlinePoints[i].x, -outlinePoints[i].z);
-    }
-    shape.closePath();
+    const shape = outlineShape(outlinePoints);
 
     // Losa base estructural
     const slabGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.16, bevelEnabled: false });
@@ -2652,22 +2731,19 @@ export function polygonRoomShell(
     floorGeo.translate(0, -0.02, 0);
     const uvScale = floorResolved.isCarpet ? 0.3 : 2.6;
     projectUV(floorGeo, { grain: 'x', along: uvScale, across: uvScale });
-    g.add(lit(new THREE.Mesh(floorGeo, floorResolved.mat)));
+    const floorMesh = lit(new THREE.Mesh(floorGeo, floorResolved.mat));
+    floorMesh.name = 'floor';
+    g.add(floorMesh);
   }
 
   // 2. Paredes perimetrales (rectas o curvas continuas + puertas/ventanas/cortinas de Materiales y Catálogo)
+  const wallParts = [];
   walls.forEach((wInfo, idx) => {
-    let isFullWall = true;
-    if (cutMode === 'back_left') {
-      isFullWall = wInfo.inZ > 0.15 || wInfo.inX > 0.15 || idx === 0 || idx === walls.length - 1;
-    } else if (cutMode === 'auto') {
-      const facingCam = wInfo.inX * 0.58 + wInfo.inZ * 0.81;
-      isFullWall = facingCam >= -0.05;
-    } else if (cutMode === 'full') {
-      isFullWall = true;
-    }
+    const full = new THREE.Group();
+    full.name = `wall_${idx}`;
+    const stub = new THREE.Group();
+    stub.name = `wall_stub_${idx}`;
 
-    const wallH = isFullWall ? H : 0.14;
     const wallCfg = syncSurfaceMaterials && materials ? materials[`wall_${idx}`] : null;
     const wallMatId = wallCfg?.materialId || generalWallMatId;
 
@@ -2702,44 +2778,42 @@ export function polygonRoomShell(
     const wallOpenings = [];
     const placedSyncFeatures = [];
 
-    if (isFullWall && archFeatures.length > 0) {
-      archFeatures.forEach((feat, fIdx) => {
-        const offsetAlong =
-          archFeatures.length === 1
-            ? 0
-            : (fIdx - (archFeatures.length - 1) / 2) * Math.min(1.65, wInfo.length * 0.34);
+    archFeatures.forEach((feat, fIdx) => {
+      const offsetAlong =
+        archFeatures.length === 1
+          ? 0
+          : (fIdx - (archFeatures.length - 1) / 2) * Math.min(1.65, wInfo.length * 0.34);
 
-        if (feat.kind === 'door' && wInfo.length >= 0.95) {
-          const doorW = Math.min(0.92, wInfo.length - 0.25);
-          const doorH = Math.min(2.05, H - 0.15);
-          wallOpenings.push({
-            sLeft: wInfo.length / 2 + offsetAlong - doorW / 2,
-            sRight: wInfo.length / 2 + offsetAlong + doorW / 2,
-            yBottom: 0,
-            yTop: doorH,
-          });
-          placedSyncFeatures.push({ ...feat, offsetAlong, w: doorW, h: doorH, centerY: doorH / 2 });
-        } else if (feat.kind === 'window' && wInfo.length >= 1.0) {
-          const winW = Math.min(1.65, Math.max(0.85, wInfo.length * 0.42));
-          const winH = Math.min(1.20, Math.max(0.75, H * 0.44));
-          const winCenterY = Math.min(1.48, H * 0.54);
-          wallOpenings.push({
-            sLeft: wInfo.length / 2 + offsetAlong - winW / 2,
-            sRight: wInfo.length / 2 + offsetAlong + winW / 2,
-            yBottom: Math.max(0.25, winCenterY - winH / 2),
-            yTop: Math.min(H - 0.12, winCenterY + winH / 2),
-          });
-          placedSyncFeatures.push({ ...feat, offsetAlong, w: winW, h: winH, centerY: winCenterY });
-        } else if (feat.kind === 'curtain' && wInfo.length >= 0.9) {
-          const curtW = Math.min(2.80, wInfo.length * 0.68);
-          const curtH = Math.min(2.40, H - 0.16);
-          placedSyncFeatures.push({ ...feat, offsetAlong, w: curtW, h: curtH, centerY: curtH / 2 + 0.06 });
-        }
-      });
-    }
+      if (feat.kind === 'door' && wInfo.length >= 0.95) {
+        const doorW = Math.min(0.92, wInfo.length - 0.25);
+        const doorH = Math.min(2.05, H - 0.15);
+        wallOpenings.push({
+          sLeft: wInfo.length / 2 + offsetAlong - doorW / 2,
+          sRight: wInfo.length / 2 + offsetAlong + doorW / 2,
+          yBottom: 0,
+          yTop: doorH,
+        });
+        placedSyncFeatures.push({ ...feat, offsetAlong, w: doorW, h: doorH, centerY: doorH / 2 });
+      } else if (feat.kind === 'window' && wInfo.length >= 1.0) {
+        const winW = Math.min(1.65, Math.max(0.85, wInfo.length * 0.42));
+        const winH = Math.min(1.20, Math.max(0.75, H * 0.44));
+        const winCenterY = Math.min(1.48, H * 0.54);
+        wallOpenings.push({
+          sLeft: wInfo.length / 2 + offsetAlong - winW / 2,
+          sRight: wInfo.length / 2 + offsetAlong + winW / 2,
+          yBottom: Math.max(0.25, winCenterY - winH / 2),
+          yTop: Math.min(H - 0.12, winCenterY + winH / 2),
+        });
+        placedSyncFeatures.push({ ...feat, offsetAlong, w: winW, h: winH, centerY: winCenterY });
+      } else if (feat.kind === 'curtain' && wInfo.length >= 0.9) {
+        const curtW = Math.min(2.80, wInfo.length * 0.68);
+        const curtH = Math.min(2.40, H - 0.16);
+        placedSyncFeatures.push({ ...feat, offsetAlong, w: curtW, h: curtH, centerY: curtH / 2 + 0.06 });
+      }
+    });
 
     // También abrir vanos reales en el muro para las puertas y ventanales colocados desde el Catálogo 3D
-    if (isFullWall && Array.isArray(sceneItems)) {
+    if (Array.isArray(sceneItems)) {
       sceneItems.forEach((item) => {
         if (!item || item.enabled === false || item.mount !== 'wall') return;
         const itemWallIdx = ((Number(item.wallIndex) || 0) % walls.length + walls.length) % walls.length;
@@ -2774,70 +2848,108 @@ export function polygonRoomShell(
       });
     }
 
-    // Construir pared y zócalo respetando todas las aberturas de puertas y ventanas
-    addWallWithOpenings(g, wInfo, {
-      wallH,
+    // En las esquinas salientes el muro se prolonga su propio espesor para cerrarlas sin muescas
+    const prev = walls[(idx - 1 + walls.length) % walls.length];
+    const next = walls[(idx + 1) % walls.length];
+    const convexStart = wInfo.tx * prev.inX + wInfo.tz * prev.inZ > 1e-3;
+    const convexEnd = -(wInfo.tx * next.inX + wInfo.tz * next.inZ) > 1e-3;
+    const endsFor = (reach) => ({ extStart: convexStart ? reach : 0, extEnd: convexEnd ? reach : 0 });
+
+    // Muro completo con sus vanos y zócalo
+    addWallWithOpenings(full, wInfo, {
+      wallH: H,
       thickness: t,
       openings: wallOpenings,
       wallMat: thisWallMat,
       skirtMat,
-      isFullWall,
+      isFullWall: true,
+      ...endsFor(t),
     });
+    const fullCap = buildWallRibbonMesh(wInfo, { yBottom: H, yTop: H + 0.015, thickness: t + 0.006, ...endsFor(t + 0.006) }, capMat);
+    if (fullCap) full.add(fullCap);
 
-    // Remate oscuro de corte arquitectónico superior
-    const capMesh = buildWallRibbonMesh(
-      wInfo,
-      { yBottom: wallH, yTop: wallH + 0.015, thickness: t + 0.006 },
-      capMat
-    );
-    if (capMesh) g.add(capMesh);
+    // Revestimiento de fachada por la cara exterior, sobre un zócalo de concreto
+    if (facadeMat) {
+      const ends = endsFor(t + cladding);
+      addWallWithOpenings(full, wInfo, {
+        wallH: H + 0.015,
+        thickness: cladding,
+        offset: t,
+        openings: wallOpenings,
+        wallMat: facadeMat,
+        skirtMat: null,
+        isFullWall: true,
+        ...ends,
+      });
+      const base = buildWallRibbonMesh(wInfo, { yBottom: -0.18, yTop: 0, thickness: cladding + 0.012, offset: t, ...endsFor(t + cladding + 0.012) }, plinthMat);
+      if (base) full.add(base);
+    }
+
+    // Versión recortada: zócalo bajo con remate oscuro de corte arquitectónico
+    addWallWithOpenings(stub, wInfo, { wallH: 0.14, thickness: t, wallMat: thisWallMat, skirtMat: null, isFullWall: false, ...endsFor(t) });
+    const stubCap = buildWallRibbonMesh(wInfo, { yBottom: 0.14, yTop: 0.155, thickness: t + 0.006, ...endsFor(t + 0.006) }, capMat);
+    if (stubCap) stub.add(stubCap);
 
     // Colocar los elementos arquitectónicos 3D sincronizados desde "Materiales"
-    if (isFullWall && placedSyncFeatures.length > 0) {
-      placedSyncFeatures.forEach((feat) => {
-        const pt = sampleWallPoint(wInfo, feat.offsetAlong);
-        if (feat.kind === 'door') {
-          const doorObj = archDoor(M, { w: feat.w, h: feat.h, wood, wallThickness: t });
-          g.add(
-            place(doorObj, {
-              x: pt.x,
-              y: feat.centerY,
-              z: pt.z,
-              ry: pt.rotationY,
-            })
-          );
-        } else if (feat.kind === 'window') {
-          const winObj = archWindow(M, {
-            w: feat.w,
-            h: feat.h,
-            open: feat.matId === 'open_window_total_absorption',
-            double: feat.matId === 'glass_double_insulated' || feat.matId === 'window_double',
-            wallThickness: t,
-          });
-          g.add(
-            place(winObj, {
-              x: pt.x,
-              y: feat.centerY,
-              z: pt.z,
-              ry: pt.rotationY,
-            })
-          );
-        } else if (feat.kind === 'curtain') {
-          const curtObj = drapedCurtain(M, { w: feat.w, h: feat.h, color: primaryColor });
-          g.add(
-            place(curtObj, {
-              x: pt.x + pt.inX * 0.015,
-              y: feat.centerY,
-              z: pt.z + pt.inZ * 0.015,
-              ry: pt.rotationY,
-            })
-          );
-        }
-      });
-    }
+    placedSyncFeatures.forEach((feat) => {
+      const pt = sampleWallPoint(wInfo, feat.offsetAlong);
+      if (feat.kind === 'door') {
+        const doorObj = archDoor(M, { w: feat.w, h: feat.h, wood, wallThickness: t });
+        full.add(place(doorObj, { x: pt.x, y: feat.centerY, z: pt.z, ry: pt.rotationY }));
+      } else if (feat.kind === 'window') {
+        const winObj = archWindow(M, {
+          w: feat.w,
+          h: feat.h,
+          open: feat.matId === 'open_window_total_absorption',
+          double: feat.matId === 'glass_double_insulated' || feat.matId === 'window_double',
+          wallThickness: t,
+        });
+        full.add(place(winObj, { x: pt.x, y: feat.centerY, z: pt.z, ry: pt.rotationY }));
+      } else if (feat.kind === 'curtain') {
+        const curtObj = drapedCurtain(M, { w: feat.w, h: feat.h, color: primaryColor });
+        full.add(
+          place(curtObj, {
+            x: pt.x + pt.inX * 0.015,
+            y: feat.centerY,
+            z: pt.z + pt.inZ * 0.015,
+            ry: pt.rotationY,
+          })
+        );
+      }
+    });
+
+    const part = { index: idx, full, stub, inX: wInfo.inX, inZ: wInfo.inZ, midX: wInfo.midX, midZ: wInfo.midZ };
+    const up = staticWallCut(cutMode, part, walls.length);
+    full.visible = up;
+    stub.visible = !up;
+    g.add(full, stub);
+    wallParts.push(part);
   });
 
+  // 3. Techo interior y cubierta (ocultos en la vista de maqueta)
+  const ceiling = new THREE.Group();
+  ceiling.name = 'ceiling';
+  ceiling.visible = false;
+  if (outlinePoints.length >= 3) {
+    const inner = new THREE.ExtrudeGeometry(outlineShape(outlinePoints), { depth: 0.06, bevelEnabled: false });
+    inner.rotateX(-Math.PI / 2);
+    inner.translate(0, H, 0);
+    ceiling.add(lit(new THREE.Mesh(inner, M.paint(ceilingColor))));
+
+    const roofOutline = offsetOutline(outlinePoints, t + cladding + 0.12, isCCW);
+    const roof = new THREE.ExtrudeGeometry(outlineShape(roofOutline), { depth: 0.16, bevelEnabled: false });
+    roof.rotateX(-Math.PI / 2);
+    roof.translate(0, H + 0.06, 0);
+    projectUV(roof, { grain: 'x', along: 2.4, across: 2.4 });
+    ceiling.add(lit(new THREE.Mesh(roof, M.concrete(0x9a9ea6))));
+    ceiling.traverse((o) => {
+      if (o.isMesh) o.layers.set(SUN_ONLY_LAYER);
+    });
+  }
+  g.add(ceiling);
+
   g.userData.layout = layout;
+  g.userData.wallParts = wallParts;
+  g.userData.ceiling = ceiling;
   return g;
 }
-

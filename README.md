@@ -37,7 +37,14 @@ Las fórmulas no se muestran dentro de los módulos; viven en **Fichas técnicas
 
 **Todas las imágenes son de elaboración propia.** El motor está en `src/render/`: un render por acumulación escrito para este proyecto (sombras suaves, luz de cielo con oclusión ambiental y versiones de día y de noche). Los difusores se modelan con las mismas secuencias que calcula la suite y las texturas son procedurales; no se usan fotos ni modelos de terceros. Usa `three`, que se descarga solo cuando se abre una vista 3D.
 
-- **Estudio de renders** (`#renders`, dentro de la suite): salas a medida (estudio, cine en casa, sala de juntas), tratamientos sueltos o el difusor diseñado, con paletas, madera, luz, cámara, tamaño y calidad; descarga en PNG o WebP.
+- **Estudio de renders** (`#renders`, dentro de la suite):
+  - Cuatro formas de ver la sala, con transición suave entre ellas: **Maqueta** (gira alrededor; los muros que estorban se ocultan solos), **Recorrer** (primera persona: W A S D, clic en el piso para ir, sin atravesar muros), **Exterior** (la sala cerrada con techo, en su entorno) y **Planta** (desde arriba, para acomodar arrastrando).
+  - Entornos 3D reales: jardín, ciudad, atardecer o fondo de estudio, de día o de noche y con hora del sol ajustable.
+  - Catálogo de unos 160 objetos con miniatura dibujada por el propio motor: tratamiento acústico, equipos de sonido (en cuatro series de acabado inventadas, sin marcas reales), instrumentos, sala y comedor, dormitorio, cocina y electrodomésticos, cómputo, oficina, iluminación, taller y decoración. Cada objeto aporta absorción al cálculo de reverberación.
+  - Inspector del objeto elegido (posición, tamaño, acabado, absorción), vistas guardadas y recorridos (giro, paseo interior, entrada, vuelo de dron o «mis vistas»).
+  - Exporta imagen (PNG, JPG o WebP) y **video MP4** del recorrido, dibujado cuadro por cuadro con el codificador del navegador.
+  - **Archivo → Guardar / Abrir proyecto** (.json) además del guardado automático en el navegador.
+- **Motor** (`src/render/engine.js`): vista interactiva de un solo cuadro con antialiasing por hardware y sombras ya calculadas mientras se mueve la cámara; al soltar, afina por acumulación (sol con penumbra, cuatro luces de cielo por pasada para la oclusión ambiental, rebote del piso). Los objetos se modelan una vez, se funden en pocas mallas y se guardan en caché, así que mover un mueble cuesta milisegundos.
 - **Render en vivo del difusor**: la vista «Render» del módulo de difusores se reconstruye con cada cambio de parámetros.
 - **Imágenes del sitio** (`public/renders/`): se regeneran con `npm run dev` abriendo `/tools/render-lab/index.html` (elegir tomas, calidad «Final», «Guardar en public/renders»).
 

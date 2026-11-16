@@ -550,6 +550,114 @@ export function getBackdropTexture(kind = 'landscape') {
   return backdropCache.get(kind);
 }
 
+/* ------------------------------------------------ texturas del entorno exterior */
+
+/** Dibuja `draw(x, y)` y sus copias al otro lado de los bordes, para que la textura repita sin costuras. */
+function tiled(size, x, y, reach, draw) {
+  for (const ox of [0, x < reach ? size : x > size - reach ? -size : null]) {
+    if (ox === null) continue;
+    for (const oy of [0, y < reach ? size : y > size - reach ? -size : null]) {
+      if (oy === null) continue;
+      draw(x + ox, y + oy);
+    }
+  }
+}
+
+function grassCanvas(seed) {
+  const size = 512;
+  const [c, g] = canvas(size);
+  const r = rng(seed);
+  g.fillStyle = '#6c9650';
+  g.fillRect(0, 0, size, size);
+  for (let i = 0; i < 110; i++) {
+    const rad = 18 + r() * 60;
+    g.fillStyle = r() > 0.5 ? 'rgba(152,190,98,0.10)' : 'rgba(48,92,42,0.11)';
+    tiled(size, r() * size, r() * size, rad, (x, y) => {
+      g.beginPath();
+      g.arc(x, y, rad, 0, Math.PI * 2);
+      g.fill();
+    });
+  }
+  g.lineWidth = 1;
+  for (let i = 0; i < 6000; i++) {
+    const v = r();
+    g.strokeStyle = v > 0.62 ? 'rgba(176,208,116,0.34)' : v > 0.28 ? 'rgba(56,104,48,0.34)' : 'rgba(112,150,72,0.3)';
+    const dx = (r() - 0.5) * 5;
+    const dy = 2 + r() * 6;
+    tiled(size, r() * size, r() * size, 8, (x, y) => {
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + dx, y - dy);
+      g.stroke();
+    });
+  }
+  return c;
+}
+
+function pavementCanvas(seed) {
+  const size = 512;
+  const [c, g] = canvas(size);
+  const r = rng(seed);
+  g.fillStyle = '#8f9197';
+  g.fillRect(0, 0, size, size);
+  const cells = 4;
+  const step = size / cells;
+  for (let y = 0; y < cells; y++) {
+    for (let x = 0; x < cells; x++) {
+      const v = 176 + Math.floor((r() - 0.5) * 22);
+      g.fillStyle = `rgb(${v},${v},${v + 3})`;
+      g.fillRect(x * step + 2, y * step + 2, step - 4, step - 4);
+    }
+  }
+  for (let i = 0; i < 2600; i++) {
+    const v = 120 + Math.floor(r() * 100);
+    g.fillStyle = `rgba(${v},${v},${v},0.14)`;
+    g.fillRect(r() * size, r() * size, 1.5 + r() * 2, 1.5 + r() * 2);
+  }
+  return c;
+}
+
+/** Fachada de edificio lejano: retícula de ventanas. Con `lit` solo quedan las ventanas encendidas (para la noche). */
+function facadeCanvas(seed, lit = false) {
+  const w = 256;
+  const h = 512;
+  const [c, g] = canvas(w, h);
+  const r = rng(seed);
+  g.fillStyle = lit ? '#000000' : '#c9cbd1';
+  g.fillRect(0, 0, w, h);
+  const cols = 4;
+  const rows = 8;
+  const cw = w / cols;
+  const ch = h / rows;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const on = r() > 0.58;
+      if (lit) {
+        if (!on) continue;
+        g.fillStyle = r() > 0.4 ? '#ffd9a0' : '#cfe1ff';
+      } else {
+        const v = 70 + Math.floor(r() * 40);
+        g.fillStyle = `rgb(${v},${v + 18},${v + 44})`;
+      }
+      g.fillRect(x * cw + cw * 0.16, y * ch + ch * 0.2, cw * 0.68, ch * 0.56);
+    }
+  }
+  return c;
+}
+
+/** Mancha radial para la sombra de contacto de árboles y arbustos. */
+function blobCanvas() {
+  const size = 128;
+  const [c, g] = canvas(size);
+  const grad = g.createRadialGradient(size / 2, size / 2, 2, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, 'rgba(0,0,0,0.85)');
+  grad.addColorStop(0.55, 'rgba(0,0,0,0.38)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  return c;
+}
+
 /* ---------------------------------------------------------- biblioteca */
 
 let shared = null;
@@ -638,17 +746,58 @@ export function createMaterials() {
       });
     },
     glass(color = 0x93c5fd, { opacity = 0.36, roughness = 0.08 } = {}) {
+      // Vidrio claro: deja ver el exterior con un velo leve y algo de reflejo
       return memo(`glass:${color}:${opacity}:${roughness}`, () =>
         new THREE.MeshStandardMaterial({
-          color,
+          color: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.6),
           transparent: true,
-          opacity,
+          opacity: opacity * 0.42,
           roughness,
-          metalness: 0.18,
+          metalness: 0.05,
           depthWrite: false,
           side: THREE.DoubleSide,
         })
       );
+    },
+
+    /* --- entorno exterior --- */
+    grass(tint = 0xffffff) {
+      return memo(`grass:${tint}`, () => {
+        const map = memo('grassmap', () => texture(grassCanvas(71)));
+        return new THREE.MeshStandardMaterial({ map, color: tint, roughness: 1, metalness: 0, vertexColors: true });
+      });
+    },
+    pavement(tint = 0xffffff) {
+      return memo(`pavement:${tint}`, () => {
+        const map = memo('pavementmap', () => texture(pavementCanvas(83)));
+        return new THREE.MeshStandardMaterial({ map, color: tint, roughness: 0.9, metalness: 0, vertexColors: true });
+      });
+    },
+    /** Follaje mate de árboles y arbustos, al estilo de una maqueta de arquitectura. */
+    foliage(color = 0x5f9a54) {
+      return memo(`foliage:${color}`, () => new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0 }));
+    },
+    /** Edificio lejano con ventanas; de noche se encienden algunas. */
+    facade(variant = 0, { tint = 0xffffff, night = false } = {}) {
+      return memo(`facade:${variant}:${tint}:${night}`, () => {
+        const map = memo(`facademap:${variant % 3}`, () => texture(facadeCanvas(200 + (variant % 3) * 31)));
+        const emissiveMap = night ? memo(`facadelit:${variant % 3}`, () => texture(facadeCanvas(200 + (variant % 3) * 31, true))) : null;
+        return new THREE.MeshStandardMaterial({
+          map,
+          color: tint,
+          roughness: 0.7,
+          metalness: 0.05,
+          emissive: night ? 0xffffff : 0x000000,
+          emissiveMap,
+          emissiveIntensity: night ? 1.6 : 0,
+        });
+      });
+    },
+    blobShadow(opacity = 0.34) {
+      return memo(`blob:${opacity}`, () => {
+        const map = memo('blobmap', () => texture(blobCanvas(), { repeat: false }));
+        return new THREE.MeshBasicMaterial({ map, color: 0x000000, transparent: true, opacity, depthWrite: false, toneMapped: false });
+      });
     },
   };
   return lib;

@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { getMaterials } from './materials.js';
 import * as K from './kit.js';
+import { EXTRA_ITEM_LIGHTS, buildExtraObject } from './kitExtra.js';
+import { createLRU, disposeObject, mergeStatic } from './optimize.js';
+import { buildEnvironment, environmentLighting, normalizeEnvironment } from './environment.js';
 
 /**
  * Escenas paramétricas del motor de renders.
@@ -51,7 +54,7 @@ export const ROOM_TYPES = {
 /* ------------------------------------------------------------------ cámara */
 
 export function orbitCamera({ target, azimuth, elevation, distance, fov = 30, aspect = 1 }) {
-  const camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 400);
+  const camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 700);
   const az = THREE.MathUtils.degToRad(azimuth);
   const el = THREE.MathUtils.degToRad(elevation);
   const t = target;
@@ -68,7 +71,7 @@ export function orbitCamera({ target, azimuth, elevation, distance, fov = 30, as
 export function cameraFor(built, view = {}, aspect = 1) {
   if (view?.firstPerson && Number.isFinite(Number(view.camX)) && Number.isFinite(Number(view.camZ))) {
     const fov = Number(view.fov) || 58;
-    const camera = new THREE.PerspectiveCamera(fov, aspect, 0.08, 250);
+    const camera = new THREE.PerspectiveCamera(fov, aspect, 0.08, 700);
     const camY = Number.isFinite(Number(view.camY)) ? Number(view.camY) : 1.55;
     const lookX = Number(view.lookX) || 0;
     const lookY = Number.isFinite(Number(view.lookY)) ? Number(view.lookY) : 1.38;
@@ -554,7 +557,7 @@ function resolveItemColor(item, pal) {
     const parsed = parseInt(String(item.customColor).replace('#', ''), 16);
     if (Number.isFinite(parsed)) return parsed;
   }
-  if (item.colorRole && pal[item.colorRole] !== undefined) {
+  if (item.colorRole && typeof pal[item.colorRole] === 'number') {
     return pal[item.colorRole];
   }
   return pal.primary;
@@ -568,6 +571,9 @@ function buildSingleSceneObject(M, item, pal, night, diffuserDesign, practicals,
   const h = Number(dims.h) || 1.2;
   const d = Number(dims.d) || 0.6;
   const t = Number(dims.t) || 0.055;
+
+  const extra = buildExtraObject(M, item.typeId, { w, h, d, t, dims, color, wood, pal, night, item });
+  if (extra) return extra;
 
   switch (item.typeId) {
     // 1. Paneles y Trampas
@@ -913,7 +919,191 @@ const THROUGH_WALL_OPENING_TYPES = new Set([
   'studio_visor_window',
 ]);
 
+/* --------------------------------------------------- cachés de la sala a medida */
+
+// Lo que sale de una caché no se libera al instante: la escena que está en pantalla puede
+// seguir usándolo. Se libera dos construcciones después, cuando ya nadie lo referencia.
+const retired = { old: [], next: [] };
+const retire = (obj) => retired.next.push(obj);
+function sweepRetired() {
+  retired.old.forEach(disposeObject);
+  retired.old = retired.next;
+  retired.next = [];
+}
+
+const protoCache = createLRU(280, retire);
+const shellCache = createLRU(4, retire);
+const envCache = createLRU(3, (env) => retire(env.group));
+
+const designIds = new WeakMap();
+let designCounter = 0;
+function designKey(design) {
+  if (!design) return 0;
+  if (!designIds.has(design)) designIds.set(design, ++designCounter);
+  return designIds.get(design);
+}
+
+const paletteKey = (pal) => `${pal.primary}|${pal.secondary}|${pal.neutral}|${pal.accent}|${pal.dark}|${pal.wood}`;
+const markShared = (root) =>
+  root.traverse((o) => {
+    if (o.geometry) o.geometry.userData.shared = true;
+  });
+
+/**
+ * Prototipo de un objeto del catálogo, sin colocar: se modela una sola vez, se funde en pocas
+ * mallas y queda en caché. Mover, girar o duplicar un objeto reutiliza el mismo prototipo.
+ */
+export function getItemPrototype(M, item, { pal = DEFAULT_PALETTE, night = false, diffuserDesign = null } = {}) {
+  const key = JSON.stringify([
+    item.typeId,
+    item.dims || {},
+    item.colorRole || '',
+    item.colorRole === 'custom' ? item.customColor : '',
+    item.wood || '',
+    Boolean(item.frame),
+    item.mount === 'wall',
+    night,
+    paletteKey(pal),
+    item.typeId === 'diffuser_suite' ? designKey(diffuserDesign) : 0,
+  ]);
+  let proto = protoCache.get(key);
+  if (!proto) {
+    proto = mergeStatic(buildSingleSceneObject(M, item, pal, night, diffuserDesign, null, null));
+    protoCache.set(key, proto);
+  }
+  return proto;
+}
+
+/** Modelo de un objeto del catálogo, nuevo y sin caché (para miniaturas). Quien lo pide lo libera. */
+export function buildItemModel(M, item, { pal = DEFAULT_PALETTE, night = false, diffuserDesign = null } = {}) {
+  return mergeStatic(buildSingleSceneObject(M, item, { ...DEFAULT_PALETTE, ...pal }, night, diffuserDesign, null, null));
+}
+
+/** Luces que aportan las lámparas del catálogo: [altura, color, intensidad de día, de noche, alcance]. */
+const ITEM_LIGHTS = {
+  floor_lamp: (item) => ({ y: 1.55, color: 0xffdcb0, day: 0, night: 1.5, distance: 3.4 }),
+  studio_softbox_light: (item, h) => ({ y: h - 0.1, color: 0xfff5e0, day: 0.9, night: 2.4, distance: 4.8 }),
+  ring_light_stand: (item, h) => ({ y: h - 0.2, color: 0xfff8eb, day: 0.7, night: 2.0, distance: 4.0 }),
+  ceiling_led_panel: (item, h, H) => ({ y: H - (Number(item.dims?.drop) || 0.35) - 0.12, color: 0xfff6e5, day: 0.85, night: 2.5, distance: 5.5 }),
+  track_spotlight_bar: (item, h, H) => ({ y: H - (Number(item.dims?.drop) || 0.22) - 0.14, color: 0xffe4b5, day: 0.75, night: 2.2, distance: 5.0 }),
+  desk_lamp: (item, h) => ({ y: (Number(item.y) || 0) + h * 0.85, color: 0xffe0a3, day: 0.5, night: 1.5, distance: 3.0 }),
+  ...EXTRA_ITEM_LIGHTS,
+};
+const MAX_ITEM_LIGHTS = 6;
+
+// Focos de techo del modo noche: se reutilizan entre escenas para no reservar mapas de sombra cada vez
+let nightSpots = null;
+function getNightSpots() {
+  if (!nightSpots) {
+    nightSpots = [0, 1].map(() => {
+      const light = new THREE.SpotLight(0xffdcb0, 14, 0, 0.95, 0.7, 2);
+      light.castShadow = true;
+      light.shadow.mapSize.set(1024, 1024);
+      light.shadow.bias = -0.0006;
+      light.shadow.normalBias = 0.02;
+      light.shadow.camera.near = 0.15;
+      light.shadow.camera.far = 16;
+      light.userData.shared = true;
+      return light;
+    });
+  }
+  return nightSpots;
+}
+
+/** Coloca en la sala las piezas de un objeto (según su montaje y repetición) dentro de un contenedor. */
+function placeSceneItem(M, item, { pal, night, diffuserDesign, layout }) {
+  const { H, walls, corners } = layout;
+  const proto = getItemPrototype(M, item, { pal, night, diffuserDesign });
+  const count = Math.max(1, Math.min(12, Number(item.count) || 1));
+  const spacing = Number(item.spacing) ?? 0.12;
+  const rotRad = THREE.MathUtils.degToRad(Number(item.rotation) || 0);
+  const container = new THREE.Group();
+  container.name = `item_${item.id}`;
+  const piece = () => proto.clone(true);
+
+  if (item.mount === 'wall' && walls.length > 0) {
+    const wIdx = ((Number(item.wallIndex) || 0) % walls.length + walls.length) % walls.length;
+    const wInfo = walls[wIdx];
+    const unitW = Number(proto.userData?.width) || Number(item.dims?.w) || 0.6;
+    const pitch = unitW + spacing;
+    const isThroughWall = THROUGH_WALL_OPENING_TYPES.has(item.typeId);
+    const isDoor = item.typeId === 'arch_door' || item.typeId === 'double_door';
+    container.userData.wallIndex = wIdx;
+
+    for (let i = 0; i < count; i++) {
+      const offsetAlong = (Number(item.along) || 0) + (i - (count - 1) / 2) * pitch;
+      const clampedAlong = clamp(offsetAlong, -wInfo.length / 2 + 0.1, wInfo.length / 2 - 0.1);
+      const pt = K.sampleWallPoint(wInfo, clampedAlong);
+
+      // Puertas y ventanales se centran exactamente en el muro para verse en ambos lados; paneles van ligeramente al interior
+      const px = isThroughWall ? pt.x : pt.x + pt.inX * 0.008;
+      const pz = isThroughWall ? pt.z : pt.z + pt.inZ * 0.008;
+
+      const unitH = Number(item.dims?.h) || (isDoor ? 2.05 : 1.2);
+      const elev = isDoor
+        ? unitH / 2
+        : item.typeId === 'floor_to_ceiling_window'
+          ? unitH / 2 + 0.04
+          : clamp(Number(item.elevation) || 1.35, 0.15, H - 0.15);
+
+      container.add(K.place(piece(), { x: px, y: elev, z: pz, ry: pt.rotationY + rotRad }));
+    }
+  } else if (item.mount === 'corner' && corners.length > 0) {
+    const cIdx = ((Number(item.cornerIndex) || 0) % corners.length + corners.length) % corners.length;
+    const cInfo = corners[cIdx];
+    const isTube = item.typeId === 'trap_tube';
+    const inwardShift = isTube ? (Number(item.dims?.w) || 0.4) * 0.62 : 0.01;
+    container.add(
+      K.place(piece(), {
+        x: cInfo.x + cInfo.inX * inwardShift,
+        y: Number(item.y) || 0,
+        z: cInfo.z + cInfo.inZ * inwardShift,
+        ry: cInfo.rotationY + rotRad,
+      })
+    );
+  } else {
+    // Techo, piso, sobre una mesa o repisa (item.y > 0) o libre
+    const isCeiling = item.mount === 'ceiling';
+    const drop = clamp(Number(item.dims?.drop ?? item.drop) || 0.35, 0.04, Math.max(0.1, H - 0.35));
+    const unitW = Number(item.dims?.w) || (isCeiling ? 1.2 : 0.6);
+    const pitch = unitW + spacing;
+    const cosR = Math.cos(rotRad);
+    const sinR = Math.sin(rotRad);
+    const baseY = isCeiling ? H - drop : item.mount === 'free' ? Number(item.y) || 1.0 : Number(item.y) || 0;
+
+    for (let i = 0; i < count; i++) {
+      const shift = (i - (count - 1) / 2) * pitch;
+      container.add(
+        K.place(piece(), {
+          x: (Number(item.x) || 0) + shift * cosR,
+          y: baseY,
+          z: (Number(item.z) || 0) - shift * sinR,
+          ry: rotRad,
+        })
+      );
+    }
+  }
+
+  // Etiquetar las mallas con el ID del objeto para seleccionarlo con un clic en 3D
+  container.userData.sceneItemId = item.id;
+  container.traverse((obj) => {
+    if (obj.isMesh) obj.userData.sceneItemId = item.id;
+  });
+  return container;
+}
+
+// Color de la luz que rebota en el piso hacia el techo (el del piso, lavado con blanco)
+const FLOOR_BOUNCE = { planks: 0xf6e7d2, walnut: 0xe4d0bd, carpet: 0xd6d6de, tiles: 0xf1f3f6, concrete: 0xe2e4e8 };
+
+/**
+ * Sala a la medida: planta poligonal del proyecto (o rectangular), objetos del catálogo y,
+ * si se pide, un entorno exterior en 3D (`environment`: 'garden' | 'city' | 'sunset' | 'studio').
+ *
+ * Devuelve además `shell` (muros y techo que el visor muestra u oculta según la cámara),
+ * `itemObjects` (Map id → objeto 3D) y `env` (sectores de vegetación).
+ */
 export function buildCustomRoomScene(opts = {}) {
+  sweepRetired();
   const night = Boolean(opts.night);
   const pal = { ...DEFAULT_PALETTE, ...opts.palette };
   const M = getMaterials();
@@ -937,127 +1127,57 @@ export function buildCustomRoomScene(opts = {}) {
           curvatures: {},
         };
 
-  const shell = K.polygonRoomShell(M, {
-    roomPolygon,
-    materials: opts.materials || null,
-    syncSurfaceMaterials: opts.syncSurfaceMaterials !== false && Boolean(opts.usePolygon && opts.materials),
-    sceneItems: items,
-    wall: pal.wall,
-    floor: pal.floor,
-    floorColor: pal.floorColor || 0x8d8a86,
-    wood: pal.wood || 'oak',
-    primaryColor: pal.primary,
-    cutMode: opts.cutMode || 'auto',
-  });
+  const sync = opts.syncSurfaceMaterials !== false && Boolean(opts.usePolygon && opts.materials);
+  const cutMode = opts.cutMode || 'auto';
+  const openings = items
+    .filter((it) => it && it.enabled !== false && it.mount === 'wall' && THROUGH_WALL_OPENING_TYPES.has(it.typeId))
+    .map((it) => [it.typeId, it.wallIndex, it.along, it.elevation, it.dims?.w, it.dims?.h, it.count, it.spacing]);
+  const shellKey = JSON.stringify([roomPolygon, sync ? opts.materials : 0, pal.wall, pal.floor, pal.floorColor, pal.wood, pal.primary, openings]);
+  let shell = shellCache.get(shellKey);
+  if (!shell) {
+    shell = K.polygonRoomShell(M, {
+      roomPolygon,
+      materials: opts.materials || null,
+      syncSurfaceMaterials: sync,
+      sceneItems: items,
+      wall: pal.wall,
+      floor: pal.floor,
+      floorColor: pal.floorColor || 0x8d8a86,
+      wood: pal.wood || 'oak',
+      primaryColor: pal.primary,
+      cutMode,
+    });
+    // Cada muro (completo y recortado) queda en pocas mallas
+    shell.userData.wallParts.forEach((part) => {
+      for (const k of ['full', 'stub']) {
+        const merged = mergeStatic(part[k]);
+        shell.remove(part[k]);
+        shell.add(merged);
+        part[k] = merged;
+      }
+    });
+    markShared(shell);
+    shellCache.set(shellKey, shell);
+  }
+  // El cascarón en caché conserva lo que el visor haya ocultado: se devuelve a su estado inicial
+  const wallCount = shell.userData.wallParts.length;
+  K.setWallCut(shell, (part) => K.staticWallCut(cutMode, part, wallCount));
+  shell.userData.ceiling.visible = cutMode === 'full' && Boolean(opts.ceiling);
   g.add(shell);
 
   const layout = shell.userData.layout || K.getPolygonLayout(roomPolygon);
-  const { W, D, H, walls, corners } = layout;
+  const { W, D, H } = layout;
 
   // 2. Colocar cada objeto 3D personalizable
+  const itemObjects = new Map();
+  let lightCount = 0;
   items.forEach((item) => {
     if (!item || item.enabled === false) return;
-    const count = Math.max(1, Math.min(12, Number(item.count) || 1));
-    const spacing = Number(item.spacing) ?? 0.12;
-    const rotRad = THREE.MathUtils.degToRad(Number(item.rotation) || 0);
-    const itemContainer = new THREE.Group();
+    const container = placeSceneItem(M, item, { pal, night, diffuserDesign: opts.diffuserDesign, layout });
 
-    if (item.mount === 'wall' && walls.length > 0) {
-      const wIdx = ((Number(item.wallIndex) || 0) % walls.length + walls.length) % walls.length;
-      const wInfo = walls[wIdx];
-      const baseSample = buildSingleSceneObject(M, item, pal, night, opts.diffuserDesign, practicals, g);
-      const unitW = Number(baseSample.userData?.width) || Number(item.dims?.w) || 0.6;
-      const pitch = unitW + spacing;
-      const isThroughWall = THROUGH_WALL_OPENING_TYPES.has(item.typeId);
-      const isDoor = item.typeId === 'arch_door' || item.typeId === 'double_door';
-
-      for (let i = 0; i < count; i++) {
-        const piece = i === 0 ? baseSample : buildSingleSceneObject(M, item, pal, night, opts.diffuserDesign, practicals, g);
-        const offsetAlong = (Number(item.along) || 0) + (i - (count - 1) / 2) * pitch;
-        const clampedAlong = clamp(offsetAlong, -wInfo.length / 2 + 0.1, wInfo.length / 2 - 0.1);
-        const pt = K.sampleWallPoint(wInfo, clampedAlong);
-
-        // Puertas y ventanales se centran exactamente en el muro para verse en ambos lados; paneles van ligeramente al interior
-        const px = isThroughWall ? pt.x : pt.x + pt.inX * 0.008;
-        const pz = isThroughWall ? pt.z : pt.z + pt.inZ * 0.008;
-
-        const unitH = Number(item.dims?.h) || (isDoor ? 2.05 : 1.2);
-        const elev = isDoor
-          ? unitH / 2
-          : item.typeId === 'floor_to_ceiling_window'
-            ? unitH / 2 + 0.04
-            : clamp(Number(item.elevation) || 1.35, 0.15, H - 0.15);
-
-        K.place(piece, {
-          x: px,
-          y: elev,
-          z: pz,
-          ry: pt.rotationY + rotRad,
-        });
-        itemContainer.add(piece);
-      }
-    } else if (item.mount === 'corner' && corners.length > 0) {
-      const cIdx = ((Number(item.cornerIndex) || 0) % corners.length + corners.length) % corners.length;
-      const cInfo = corners[cIdx];
-      const piece = buildSingleSceneObject(M, item, pal, night, opts.diffuserDesign, practicals, g);
-      const isTube = item.typeId === 'trap_tube';
-      const inwardShift = isTube ? (Number(item.dims?.w) || 0.4) * 0.62 : 0.01;
-      K.place(piece, {
-        x: cInfo.x + cInfo.inX * inwardShift,
-        y: Number(item.y) || 0,
-        z: cInfo.z + cInfo.inZ * inwardShift,
-        ry: cInfo.rotationY + rotRad,
-      });
-      itemContainer.add(piece);
-    } else if (item.mount === 'ceiling') {
-      const drop = clamp(Number(item.dims?.drop ?? item.drop) || 0.35, 0.04, Math.max(0.1, H - 0.35));
-      const unitW = Number(item.dims?.w) || 1.2;
-      const pitch = unitW + spacing;
-      const cosR = Math.cos(rotRad);
-      const sinR = Math.sin(rotRad);
-
-      for (let i = 0; i < count; i++) {
-        const piece = buildSingleSceneObject(M, item, pal, night, opts.diffuserDesign, practicals, g);
-        const shift = (i - (count - 1) / 2) * pitch;
-        K.place(piece, {
-          x: (Number(item.x) || 0) + shift * cosR,
-          y: H - drop,
-          z: (Number(item.z) || 0) - shift * sinR,
-          ry: rotRad,
-        });
-        itemContainer.add(piece);
-      }
-    } else {
-      // Montaje en piso ('floor') o sobre mesas / estanterías (item.y > 0) o libre ('free')
-      const unitW = Number(item.dims?.w) || 0.6;
-      const pitch = unitW + spacing;
-      const cosR = Math.cos(rotRad);
-      const sinR = Math.sin(rotRad);
-      const baseY = item.mount === 'free' ? Number(item.y) || 1.0 : Number(item.y) || 0;
-
-      for (let i = 0; i < count; i++) {
-        const piece = buildSingleSceneObject(M, item, pal, night, opts.diffuserDesign, practicals, g);
-        const shift = (i - (count - 1) / 2) * pitch;
-        K.place(piece, {
-          x: (Number(item.x) || 0) + shift * cosR,
-          y: baseY,
-          z: (Number(item.z) || 0) - shift * sinR,
-          ry: rotRad,
-        });
-        itemContainer.add(piece);
-      }
-    }
-
-    // Etiquetar todas las mallas hijas con el ID del objeto para selección interactiva con clic en 3D
-    itemContainer.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.userData.sceneItemId = item.id;
-      }
-    });
-
-    // Indicador visual sutil en el objeto seleccionado (solo en vista previa interactiva)
+    // Indicador del objeto seleccionado (solo para los visores que no dibujan el suyo)
     if (opts.selectedItemId && opts.selectedItemId === item.id && !opts.hideSelection) {
-      const box3 = new THREE.Box3().setFromObject(itemContainer);
+      const box3 = new THREE.Box3().setFromObject(container);
       if (!box3.isEmpty()) {
         const center = box3.getCenter(new THREE.Vector3());
         const size = box3.getSize(new THREE.Vector3());
@@ -1068,41 +1188,72 @@ export function buildCustomRoomScene(opts = {}) {
         ringMesh.position.set(center.x, Math.max(0.015, box3.min.y + 0.01), center.z);
         ringMesh.castShadow = false;
         ringMesh.receiveShadow = false;
-        itemContainer.add(ringMesh);
+        container.add(ringMesh);
       }
     }
 
-    g.add(itemContainer);
+    // Lámparas: una luz puntual por objeto, con tope para no encarecer el sombreado
+    const lamp = ITEM_LIGHTS[item.typeId];
+    if (lamp && lightCount < MAX_ITEM_LIGHTS) {
+      const spec = lamp(item, Number(item.dims?.h) || 1.2, H);
+      const intensity = night ? spec.night : spec.day;
+      if (intensity > 0) {
+        bulb(g, { pos: [Number(item.x) || 0, spec.y, Number(item.z) || 0], color: spec.color, intensity, distance: spec.distance });
+        lightCount += 1;
+      }
+    }
+
+    itemObjects.set(item.id, container);
+    g.add(container);
   });
 
   // 3. Iluminación interior en modo Noche
   if (night) {
-    practicals.push(
-      spot(g, {
-        pos: [0, H - 0.15, -D * 0.18],
-        target: [0, 0, -D * 0.12],
-        intensity: 18,
-        angle: 1.05,
-        radius: 0.14,
-      })
-    );
-    practicals.push(
-      spot(g, {
-        pos: [W * 0.22, H - 0.12, D * 0.2],
-        target: [W * 0.15, 0, D * 0.18],
-        intensity: 13,
-        angle: 0.9,
-        radius: 0.12,
-      })
-    );
+    const [a, b] = getNightSpots();
+    const aimSpot = (light, pos, target, intensity, angle, radius) => {
+      light.position.set(...pos);
+      light.target.position.set(...target);
+      light.intensity = intensity;
+      light.angle = angle;
+      g.add(light, light.target);
+      practicals.push({ light, radius });
+    };
+    aimSpot(a, [0, H - 0.15, -D * 0.18], [0, 0, -D * 0.12], 18, 1.05, 0.14);
+    aimSpot(b, [W * 0.22, H - 0.12, D * 0.2], [W * 0.15, 0, D * 0.18], 13, 0.9, 0.12);
     bulb(g, { pos: [0, H * 0.62, 0], color: 0xb9a8ff, intensity: 1.1, distance: Math.max(4, W) });
   }
 
   scene.add(g);
-  scene.add(shadowGround(-0.18, night ? 0.3 : 0.42));
 
-  const base = night ? NIGHT : DAYLIGHT;
-  const lighting = { ...base, practicals };
+  // 4. Entorno exterior e iluminación
+  const envId = opts.environment ? normalizeEnvironment(opts.environment) : 'studio';
+  const lighting = { ...environmentLighting(envId, { night, sun: opts.sun }), practicals };
+  if (lighting.bounce && FLOOR_BOUNCE[pal.floor]) lighting.bounce = { ...lighting.bounce, color: FLOOR_BOUNCE[pal.floor] };
+
+  let env = null;
+  if (envId !== 'studio') {
+    const key = lighting.key;
+    const sunDir = new THREE.Vector3(0.3, 0.8, 0.4);
+    if (key) {
+      const az = THREE.MathUtils.degToRad(key.azimuth);
+      const el = THREE.MathUtils.degToRad(key.elevation);
+      sunDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az));
+    }
+    const envKey = JSON.stringify([envId, night, Math.round(W * 2), Math.round(D * 2), key?.azimuth ?? 0, key?.elevation ?? 0, key?.color ?? 0]);
+    env = envCache.get(envKey);
+    if (!env) {
+      env = buildEnvironment(M, envId, { W, D, night, sunDir, sunColor: key?.color ?? 0xfff0dc });
+      markShared(env.group);
+      envCache.set(envKey, env);
+    }
+    env.sectors.forEach((s) => {
+      s.visible = true;
+    });
+    scene.add(env.group);
+    scene.fog = env.fog;
+  } else {
+    scene.add(shadowGround(-0.18, night ? 0.3 : 0.42));
+  }
 
   const half = new THREE.Vector3(W / 2 + 0.18, H / 2 + 0.12, D / 2 + 0.18);
   const focus = new THREE.Sphere(new THREE.Vector3(0, H * 0.32, 0), half.length());
@@ -1115,6 +1266,10 @@ export function buildCustomRoomScene(opts = {}) {
     view: { azimuth: 40, elevation: 27, zoom: 1 },
     dims: { W, D, H },
     layout,
+    root: g,
+    shell,
+    itemObjects,
+    env,
   };
 }
 

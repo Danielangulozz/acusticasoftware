@@ -1,4 +1,5 @@
 import { OCTAVE_BANDS } from '../utils/acousticCalculations.js';
+import { EXTRA_FURNITURE, EXTRA_SURFACES } from './catalogExtra.js';
 
 /**
  * Catálogo completo de objetos 3D personalizables para el Estudio de Renders y Simulación Acústica:
@@ -1031,6 +1032,9 @@ export const FURNITURE_CATALOG = {
   },
 };
 
+// Ampliación del catálogo (hogar, cómputo, dormitorio, herramientas, audio e instrumentos)
+Object.assign(FURNITURE_CATALOG, EXTRA_FURNITURE);
+
 export const FURNITURE_SUBCATEGORIES = [
   { id: 'all', label: 'Todo' },
   { id: 'chairs_tables', label: 'Sillas / Mesas / Estantes' },
@@ -1195,6 +1199,7 @@ export const SUPPORT_SURFACE_SPECS = {
   sideboard: true,
   coffee_table: true,
   student_desk: true,
+  ...Object.fromEntries(EXTRA_SURFACES.map((id) => [id, true])),
 };
 
 const SURFACE_PROVIDER_TYPES = new Set(Object.keys(SUPPORT_SURFACE_SPECS));
@@ -1749,6 +1754,14 @@ export function generateStarterSceneItems(preset = 'studio', { W = 5.4, D = 4.4,
       name: 'Planta Acústica',
       x: leftX + 0.45,
       z: frontZ - 0.32,
+    }),
+    // Accesos: una puerta y una ventana, para que la sala también se entienda por fuera
+    createSceneItem('arch_door', { name: 'Puerta de Acceso', wallIndex: wFront, along: 0 }),
+    createSceneItem('arch_window', {
+      name: 'Ventana Lateral',
+      wallIndex: wRight,
+      along: Math.min(0.5, safeD * 0.1),
+      elevation: Math.min(1.5, safeH * 0.56),
     }),
     // Tratamiento acústico
     createSceneItem('panel_slats', {

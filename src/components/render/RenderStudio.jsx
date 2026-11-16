@@ -1,359 +1,223 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Activity,
-  Armchair,
   Box,
-  Camera,
   Check,
   ChevronDown,
-  ChevronUp,
+  ChevronLeft,
   Copy,
-  Cpu,
+  Crosshair,
   Download,
   Eye,
   EyeOff,
+  FilePlus2,
   Film,
+  FolderOpen,
+  Footprints,
   Grid3x3,
+  House,
   Image as ImageIcon,
-  Layers,
   Lock,
-  Maximize2,
+  Map as MapIcon,
+  Minus,
   Moon,
-  MousePointer,
-  Move,
-  Palette,
-  Pause,
   Play,
   Plus,
   Redo2,
   RotateCcw,
   RotateCw,
-  Ruler,
+  Rotate3d,
+  Save,
   Search,
-  Sliders,
-  Sparkles,
+  Square,
   Sun,
   Trash2,
   Undo2,
   Unlock,
   Wand2,
   X,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
-import RenderViewport from '../../render/RenderViewport';
-import { PRODUCT_KINDS, ROOM_TYPES, defaultViewFor } from '../../render/scenes';
-import { getPolygonLayout, sampleWallPoint } from '../../render/kit';
+import SceneViewport, { PREVIEW_QUALITY } from '../../render/SceneViewport';
+import { PRODUCT_KINDS } from '../../render/scenes';
+import { getPolygonLayout } from '../../render/kit';
 import {
-  DIFFUSER_CATALOG,
-  FURNITURE_CATALOG,
-  PANEL_CATALOG,
+  ALL_CATALOG_ITEMS,
   ROOM_PRESET_STYLES,
   SUPPORT_SURFACE_SPECS,
   calculateItemAbsorption,
   calculateSceneObjectsAbsorption,
   createSceneItem,
-  findSupportingSurface,
   generateStarterSceneItems,
   getCatalogItem,
   getSupportSurfaceLevels,
 } from '../../render/catalog';
-import {
-  OCTAVE_BANDS,
-  calculatePolygonGeometry,
-  calculateReverberationTimes,
-  calculateRoomAbsorption,
-} from '../../utils/acousticCalculations';
-import { DEFAULT_MATERIALS_DATABASE, getDefaultPolygonMaterials } from '../../utils/defaultMaterials';
-import { loadRenderOptsFromCookie, saveRenderOptsToCookie } from '../../utils/cookieStorage';
+import { CATALOG_GROUPS, catalogGroupOf } from '../../render/catalogExtra';
+import { AUDIO_FINISHES } from '../../render/kitAudio';
+import { ENVIRONMENTS } from '../../render/environment';
+import { cachedThumbnail, requestThumbnail } from '../../render/thumbnails';
+import { parseStudioFile, serializeStudio } from '../../render/studioFile';
+import { OCTAVE_BANDS, calculatePolygonGeometry, calculateReverberationTimes, calculateRoomAbsorption } from '../../utils/acousticCalculations';
+import { getDefaultPolygonMaterials } from '../../utils/defaultMaterials';
 import { DIFFUSER_TYPE_LABELS, designFromConfig, loadDiffuserConfig } from '../diffusers/diffuserConfig';
 
 /**
- * Estudio de Renders y Diseño Acústico 3D — POZOLE Suite
+ * Estudio de renders de POZOLE Suite.
  *
- * Interfaz centrada en el Viewport 3D (sin necesidad de hacer scroll fuera del visor):
- *  - Sincronización en cookies y localStorage de materiales de superficie y opciones de render.
- *  - Altura de separación del techo ajustable (`dims.drop`) con cables tensores dinámicos.
- *  - Puertas visibles en AMBOS lados de la pared (vano 3D real cortado en el muro) y ventanales panorámicos.
- *  - Amplio catálogo de objetos reales (TV, TV con base móvil, laptop, PC, cámaras, luces de estudio/sala,
- *    sillas de colegio con brazo, estanterías medias alargables, mesas de juntas alargables hasta 6 m).
- *  - Colocación de objetos sobre mesas y estanterías (detección automática en 3D/2D + selector de repisa).
- *  - Atajos de teclado: Ctrl+Z (Deshacer), Ctrl+Y (Rehacer), Supr (Borrar), Ctrl+D (Duplicar), R (Rotar), L (Bloquear).
- *  - Opción de Bloquear objetos (`locked`) para evitar movimientos accidentales.
- *  - Vista Cinemática en 1ª Persona que ENTRA realmente al recinto y recorre la ruta trazada en planta.
+ *   · Cuatro formas de ver la sala: Maqueta (gira alrededor), Recorrer (a la altura de los ojos,
+ *     con W A S D o haciendo clic en el piso), Exterior (la sala cerrada en su entorno) y Planta
+ *     (desde arriba, para acomodar). El cambio entre ellas es un viaje suave de la cámara.
+ *   · Catálogo con miniaturas dibujadas por el propio motor; un clic agrega el objeto.
+ *   · Inspector del objeto elegido, vistas guardadas, recorridos y exportación a imagen o video.
+ *   · Guardar y abrir el proyecto como archivo .json, además del guardado automático.
  */
 
-const STORAGE_KEY = 'pozole_render_studio_v4';
+const STORAGE_KEY = 'pozole_render_studio_v5';
+const HINTS_KEY = 'pozole_render_hints_v1';
 
-const CARD =
-  'bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm transition-colors';
+const CARD = 'bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm';
 const TITLE = 'text-[#1d1d1f] dark:text-white';
-const MUTED = 'text-[#86868b] dark:text-slate-400';
-const CHIP_ON =
-  'border-[#5833c7] bg-[#5833c7]/10 dark:bg-[#5833c7]/25 text-[#5833c7] dark:text-[#c4b5fd]';
-const CHIP_OFF =
-  'border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-slate-300 hover:border-[#5833c7]/40';
-
-const PERF_MODES = [
-  {
-    id: 'eco',
-    label: 'Ligero',
-    badge: '⚡ Ligero',
-    desc: 'Vista previa instantánea de bajo consumo de GPU/batería',
-    previewMax: 540,
-    previewSamples: 4,
-    shadowSize: 512,
-    skipBloom: true,
-    debounceMs: 45,
-  },
-  {
-    id: 'balanced',
-    label: 'Equilibrado',
-    badge: '⚖️ Fluido',
-    desc: 'Equilibrio óptimo entre fluidez al mover y sombras suaves',
-    previewMax: 760,
-    previewSamples: 24,
-    shadowSize: 1024,
-    skipBloom: false,
-    debounceMs: 80,
-  },
-  {
-    id: 'ultra',
-    label: 'Detallado',
-    badge: '✨ Ultra',
-    desc: 'Acumulación progresiva completa con oclusión ambiental y bloom',
-    previewMax: 960,
-    previewSamples: 72,
-    shadowSize: 1024,
-    skipBloom: false,
-    debounceMs: 110,
-  },
-];
+const MUTED = 'text-[#6e6e73] dark:text-slate-400';
+const SOFT = 'bg-[#f5f5f7] dark:bg-[#18192a]';
+const LINE = 'border-black/[0.07] dark:border-white/[0.08]';
+const ACTIVE = 'bg-[#fff] dark:bg-[#2a2c44] shadow-sm text-[#1d1d1f] dark:text-white';
+const IDLE = 'text-[#6e6e73] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white';
 
 const THEMES = [
-  {
-    name: 'POZOLE',
-    primary: '#7464cc',
-    secondary: '#b3a7ec',
-    neutral: '#e9e2d3',
-    accent: '#d9a441',
-    dark: '#3b3b45',
-    wood: 'oak',
-    wall: '#f1eee8',
-    floor: 'planks',
-  },
-  {
-    name: 'Académico',
-    primary: '#2563eb',
-    secondary: '#93c5fd',
-    neutral: '#f1f5f9',
-    accent: '#f59e0b',
-    dark: '#334155',
-    wood: 'birch',
-    wall: '#f4f6f8',
-    floor: 'tiles',
-  },
-  {
-    name: 'Industrial',
-    primary: '#1d4ed8',
-    secondary: '#64748b',
-    neutral: '#cbd5e1',
-    accent: '#ea580c',
-    dark: '#1e293b',
-    wood: 'oak',
-    wall: '#d6d9de',
-    floor: 'concrete',
-  },
-  {
-    name: 'Cine Oscuro',
-    primary: '#8b5cf6',
-    secondary: '#6366f1',
-    neutral: '#cbd5e1',
-    accent: '#f59e0b',
-    dark: '#1e1b2e',
-    wood: 'walnut',
-    wall: '#45434f',
-    floor: 'carpet',
-  },
-  {
-    name: 'Bosque',
-    primary: '#3f7f6b',
-    secondary: '#a9cdb9',
-    neutral: '#ece7da',
-    accent: '#c98a3d',
-    dark: '#2d3b36',
-    wood: 'ash',
-    wall: '#eef0ea',
-    floor: 'planks',
-  },
+  { name: 'POZOLE', primary: '#7464cc', secondary: '#b3a7ec', neutral: '#e9e2d3', accent: '#d9a441', dark: '#3b3b45', wood: 'oak', wall: '#f1eee8', floor: 'planks' },
+  { name: 'Académico', primary: '#2563eb', secondary: '#93c5fd', neutral: '#f1f5f9', accent: '#f59e0b', dark: '#334155', wood: 'birch', wall: '#f4f6f8', floor: 'tiles' },
+  { name: 'Industrial', primary: '#1d4ed8', secondary: '#64748b', neutral: '#cbd5e1', accent: '#ea580c', dark: '#1e293b', wood: 'oak', wall: '#d6d9de', floor: 'concrete' },
+  { name: 'Cine oscuro', primary: '#8b5cf6', secondary: '#6366f1', neutral: '#cbd5e1', accent: '#f59e0b', dark: '#1e1b2e', wood: 'walnut', wall: '#45434f', floor: 'carpet' },
+  { name: 'Bosque', primary: '#3f7f6b', secondary: '#a9cdb9', neutral: '#ece7da', accent: '#c98a3d', dark: '#2d3b36', wood: 'ash', wall: '#eef0ea', floor: 'planks' },
 ];
-
-const WOODS = [
-  ['oak', 'Roble'],
-  ['walnut', 'Nogal'],
-  ['birch', 'Abedul'],
-  ['ash', 'Fresno'],
-];
-const FLOORS = [
-  ['planks', 'Madera'],
-  ['walnut', 'Nogal'],
-  ['carpet', 'Alfombra'],
-  ['tiles', 'Baldosa'],
-  ['concrete', 'Concreto'],
-];
+const WOODS = [['oak', 'Roble'], ['walnut', 'Nogal'], ['birch', 'Abedul'], ['ash', 'Fresno']];
+const FLOORS = [['planks', 'Madera'], ['walnut', 'Nogal'], ['carpet', 'Alfombra'], ['tiles', 'Baldosa'], ['concrete', 'Concreto']];
 const WALLS = ['#f1eee8', '#f4f6f8', '#dfe5dc', '#d6d9de', '#45434f'];
+const COLOR_ROLES = [['primary', 'Principal'], ['secondary', 'Secundario'], ['neutral', 'Neutro'], ['accent', 'Acento'], ['dark', 'Oscuro'], ['custom', 'Libre']];
 
-const COLOR_ROLES = [
-  ['primary', 'Principal'],
-  ['secondary', 'Secundario'],
-  ['neutral', 'Neutro'],
-  ['accent', 'Acento'],
-  ['dark', 'Oscuro'],
-  ['custom', 'Color libre'],
+const PRESETS = [
+  { id: 'studio', label: 'Estudio', hint: 'Grabación y mezcla' },
+  { id: 'cinema', label: 'Cine en casa', hint: 'Pantalla y butacas' },
+  { id: 'meeting', label: 'Sala de juntas', hint: 'Mesa y videollamada' },
+  { id: 'classroom', label: 'Aula', hint: 'Pupitres y tablero' },
+  { id: 'industrial', label: 'Taller', hint: 'Máquinas y estantería' },
+  { id: 'empty', label: 'Vacía', hint: 'Solo los muros' },
+];
+
+const VIEW_TABS = [
+  { id: 'orbit', label: 'Maqueta', icon: Rotate3d, hint: 'Arrastra para girar · clic derecho o Ctrl para desplazar · rueda para acercar · doble clic en un objeto para centrarlo' },
+  { id: 'walk', label: 'Recorrer', icon: Footprints, hint: 'W A S D para caminar · arrastra para mirar · clic en el piso para ir allí · Shift corre · R / F sube o baja la vista' },
+  { id: 'exterior', label: 'Exterior', icon: House, hint: 'Así se ve la sala desde afuera · arrastra para rodearla' },
+  { id: 'plan', label: 'Planta', icon: MapIcon, hint: 'Vista desde arriba · arrastra un objeto para moverlo · arrastra el fondo para desplazarte' },
 ];
 
 const SIZES = [
-  { id: '4:3', label: 'Horizontal 4:3', w: 2000, h: 1500 },
-  { id: '16:9', label: 'Panorámico 16:9', w: 1920, h: 1080 },
-  { id: '1:1', label: 'Cuadrado 1:1', w: 1500, h: 1500 },
-  { id: '4:5', label: 'Vertical 4:5', w: 1200, h: 1500 },
+  { id: '16:9', label: 'Panorámica', w: 1920, h: 1080 },
+  { id: '4:3', label: 'Clásica', w: 2000, h: 1500 },
+  { id: '1:1', label: 'Cuadrada', w: 1500, h: 1500 },
+  { id: '4:5', label: 'Vertical', w: 1200, h: 1500 },
 ];
-const QUALITIES = [
-  { id: 'rapida', label: 'Rápida', samples: 90 },
-  { id: 'alta', label: 'Alta', samples: 220 },
-  { id: 'maxima', label: 'Máxima', samples: 420 },
+const IMAGE_QUALITIES = [
+  { id: 'rapida', label: 'Rápida', samples: 40 },
+  { id: 'alta', label: 'Alta', samples: 110 },
+  { id: 'maxima', label: 'Máxima', samples: 240 },
 ];
-const BACKGROUNDS = [
-  { id: 'landscape', label: '🏞️ Paisaje' },
-  { id: 'city', label: '🌆 Ciudad' },
-  { id: 'sunset', label: '🌅 Atardecer' },
-  { id: 'studio', label: '📸 Estudio' },
-  { id: 'transparent', label: '🏁 Transp.' },
-  { id: '#f5f5f7', label: '☀️ Claro' },
-  { id: '#08080c', label: '🌙 Oscuro' },
+const VIDEO_QUALITIES = [
+  { id: 'borrador', label: 'Borrador', samples: 2 },
+  { id: 'buena', label: 'Buena', samples: 5 },
+  { id: 'alta', label: 'Alta', samples: 12 },
 ];
-const CAMERAS = [
-  { label: 'Esquina', view: { firstPerson: false, azimuth: 40, elevation: 27, targetX: 0, targetZ: 0 } },
-  { label: 'Frontal', view: { firstPerson: false, azimuth: 2, elevation: 20, targetX: 0, targetZ: 0 } },
-  { label: 'Lateral', view: { firstPerson: false, azimuth: 86, elevation: 20, targetX: 0, targetZ: 0 } },
-  { label: 'Cenital', view: { firstPerson: false, azimuth: 40, elevation: 68, targetX: 0, targetZ: 0 } },
+const VIDEO_SIZES = [
+  { id: '720', label: '720p', w: 1280, h: 720, bitrate: 6e6 },
+  { id: '1080', label: '1080p', w: 1920, h: 1080, bitrate: 10e6 },
 ];
 
-// Paradas por defecto dentro del recinto (coordenadas normalizadas respecto a W y D para adaptarse a cualquier sala)
-function createDefaultInteriorWaypoints(W = 5.4, D = 4.4) {
-  const rx = Math.max(0.8, W * 0.3);
-  const rz = Math.max(0.8, D * 0.3);
-  return [
-    { id: 'wp1', label: 'Entrada', x: -rx, z: rz, lookX: 0, lookZ: -rz * 0.5 },
-    { id: 'wp2', label: 'Frente Izq.', x: -rx, z: -rz, lookX: rx * 0.5, lookZ: 0 },
-    { id: 'wp3', label: 'Frente Der.', x: rx, z: -rz, lookX: 0, lookZ: rz * 0.5 },
-    { id: 'wp4', label: 'Fondo Der.', x: rx, z: rz, lookX: -rx * 0.5, lookZ: -rz * 0.3 },
-  ];
-}
-
-// Controles para el modo «Pieza suelta»
 const PRODUCT_FIELDS = {
-  absorber: [
-    ['w', 'Ancho', 0.4, 1.2, 0.05, 'm'],
-    ['h', 'Alto', 0.4, 2.4, 0.05, 'm'],
-    ['t', 'Espesor', 0.03, 0.12, 0.005, 'm'],
-  ],
-  foam: [
-    ['w', 'Ancho', 0.4, 1.2, 0.05, 'm'],
-    ['h', 'Alto', 0.4, 1.2, 0.05, 'm'],
-    ['t', 'Espesor', 0.03, 0.1, 0.005, 'm'],
-  ],
-  perforated: [
-    ['w', 'Ancho', 0.5, 1.5, 0.05, 'm'],
-    ['h', 'Alto', 0.6, 2.4, 0.05, 'm'],
-    ['t', 'Espesor', 0.04, 0.1, 0.005, 'm'],
-  ],
-  membrane: [
-    ['w', 'Ancho', 0.5, 1.2, 0.05, 'm'],
-    ['h', 'Alto', 0.6, 2.0, 0.05, 'm'],
-    ['t', 'Profundidad', 0.08, 0.22, 0.01, 'm'],
-  ],
-  trap: [
-    ['side', 'Lado', 0.3, 0.7, 0.02, 'm'],
-    ['h', 'Alto', 0.8, 2.6, 0.05, 'm'],
-  ],
-  tube: [
-    ['r', 'Radio', 0.15, 0.35, 0.01, 'm'],
-    ['h', 'Alto', 0.8, 2.4, 0.05, 'm'],
-  ],
-  qrd: [
-    ['periods', 'Períodos', 1, 3, 1, ''],
-    ['h', 'Alto', 0.4, 2.4, 0.05, 'm'],
-    ['depth', 'Profundidad', 0.08, 0.3, 0.01, 'm'],
-  ],
-  skyline: [
-    ['cell', 'Lado del bloque', 0.05, 0.12, 0.005, 'm'],
-    ['maxH', 'Altura máxima', 0.08, 0.3, 0.01, 'm'],
-  ],
-  prd: [
-    ['periods', 'Períodos', 1, 3, 1, ''],
-    ['h', 'Alto', 0.4, 2.4, 0.05, 'm'],
-    ['depth', 'Profundidad', 0.08, 0.3, 0.01, 'm'],
-  ],
-  mls: [
-    ['periods', 'Períodos', 1, 3, 1, ''],
-    ['h', 'Alto', 0.4, 2.4, 0.05, 'm'],
-    ['depth', 'Profundidad', 0.05, 0.2, 0.01, 'm'],
-  ],
-  poly: [
-    ['count', 'Cilindros', 1, 5, 1, ''],
-    ['chord', 'Cuerda', 0.3, 0.9, 0.05, 'm'],
-    ['sag', 'Flecha', 0.04, 0.25, 0.01, 'm'],
-    ['h', 'Alto', 0.6, 2.4, 0.05, 'm'],
-  ],
-  slats: [
-    ['w', 'Ancho', 0.4, 2.4, 0.05, 'm'],
-    ['h', 'Alto', 0.6, 2.6, 0.05, 'm'],
-  ],
-  cloud: [
-    ['count', 'Paneles', 1, 2, 1, ''],
-    ['w', 'Largo', 0.6, 1.8, 0.05, 'm'],
-    ['d', 'Ancho', 0.4, 1.2, 0.05, 'm'],
-  ],
+  absorber: [['w', 'Ancho', 0.4, 1.2, 0.05, 'm'], ['h', 'Alto', 0.4, 2.4, 0.05, 'm'], ['t', 'Espesor', 0.03, 0.12, 0.005, 'm']],
+  foam: [['w', 'Ancho', 0.4, 1.2, 0.05, 'm'], ['h', 'Alto', 0.4, 1.2, 0.05, 'm'], ['t', 'Espesor', 0.03, 0.1, 0.005, 'm']],
+  perforated: [['w', 'Ancho', 0.5, 1.5, 0.05, 'm'], ['h', 'Alto', 0.6, 2.4, 0.05, 'm'], ['t', 'Espesor', 0.04, 0.1, 0.005, 'm']],
+  membrane: [['w', 'Ancho', 0.5, 1.2, 0.05, 'm'], ['h', 'Alto', 0.6, 2.0, 0.05, 'm'], ['t', 'Profundidad', 0.08, 0.22, 0.01, 'm']],
+  trap: [['side', 'Lado', 0.3, 0.7, 0.02, 'm'], ['h', 'Alto', 0.8, 2.6, 0.05, 'm']],
+  tube: [['r', 'Radio', 0.15, 0.35, 0.01, 'm'], ['h', 'Alto', 0.8, 2.4, 0.05, 'm']],
+  qrd: [['periods', 'Períodos', 1, 3, 1, ''], ['h', 'Alto', 0.4, 2.4, 0.05, 'm'], ['depth', 'Profundidad', 0.08, 0.3, 0.01, 'm']],
+  skyline: [['cell', 'Lado del bloque', 0.05, 0.12, 0.005, 'm'], ['maxH', 'Altura máxima', 0.08, 0.3, 0.01, 'm']],
+  prd: [['periods', 'Períodos', 1, 3, 1, ''], ['h', 'Alto', 0.4, 2.4, 0.05, 'm'], ['depth', 'Profundidad', 0.08, 0.3, 0.01, 'm']],
+  mls: [['periods', 'Períodos', 1, 3, 1, ''], ['h', 'Alto', 0.4, 2.4, 0.05, 'm'], ['depth', 'Profundidad', 0.05, 0.2, 0.01, 'm']],
+  poly: [['count', 'Cilindros', 1, 5, 1, ''], ['chord', 'Cuerda', 0.3, 0.9, 0.05, 'm'], ['sag', 'Flecha', 0.04, 0.25, 0.01, 'm'], ['h', 'Alto', 0.6, 2.4, 0.05, 'm']],
+  slats: [['w', 'Ancho', 0.4, 2.4, 0.05, 'm'], ['h', 'Alto', 0.6, 2.6, 0.05, 'm']],
+  cloud: [['count', 'Paneles', 1, 2, 1, ''], ['w', 'Largo', 0.6, 1.8, 0.05, 'm'], ['d', 'Ancho', 0.4, 1.2, 0.05, 'm']],
 };
 const PRODUCT_PRIMES = { qrd: [5, 7, 11, 13], skyline: [5, 7, 11], prd: [5, 7, 11, 13] };
 
+const DIM_LABELS = { w: 'Ancho', d: 'Fondo', h: 'Alto', t: 'Espesor', drop: 'Separación del techo', spread: 'Separación', r: 'Radio', chord: 'Cuerda', sag: 'Flecha', cell: 'Lado del bloque', maxH: 'Altura máxima', well: 'Ancho de ranura' };
+const INT_DIMS = { seats: ['Butacas', 2, 8], cols: ['Columnas', 1, 8], rows: ['Filas', 1, 8], periods: ['Períodos', 1, 4], baffleCount: ['Bafles', 2, 12], polyCount: ['Cilindros', 1, 5], tiles: ['Módulos', 1, 4], order: ['Orden', 2, 5] };
+const BOOL_DIMS = { withChairs: 'Con sillas', mirror: 'Con espejo', stands: 'Con pedestales', riser: 'Sobre tarima' };
+const SCREEN_KINDS = [['daw', 'Audio'], ['movie', 'Película'], ['chart', 'Gráficas'], ['lecture', 'Clase']];
+const REPEATABLE = new Set(['school_arm_chair', 'student_desk', 'dining_chair', 'shell_chair', 'visitor_chair', 'bar_stool']);
+const FLOOR_ANCHORED = new Set(['arch_door', 'double_door', 'floor_to_ceiling_window']);
+
 const DEFAULTS = {
   mode: 'room',
-  perfMode: 'balanced',
   usePolygon: true,
+  customPolygon: null,
   syncSurfaceMaterials: true,
-  cutMode: 'auto',
   roomType: 'studio',
-  dims: { ...ROOM_TYPES.studio.dims },
+  dims: { W: 5.4, D: 4.4, H: 2.7 },
   product: 'qrd',
   productParams: {},
   palette: { ...THEMES[0] },
   night: false,
-  size: '4:3',
-  quality: 'alta',
-  background: 'landscape',
+  environment: 'garden',
+  sunHour: null,
+  previewQuality: 'auto',
+  size: '16:9',
+  imageQuality: 'alta',
   format: 'png',
+  transparent: false,
+  shots: [],
+  tourLoop: true,
+  video: { size: '1080', quality: 'buena', duration: null },
 };
 
-const hex = (value) => parseInt(String(value || '#7464cc').replace('#', ''), 16);
+const hexNum = (value) => parseInt(String(value || '#7464cc').replace('#', ''), 16);
 const fmt = (v, d = 1) => Number(v || 0).toFixed(d).replace('.', ',');
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const round = (v, step) => Math.round(v / step) * step;
 
 function loadState() {
   try {
-    const cookieOpts = loadRenderOptsFromCookie(null);
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || cookieOpts;
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (!saved) return DEFAULTS;
-    return {
-      ...DEFAULTS,
-      ...saved,
-      dims: { ...DEFAULTS.dims, ...(saved.dims || {}) },
-      palette: { ...DEFAULTS.palette, ...(saved.palette || {}) },
-    };
+    return { ...DEFAULTS, ...saved, dims: { ...DEFAULTS.dims, ...(saved.dims || {}) }, palette: { ...DEFAULTS.palette, ...(saved.palette || {}) }, video: { ...DEFAULTS.video, ...(saved.video || {}) } };
   } catch {
     return DEFAULTS;
   }
+}
+
+function loadHints() {
+  try {
+    return JSON.parse(localStorage.getItem(HINTS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+/** Sol según la hora del día (6 h a 18 h): sale por un lado, sube al mediodía y baja por el otro. */
+function sunForHour(hour) {
+  if (hour === null || hour === undefined) return null;
+  const t = clamp((hour - 6) / 12, 0, 1);
+  return { azimuth: 60 + t * 240, elevation: 8 + 62 * Math.sin(Math.PI * t) };
+}
+
+function rectPolygon({ W, D, H }) {
+  return { vertices: [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: D }, { x: 0, y: D }], height: H, curvatures: {} };
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
 export default function RenderStudio({
@@ -369,167 +233,103 @@ export default function RenderStudio({
   isDarkMode = false,
 }) {
   const [opts, setOpts] = useState(loadState);
-  // 3 pestañas limpias en el dock lateral: 'catalog' | 'plan' | 'room'
-  const [dockTab, setDockTab] = useState('catalog');
-  const [catalogGroup, setCatalogGroup] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  // Acepta un objeto o una función del estado anterior (para cambios seguidos sin pisarse)
+  const patch = (changes) => setOpts((o) => ({ ...o, ...(typeof changes === 'function' ? changes(o) : changes) }));
+  const [viewMode, setViewMode] = useState('orbit');
+  const [panel, setPanel] = useState('add');
   const [selectedItemId, setSelectedItemId] = useState(null);
-  const [interactionMode, setInteractionMode] = useState('auto'); // 'auto' | 'move'
-  const [showAdvancedModal, setShowAdvancedModal] = useState(false);
-  const [showAcousticDrawer, setShowAcousticDrawer] = useState(false);
-  const [showExportPopover, setShowExportPopover] = useState(false);
-
-  // Estado de Vista Cinemática (por defecto: Recorrido Interior que ENTRA a la sala)
-  const [cinematicPlaying, setCinematicPlaying] = useState(false);
-  const [cinematicMode, setCinematicMode] = useState('interior_path'); // 'interior_path' | 'orbit' | 'sweep'
-  const [cinematicSpeed, setCinematicSpeed] = useState(1);
-  const [cinematicProgress, setCinematicProgress] = useState(0);
-
-  const [busy, setBusy] = useState(false);
-  const [last, setLast] = useState(null);
+  const [exportTab, setExportTab] = useState(null); // 'image' | 'video' | null
+  const [fileMenu, setFileMenu] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [playing, setPlaying] = useState(null);
+  const [presets, setPresets] = useState({});
+  const [hints, setHints] = useState(loadHints);
+  const [showBands, setShowBands] = useState(false);
   const viewport = useRef(null);
-
-  const patch = (changes) => setOpts((o) => ({ ...o, ...changes }));
+  const fileInput = useRef(null);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(opts));
-      saveRenderOptsToCookie({
-        mode: opts.mode,
-        perfMode: opts.perfMode,
-        usePolygon: opts.usePolygon,
-        syncSurfaceMaterials: opts.syncSurfaceMaterials,
-        cutMode: opts.cutMode,
-        roomType: opts.roomType,
-        night: opts.night,
-        background: opts.background,
-      });
     } catch {
       /* almacenamiento no disponible */
     }
   }, [opts]);
 
-  // Polígono activo para el render (el real del proyecto o caja rectangular de plantilla/manual)
-  const activePolygon = useMemo(() => {
-    if (opts.usePolygon && roomPolygon?.vertices?.length >= 3) {
-      return roomPolygon;
-    }
-    const W = Number(opts.dims.W) || 5.4;
-    const D = Number(opts.dims.D) || 4.4;
-    const H = Number(opts.dims.H) || 2.7;
-    return {
-      vertices: [
-        { x: 0, y: 0 },
-        { x: W, y: 0 },
-        { x: W, y: D },
-        { x: 0, y: D },
-      ],
-      height: H,
-      curvatures: {},
-    };
-  }, [opts.usePolygon, roomPolygon, opts.dims]);
+  const notify = (text, tone = 'ok') => {
+    setToast({ text, tone, at: Date.now() });
+  };
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(null), 3600);
+    return () => clearTimeout(t);
+  }, [toast]);
 
+  /* --------------------------------------------------------------- sala activa */
+
+  const hasProjectPlan = roomPolygon?.vertices?.length >= 3;
+  const activePolygon = useMemo(() => {
+    if (opts.usePolygon && hasProjectPlan) return roomPolygon;
+    if (opts.customPolygon?.vertices?.length >= 3) return opts.customPolygon;
+    return rectPolygon({ W: Number(opts.dims.W) || 5.4, D: Number(opts.dims.D) || 4.4, H: Number(opts.dims.H) || 2.7 });
+  }, [opts.usePolygon, hasProjectPlan, roomPolygon, opts.customPolygon, opts.dims]);
   const layout = useMemo(() => getPolygonLayout(activePolygon), [activePolygon]);
 
-  const [waypoints, setWaypoints] = useState(() =>
-    createDefaultInteriorWaypoints(layout.W, layout.D)
-  );
+  /* ----------------------------------------------------- objetos con historial */
 
-  // Reajustar waypoints si cambian mucho las dimensiones del recinto y quedan fuera
-  useEffect(() => {
-    const limX = Math.max(0.6, layout.W / 2 - 0.35);
-    const limZ = Math.max(0.6, layout.D / 2 - 0.35);
-    setWaypoints((prev) =>
-      prev.map((wp) => ({
-        ...wp,
-        x: clamp(Number(wp.x ?? wp.targetX ?? 0), -limX, limX),
-        z: clamp(Number(wp.z ?? wp.targetZ ?? 0), -limZ, limZ),
-      }))
-    );
-  }, [layout.W, layout.D]);
-
-  // Estado local de objetos si no viene controlado desde App.jsx
-  const [localItems, setLocalItems] = useState(() =>
-    generateStarterSceneItems('studio', {
-      W: layout.W,
-      D: layout.D,
-      H: layout.H,
-      wallCount: layout.walls.length,
-    })
-  );
-
+  const [localItems, setLocalItems] = useState(() => generateStarterSceneItems('studio', { W: layout.W, D: layout.D, H: layout.H, wallCount: layout.walls.length }));
   const items = Array.isArray(sceneObjects) ? sceneObjects : localItems;
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  const historyRef = useRef({ past: [], future: [], lastKey: null, lastTs: 0 });
+  const [, bump] = useState(0);
 
-  // ==========================================================================
-  // HISTORIAL UNDO / REDO (CTRL+Z / CTRL+Y)
-  // ==========================================================================
-  const historyRef = useRef({ past: [], future: [], lastContinuousTs: 0, lastContinuousId: null });
-  const [, forceHistoryRender] = useState(0);
-
-  const setItemsRaw = (nextItems) => {
-    if (onChangeSceneObjects) {
-      onChangeSceneObjects(nextItems);
-    } else {
-      setLocalItems(nextItems);
-    }
-  };
-
+  const setItemsRaw = (next) => (onChangeSceneObjects ? onChangeSceneObjects(next) : setLocalItems(next));
   const commitItems = (updater, { continuousKey = null } = {}) => {
     const current = itemsRef.current;
     const next = typeof updater === 'function' ? updater(current) : updater;
     if (next === current) return;
-
     const now = performance.now();
     const h = historyRef.current;
-    const shouldPushSnapshot =
-      !continuousKey ||
-      h.lastContinuousId !== continuousKey ||
-      now - h.lastContinuousTs > 450;
-
-    if (shouldPushSnapshot) {
-      h.past = [...h.past.slice(-45), current];
+    if (!continuousKey || h.lastKey !== continuousKey || now - h.lastTs > 450) {
+      h.past = [...h.past.slice(-60), current];
       h.future = [];
-      forceHistoryRender((n) => n + 1);
+      bump((n) => n + 1);
     }
-    h.lastContinuousId = continuousKey;
-    h.lastContinuousTs = now;
-
+    h.lastKey = continuousKey;
+    h.lastTs = now;
+    itemsRef.current = next;
     setItemsRaw(next);
   };
-
-  const canUndo = historyRef.current.past.length > 0;
-  const canRedo = historyRef.current.future.length > 0;
-
-  const handleUndo = () => {
+  const undo = () => {
     const h = historyRef.current;
-    if (h.past.length === 0) return;
-    const previous = h.past[h.past.length - 1];
+    if (!h.past.length) return;
+    h.future = [itemsRef.current, ...h.future.slice(0, 60)];
+    const prev = h.past[h.past.length - 1];
     h.past = h.past.slice(0, -1);
-    h.future = [itemsRef.current, ...h.future.slice(0, 45)];
-    h.lastContinuousId = null;
-    setItemsRaw(previous);
-    forceHistoryRender((n) => n + 1);
+    h.lastKey = null;
+    itemsRef.current = prev;
+    setItemsRaw(prev);
+    bump((n) => n + 1);
   };
-
-  const handleRedo = () => {
+  const redo = () => {
     const h = historyRef.current;
-    if (h.future.length === 0) return;
+    if (!h.future.length) return;
+    h.past = [...h.past.slice(-60), itemsRef.current];
     const next = h.future[0];
     h.future = h.future.slice(1);
-    h.past = [...h.past.slice(-45), itemsRef.current];
-    h.lastContinuousId = null;
+    h.lastKey = null;
+    itemsRef.current = next;
     setItemsRaw(next);
-    forceHistoryRender((n) => n + 1);
+    bump((n) => n + 1);
   };
 
-  const selectedItem = useMemo(
-    () => items.find((it) => it.id === selectedItemId) || null,
-    [items, selectedItemId]
-  );
+  const selectedItem = useMemo(() => items.find((it) => it.id === selectedItemId) || null, [items, selectedItemId]);
+  useEffect(() => {
+    if (selectedItemId && !selectedItem) setSelectedItemId(null);
+  }, [selectedItemId, selectedItem]);
 
-  const updateItemById = (id, changes) => {
+  const updateItem = (id, changes) =>
     commitItems(
       (prev) =>
         prev.map((it) =>
@@ -538,120 +338,78 @@ export default function RenderStudio({
                 ...it,
                 ...changes,
                 dims: changes.dims ? { ...it.dims, ...changes.dims } : it.dims,
-                coefficients: changes.coefficients
-                  ? { ...it.coefficients, ...changes.coefficients }
-                  : it.coefficients,
+                coefficients: changes.coefficients ? { ...it.coefficients, ...changes.coefficients } : it.coefficients,
               }
             : it
         ),
       { continuousKey: `edit_${id}` }
     );
-  };
 
-  const updateSelectedItem = (changes) => {
-    if (!selectedItem) return;
-    updateItemById(selectedItem.id, changes);
-  };
-
-  // Detecta mesas o estanterías disponibles en la escena para colocar objetos encima
-  const availableSurfaces = useMemo(
-    () => items.filter((it) => it.enabled !== false && SUPPORT_SURFACE_SPECS[it.typeId]),
-    [items]
-  );
-
-  // Detecta si el objeto seleccionado está actualmente sobre una mesa o estantería
-  const activeSupportForSelected = useMemo(() => {
-    if (!selectedItem || selectedItem.mount !== 'floor') return null;
-    return findSupportingSurface(selectedItem, selectedItem.x, selectedItem.z, items);
-  }, [selectedItem, items]);
-
-  const handlePlaceSelectedOnSurface = (surfaceItem, levelY = null) => {
-    if (!selectedItem || !surfaceItem || selectedItem.id === surfaceItem.id) return;
-    const levels = getSupportSurfaceLevels(surfaceItem);
-    if (!levels.length) return;
-    const targetY = levelY !== null ? levelY : levels[levels.length - 1].y;
-    // Pequeño desplazamiento si ya hay objetos sobre esa superficie
-    const itemsOnSurface = items.filter(
-      (other) =>
-        other.id !== selectedItem.id &&
-        other. id !== surfaceItem.id &&
-        Math.hypot((Number(other.x) || 0) - (Number(surfaceItem.x) || 0), (Number(other.z) || 0) - (Number(surfaceItem.z) || 0)) < 0.6
-    );
-    const offset = itemsOnSurface.length > 0 ? ((itemsOnSurface.length % 3) - 1) * 0.28 : 0;
-    const rad = ((Number(surfaceItem.rotation) || 0) * Math.PI) / 180;
-    const nextX = Math.round(((Number(surfaceItem.x) || 0) + Math.cos(rad) * offset) * 20) / 20;
-    const nextZ = Math.round(((Number(surfaceItem.z) || 0) - Math.sin(rad) * offset) * 20) / 20;
-
-    commitItems((prev) =>
-      prev.map((it) =>
-        it.id === selectedItem.id
-          ? {
-              ...it,
-              mount: 'floor',
-              x: nextX,
-              z: nextZ,
-              y: targetY,
-              rotation: Number(surfaceItem.rotation) || 0,
-            }
-          : it
-      )
-    );
-  };
-
-  const handleAddItem = (typeId, targetSurface = null) => {
-    const def = getCatalogItem(typeId);
-    const isFloorAnchoredWall =
-      typeId === 'arch_door' || typeId === 'double_door' || typeId === 'floor_to_ceiling_window';
-
-    let initX = 0;
-    let initZ = 0;
-    let initY = 0;
-    let initRot = 0;
-
-    // Si el usuario pulsa "Poner en mesa/repisa" o tiene seleccionada una mesa/repisa al añadir un prop pequeño
-    const autoSurface =
-      targetSurface ||
-      (selectedItem && SUPPORT_SURFACE_SPECS[selectedItem.typeId] && !SUPPORT_SURFACE_SPECS[typeId] && def.mount === 'floor'
-        ? selectedItem
-        : null);
-
-    if (autoSurface && def.mount === 'floor') {
-      const levels = getSupportSurfaceLevels(autoSurface);
-      initX = Number(autoSurface.x) || 0;
-      initZ = Number(autoSurface.z) || 0;
-      initY = levels.length ? levels[levels.length - 1].y : 0.76;
-      initRot = Number(autoSurface.rotation) || 0;
+  /** Punto del piso frente a la cámara, dentro de la sala, para poner un objeto nuevo. */
+  const dropPoint = () => {
+    const pose = viewport.current?.getPose();
+    let x = 0;
+    let z = 0;
+    if (pose) {
+      const inside = viewMode === 'walk';
+      if (inside) {
+        const dx = pose.target[0] - pose.pos[0];
+        const dz = pose.target[2] - pose.pos[2];
+        const len = Math.hypot(dx, dz) || 1;
+        x = pose.pos[0] + (dx / len) * 1.4;
+        z = pose.pos[2] + (dz / len) * 1.4;
+      } else {
+        x = pose.target[0];
+        z = pose.target[2];
+      }
     }
-
-    const newItem = createSceneItem(typeId, {
-      wallIndex: 0,
-      cornerIndex: 0,
-      x: initX,
-      z: initZ,
-      y: initY,
-      rotation: initRot,
-      elevation:
-        def.mount === 'wall'
-          ? isFloorAnchoredWall
-            ? (Number(def.defaultDims?.h) || 2.05) * 0.5
-            : Math.min(1.38, layout.H * 0.5)
-          : 0,
-    });
-    commitItems((prev) => [...prev, newItem]);
-    setSelectedItemId(newItem.id);
+    // Busca en espiral el primer lugar libre cerca de ese punto (sin caer encima de otro mueble)
+    const others = itemsRef.current
+      .filter((it) => it.enabled !== false && (it.mount === 'floor' || it.mount === 'corner') && !(Number(it.y) > 0.05))
+      .map((it) => ({ x: Number(it.x) || 0, z: Number(it.z) || 0, r: Math.hypot(Number(it.dims?.w) || 0.6, Number(it.dims?.d) || 0.6) / 2 }));
+    const limX = layout.W / 2 - 0.4;
+    const limZ = layout.D / 2 - 0.4;
+    for (let k = 0; k < 60; k++) {
+      const a = k * 2.399963;
+      const rr = 0.35 * Math.sqrt(k);
+      const px = clamp(x + Math.cos(a) * rr, -limX, limX);
+      const pz = clamp(z + Math.sin(a) * rr, -limZ, limZ);
+      if (others.every((o) => Math.hypot(o.x - px, o.z - pz) > o.r + 0.35)) return { x: round(px, 0.05), z: round(pz, 0.05) };
+    }
+    return { x: round(clamp(x, -limX, limX), 0.05), z: round(clamp(z, -limZ, limZ), 0.05) };
   };
 
-  const handleDuplicateItem = (item) => {
+  const addItem = (typeId) => {
+    const def = getCatalogItem(typeId);
+    const sel = selectedItem;
+    const small = def.mount === 'floor' && !SUPPORT_SURFACE_SPECS[typeId] && (Number(def.defaultDims?.h) || 1) < 0.75;
+    const surface = small && sel && SUPPORT_SURFACE_SPECS[sel.typeId] ? sel : null;
+    let place = { x: 0, z: 0, y: 0, rotation: 0 };
+    if (surface) {
+      const levels = getSupportSurfaceLevels(surface);
+      place = { x: Number(surface.x) || 0, z: Number(surface.z) || 0, y: levels[levels.length - 1]?.y ?? 0.75, rotation: Number(surface.rotation) || 0 };
+    } else if (def.mount === 'floor' || def.mount === 'ceiling') {
+      place = { ...place, ...dropPoint() };
+    }
+    const item = createSceneItem(typeId, {
+      ...place,
+      wallIndex: 0,
+      cornerIndex: itemsRef.current.filter((it) => it.mount === 'corner').length % Math.max(1, layout.corners.length),
+      elevation: def.mount === 'wall' ? (FLOOR_ANCHORED.has(typeId) ? (Number(def.defaultDims?.h) || 2.05) / 2 : Math.min(1.4, layout.H * 0.5)) : 0,
+    });
+    commitItems((prev) => [...prev, item]);
+    setSelectedItemId(item.id);
+    notify(surface ? `${def.name} quedó sobre ${surface.name}.` : `${def.name} agregado.`);
+  };
+
+  const duplicateItem = (item) => {
     if (!item) return;
     const copy = createSceneItem(item.typeId, {
       ...item,
       id: undefined,
       locked: false,
-      name: `${item.name} (Copia)`,
-      along:
-        item.mount === 'wall'
-          ? clamp((Number(item.along) || 0) + 0.65, -layout.W / 2 + 0.3, layout.W / 2 - 0.3)
-          : item.along,
+      name: `${item.name} (copia)`,
+      along: item.mount === 'wall' ? clamp((Number(item.along) || 0) + 0.65, -layout.W / 2 + 0.3, layout.W / 2 - 0.3) : item.along,
       x: item.mount !== 'wall' ? clamp((Number(item.x) || 0) + 0.45, -layout.W / 2 + 0.25, layout.W / 2 - 0.25) : item.x,
       z: item.mount !== 'wall' ? clamp((Number(item.z) || 0) + 0.35, -layout.D / 2 + 0.25, layout.D / 2 - 0.25) : item.z,
       dims: { ...item.dims },
@@ -661,1572 +419,505 @@ export default function RenderStudio({
     commitItems((prev) => [...prev, copy]);
     setSelectedItemId(copy.id);
   };
-
-  const handleDeleteItem = (id) => {
+  const deleteItem = (id) => {
     const target = itemsRef.current.find((it) => it.id === id);
     if (!target || target.locked) return;
     commitItems((prev) => prev.filter((it) => it.id !== id));
     if (selectedItemId === id) setSelectedItemId(null);
   };
-
-  const handleToggleLock = (id) => {
-    const target = itemsRef.current.find((it) => it.id === id);
-    if (!target) return;
-    commitItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, locked: !it.locked } : it))
-    );
+  const toggleLock = (id) => commitItems((prev) => prev.map((it) => (it.id === id ? { ...it, locked: !it.locked } : it)));
+  const rotateItem = (item, delta = 45) => {
+    if (!item || item.locked || item.mount === 'wall' || item.mount === 'corner') return;
+    updateItem(item.id, { rotation: (((Number(item.rotation) || 0) + delta) % 360 + 360) % 360 });
   };
 
-  // ==========================================================================
-  // ATAJOS DE TECLADO GLOBALES (CTRL+Z, CTRL+Y, SUPR, CTRL+D, R, L, FLECHAS)
-  // ==========================================================================
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      const tag = e.target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) {
-        return;
-      }
-
-      const isMod = e.ctrlKey || e.metaKey;
-
-      // Undo: Ctrl+Z
-      if (isMod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
-        return;
-      }
-
-      // Redo: Ctrl+Y o Ctrl+Shift+Z
-      if ((isMod && e.key.toLowerCase() === 'y') || (isMod && e.shiftKey && e.key.toLowerCase() === 'z')) {
-        e.preventDefault();
-        handleRedo();
-        return;
-      }
-
-      const sel = itemsRef.current.find((it) => it.id === selectedItemId);
-
-      // Duplicar: Ctrl+D
-      if (isMod && e.key.toLowerCase() === 'd' && sel) {
-        e.preventDefault();
-        handleDuplicateItem(sel);
-        return;
-      }
-
-      // Borrar: Delete / Supr / Backspace
-      if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
-        e.preventDefault();
-        if (!sel.locked) {
-          handleDeleteItem(sel.id);
-        }
-        return;
-      }
-
-      // Bloquear / Desbloquear: L
-      if (!isMod && e.key.toLowerCase() === 'l' && sel) {
-        e.preventDefault();
-        handleToggleLock(sel.id);
-        return;
-      }
-
-      // Rotar 45°: R
-      if (!isMod && e.key.toLowerCase() === 'r' && sel && !sel.locked) {
-        if (sel.mount !== 'wall' && sel.mount !== 'corner') {
-          e.preventDefault();
-          updateItemById(sel.id, { rotation: ((Number(sel.rotation) || 0) + 45) % 360 });
-        }
-        return;
-      }
-
-      // Escape: deseleccionar o salir de tour
-      if (e.key === 'Escape') {
-        if (cinematicPlaying) setCinematicPlaying(false);
-        else if (selectedItemId) setSelectedItemId(null);
-        return;
-      }
-
-      // Flechas para mover con precisión (Shift = paso de 20cm, normal = 5cm)
-      if (sel && !sel.locked && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
-        e.preventDefault();
-        const step = e.shiftKey ? 0.2 : 0.05;
-        if (sel.mount === 'wall') {
-          const deltaAlong = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0;
-          const deltaElev = e.key === 'ArrowUp' ? step : e.key === 'ArrowDown' ? -step : 0;
-          updateItemById(sel.id, {
-            along: Math.round(((Number(sel.along) || 0) + deltaAlong) * 20) / 20,
-            elevation:
-              sel.typeId === 'arch_door' || sel.typeId === 'double_door'
-                ? sel.elevation
-                : clamp(Math.round(((Number(sel.elevation) || 1.35) + deltaElev) * 20) / 20, 0.25, layout.H - 0.25),
-          });
-        } else if (sel.mount !== 'corner') {
-          const dx = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0;
-          const dz = e.key === 'ArrowDown' ? step : e.key === 'ArrowUp' ? -step : 0;
-          updateItemById(sel.id, {
-            x: clamp(Math.round(((Number(sel.x) || 0) + dx) * 20) / 20, -layout.W / 2 + 0.15, layout.W / 2 - 0.15),
-            z: clamp(Math.round(((Number(sel.z) || 0) + dz) * 20) / 20, -layout.D / 2 + 0.15, layout.D / 2 - 0.15),
-          });
-        }
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedItemId, cinematicPlaying, layout.W, layout.D, layout.H]);
-
-  /**
-   * Cambia de sala actualizando TANTO las paredes/piso/dimensiones como el mobiliario y tratamiento.
-   */
-  const handleSelectRoomPreset = (presetId) => {
-    setCinematicPlaying(false);
+  const applyPreset = (presetId) => {
+    viewport.current?.stop();
     if (presetId === 'empty') {
       commitItems([]);
       setSelectedItemId(null);
+      notify('La sala quedó vacía. Ctrl+Z la devuelve.');
       return;
     }
-
     if (presetId === 'project') {
-      const polyLayout = getPolygonLayout(roomPolygon);
-      patch({
-        usePolygon: true,
-        syncSurfaceMaterials: true,
-        roomType: 'project',
-      });
-      const next = generateStarterSceneItems(opts.roomType === 'project' ? 'studio' : opts.roomType, {
-        W: polyLayout.W,
-        D: polyLayout.D,
-        H: polyLayout.H,
-        wallCount: polyLayout.walls.length,
-      });
-      commitItems(next);
-      setSelectedItemId(next[0]?.id || null);
-      setWaypoints(createDefaultInteriorWaypoints(polyLayout.W, polyLayout.D));
+      const pl = getPolygonLayout(roomPolygon);
+      patch({ usePolygon: true, customPolygon: null });
+      commitItems(generateStarterSceneItems(opts.roomType in ROOM_PRESET_STYLES ? opts.roomType : 'studio', { W: pl.W, D: pl.D, H: pl.H, wallCount: pl.walls.length }));
+      notify('Se amobló la planta de tu proyecto. Ctrl+Z deshace.');
       return;
     }
-
-    const presetStyle = ROOM_PRESET_STYLES[presetId] || ROOM_PRESET_STYLES.studio;
-    const targetDims = presetStyle.dims;
-    patch({
-      roomType: presetId,
-      usePolygon: false,
-      dims: { ...targetDims },
-      palette: { ...presetStyle.palette },
-    });
-
-    const next = generateStarterSceneItems(presetId, {
-      W: targetDims.W,
-      D: targetDims.D,
-      H: targetDims.H,
-      wallCount: 4,
-    });
-    commitItems(next);
-    setSelectedItemId(next[0]?.id || null);
-    setWaypoints(createDefaultInteriorWaypoints(targetDims.W, targetDims.D));
+    const style = ROOM_PRESET_STYLES[presetId] || ROOM_PRESET_STYLES.studio;
+    patch({ roomType: presetId, usePolygon: false, customPolygon: null, dims: { ...style.dims }, palette: { ...style.palette } });
+    commitItems(generateStarterSceneItems(presetId, { ...style.dims, wallCount: 4 }));
+    setSelectedItemId(null);
+    notify(`Plantilla «${style.label}» cargada. Ctrl+Z deshace.`);
   };
 
-  const diffuserCfg = useMemo(() => loadDiffuserConfig(), [opts.mode, items]);
+  /* ---------------------------------------------------------------- atajos */
+
+  const shortcuts = useRef({});
+  shortcuts.current = { undo, redo, selectedItem, duplicateItem, deleteItem, toggleLock, rotateItem, updateItem, viewMode, playing, layout };
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
+      const s = shortcuts.current;
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      if (mod && key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        s.undo();
+        return;
+      }
+      if ((mod && key === 'y') || (mod && e.shiftKey && key === 'z')) {
+        e.preventDefault();
+        s.redo();
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (s.playing) viewport.current?.stop();
+        else setSelectedItemId(null);
+        return;
+      }
+      const sel = s.selectedItem;
+      if (!sel) return;
+      if (mod && key === 'd') {
+        e.preventDefault();
+        s.duplicateItem(sel);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        s.deleteItem(sel.id);
+      } else if (s.viewMode !== 'walk' && !mod) {
+        // En «Recorrer» las letras y flechas mueven la cámara
+        if (key === 'r') s.rotateItem(sel, e.shiftKey ? -45 : 45);
+        else if (key === 'l') s.toggleLock(sel.id);
+        else if (e.key.startsWith('Arrow') && !sel.locked && sel.mount !== 'corner') {
+          e.preventDefault();
+          const step = e.shiftKey ? 0.2 : 0.05;
+          const dx = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0;
+          const dz = e.key === 'ArrowDown' ? step : e.key === 'ArrowUp' ? -step : 0;
+          if (sel.mount === 'wall') s.updateItem(sel.id, { along: round((Number(sel.along) || 0) + dx, 0.05), elevation: FLOOR_ANCHORED.has(sel.typeId) ? sel.elevation : round(clamp((Number(sel.elevation) || 1.35) - dz, 0.25, s.layout.H - 0.25), 0.05) });
+          else s.updateItem(sel.id, { x: round(clamp((Number(sel.x) || 0) + dx, -s.layout.W / 2 + 0.15, s.layout.W / 2 - 0.15), 0.05), z: round(clamp((Number(sel.z) || 0) + dz, -s.layout.D / 2 + 0.15, s.layout.D / 2 - 0.15), 0.05) });
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  /* ------------------------------------------------------------- escena 3D */
+
+  const [diffuserCfg, setDiffuserCfg] = useState(() => loadDiffuserConfig());
+  useEffect(() => {
+    setDiffuserCfg(loadDiffuserConfig());
+  }, [opts.mode]);
   const diffuserDesign = useMemo(() => (diffuserCfg ? designFromConfig(diffuserCfg) : null), [diffuserCfg]);
 
-  const productParams = {
-    ...(PRODUCT_KINDS[opts.product]?.params || PRODUCT_KINDS.qrd.params),
-    ...(opts.productParams[opts.product] || {}),
-  };
-  const setProductParam = (key, value) =>
-    patch({
-      productParams: {
-        ...opts.productParams,
-        [opts.product]: { ...opts.productParams[opts.product], [key]: value },
-      },
-    });
-
-  const activePerf = PERF_MODES.find((m) => m.id === opts.perfMode) || PERF_MODES[1];
-
-  const projectMaterialSummary = useMemo(() => {
-    if (!materials) return [];
-    const list = [];
-    layout.walls.forEach((w, idx) => {
-      const mId = materials[`wall_${idx}`]?.materialId;
-      const matObj = DEFAULT_MATERIALS_DATABASE.find((m) => m.id === mId);
-      const matName = matObj?.name || mId;
-      if (matName) {
-        list.push(`P${idx + 1}: ${matName.split('(')[0].trim()}`);
-      }
-    });
-    return list;
-  }, [materials, layout.walls]);
-
-  const sceneKey = `${opts.mode}:${opts.product}:${diffuserDesign?.type ?? ''}`;
-  const home = useMemo(
-    () => defaultViewFor({ kind: opts.mode === 'room' ? 'custom_room' : opts.mode }),
-    [sceneKey] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  const [view, setView] = useState(home);
-  useEffect(() => setView(home), [home]);
-
-  // Si estamos en cámara interior (firstPerson) o reproduciendo el recorrido interior, mostramos las 4 paredes completas
-  const effectiveCutMode =
-    view?.firstPerson || (cinematicPlaying && cinematicMode === 'interior_path')
-      ? 'full'
-      : opts.cutMode || 'auto';
-
-  // Descripción de la escena para el motor Three.js
-  const spec = useMemo(() => {
+  const palette = useMemo(() => {
     const p = opts.palette;
-    const palette = {
-      primary: hex(p.primary),
-      secondary: hex(p.secondary),
-      neutral: hex(p.neutral),
-      accent: hex(p.accent),
-      dark: hex(p.dark || '#3b3b45'),
-      wood: p.wood,
-      wall: hex(p.wall),
-      floor: p.floor,
-    };
+    return { primary: hexNum(p.primary), secondary: hexNum(p.secondary), neutral: hexNum(p.neutral), accent: hexNum(p.accent), dark: hexNum(p.dark || '#3b3b45'), wood: p.wood, wall: hexNum(p.wall), floor: p.floor };
+  }, [opts.palette]);
+
+  const productParams = { ...(PRODUCT_KINDS[opts.product]?.params || PRODUCT_KINDS.qrd.params), ...(opts.productParams[opts.product] || {}) };
+  const sun = useMemo(() => sunForHour(opts.sunHour), [opts.sunHour]);
+  const syncMaterials = opts.usePolygon && hasProjectPlan && opts.syncSurfaceMaterials !== false;
+
+  const spec = useMemo(() => {
     if (opts.mode === 'room') {
       return {
         kind: 'custom_room',
-        customMode: true,
-        usePolygon: opts.usePolygon,
-        syncSurfaceMaterials: opts.syncSurfaceMaterials !== false,
-        materials,
+        usePolygon: true,
         roomPolygon: activePolygon,
-        cutMode: effectiveCutMode,
-        W: layout.W,
-        D: layout.D,
-        H: layout.H,
+        syncSurfaceMaterials: syncMaterials,
+        materials: syncMaterials ? materials : null,
+        cutMode: 'auto',
         items,
-        selectedItemId,
         diffuserDesign,
         night: opts.night,
         palette,
+        environment: opts.environment,
+        sun,
       };
     }
-    if (opts.mode === 'diffuser' && diffuserDesign?.validWidth) {
-      return { kind: 'diffuser', design: diffuserDesign, wood: p.wood };
-    }
+    if (opts.mode === 'diffuser' && diffuserDesign?.validWidth) return { kind: 'diffuser', design: diffuserDesign, wood: opts.palette.wood };
     return { kind: 'product', item: opts.product, params: productParams, palette };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    opts.mode,
-    opts.usePolygon,
-    opts.syncSurfaceMaterials,
-    materials,
-    effectiveCutMode,
-    activePolygon,
-    layout.W,
-    layout.D,
-    layout.H,
-    items,
-    selectedItemId,
-    diffuserDesign,
-    opts.night,
-    opts.palette,
-    opts.product,
-    opts.productParams,
-  ]);
+  }, [opts.mode, activePolygon, syncMaterials, materials, items, diffuserDesign, opts.night, palette, opts.environment, sun, opts.product, opts.productParams, opts.palette.wood]);
 
-  const [settled, setSettled] = useState(spec);
+  // Recorridos ya armados para la sala actual (dependen de su tamaño)
   useEffect(() => {
-    const t = setTimeout(() => setSettled(spec), activePerf.debounceMs);
-    return () => clearTimeout(t);
-  }, [spec, activePerf.debounceMs]);
+    setPresets(viewport.current?.presets() ?? {});
+  }, [layout, opts.mode]);
 
-  // Entra en primera persona al interior de la sala (en un punto dado o en la primera parada)
-  const enterInteriorView = (wp = null) => {
-    const stop = wp || waypoints[0] || { x: -layout.W * 0.25, z: layout.D * 0.25, lookX: 0, lookZ: 0 };
-    const eyeY = clamp(layout.H * 0.56, 1.48, 1.72);
-    setView({
-      firstPerson: true,
-      camX: Number(stop.x) || 0,
-      camY: eyeY,
-      camZ: Number(stop.z) || 0,
-      lookX: Number(stop.lookX) || 0,
-      lookY: eyeY - 0.1,
-      lookZ: Number(stop.lookZ) || 0,
-      fov: 58,
-      azimuth: 40,
-      elevation: 24,
-      zoom: 1,
-    });
-  };
-
-  // ==========================================================================
-  // REPRODUCCIÓN DE VISTA CINEMÁTICA (ENTRA REALMENTE AL RECINTO EN 1ª PERSONA)
-  // ==========================================================================
-  useEffect(() => {
-    if (!cinematicPlaying) return undefined;
-    let rafId = null;
-    let lastTime = performance.now();
-    let progress = cinematicProgress;
-
-    const animate = (now) => {
-      const dt = Math.min(0.1, (now - lastTime) / 1000);
-      lastTime = now;
-      // Ciclo completo de ~16s a velocidad 1x
-      progress = (progress + (dt * cinematicSpeed) / 16) % 1;
-      setCinematicProgress(progress);
-
-      if (cinematicMode === 'interior_path' && waypoints.length >= 2) {
-        const n = waypoints.length;
-        const scaled = progress * n;
-        const idx0 = Math.floor(scaled) % n;
-        const idx1 = (idx0 + 1) % n;
-        const idx2 = (idx0 + 2) % n;
-        const localT = scaled - Math.floor(scaled);
-        // Suavizado cosenoidal para el desplazamiento
-        const mu = (1 - Math.cos(localT * Math.PI)) / 2;
-
-        const p0 = waypoints[idx0];
-        const p1 = waypoints[idx1];
-        const p2 = waypoints[idx2];
-
-        const camX = (Number(p0.x) || 0) + ((Number(p1.x) || 0) - (Number(p0.x) || 0)) * mu;
-        const camZ = (Number(p0.z) || 0) + ((Number(p1.z) || 0) - (Number(p0.z) || 0)) * mu;
-        const eyeY = clamp(layout.H * 0.56, 1.48, 1.72);
-
-        // Dirección de mirada suave: combina el rumbo hacia la siguiente parada con un paneo hacia el centro de la sala
-        const nextWayX = (Number(p1.x) || 0) + ((Number(p2.x) || 0) - (Number(p1.x) || 0)) * mu;
-        const nextWayZ = (Number(p1.z) || 0) + ((Number(p2.z) || 0) - (Number(p1.z) || 0)) * mu;
-        const lookX = nextWayX * 0.42 + 0 * 0.58;
-        const lookZ = nextWayZ * 0.42 + 0 * 0.58;
-        const lookY = eyeY - 0.12 + Math.sin(progress * Math.PI * 4) * 0.12;
-
-        setView((v) => ({
-          ...v,
-          firstPerson: true,
-          camX: Math.round(camX * 100) / 100,
-          camY: Math.round(eyeY * 100) / 100,
-          camZ: Math.round(camZ * 100) / 100,
-          lookX: Math.round(lookX * 100) / 100,
-          lookY: Math.round(lookY * 100) / 100,
-          lookZ: Math.round(lookZ * 100) / 100,
-          fov: 58,
-        }));
-      } else if (cinematicMode === 'orbit') {
-        const az = (progress * 360) % 360;
-        const el = 24 + Math.sin(progress * Math.PI * 2) * 8;
-        setView((v) => ({
-          ...v,
-          firstPerson: false,
-          azimuth: Math.round(az * 10) / 10,
-          elevation: Math.round(el * 10) / 10,
-          targetX: 0,
-          targetZ: 0,
-        }));
-      } else if (cinematicMode === 'sweep') {
-        const angle = progress * Math.PI * 2;
-        const az = 38 + Math.sin(angle) * 44;
-        const el = 22 + Math.cos(angle * 2) * 7;
-        const zoom = 1.08 + Math.sin(angle) * 0.18;
-        setView({
-          firstPerson: false,
-          azimuth: Math.round(az * 10) / 10,
-          elevation: Math.round(el * 10) / 10,
-          zoom: Math.round(zoom * 100) / 100,
-          targetX: Math.round(Math.sin(angle) * (layout.W * 0.14) * 100) / 100,
-          targetZ: Math.round(Math.cos(angle) * (layout.D * 0.14) * 100) / 100,
-        });
-      }
-
-      rafId = requestAnimationFrame(animate);
-    };
-
-    rafId = requestAnimationFrame(animate);
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cinematicPlaying, cinematicMode, cinematicSpeed, waypoints, layout.W, layout.D, layout.H]);
-
-  // ==========================================================================
-  // CÁLCULO ACÚSTICO EN VIVO
-  // ==========================================================================
-  const acousticImpact = useMemo(() => {
-    const simGeo =
-      opts.usePolygon && geometry?.volume
-        ? geometry
-        : calculatePolygonGeometry(activePolygon.vertices, activePolygon.height, activePolygon.curvatures || {});
-    const simMats =
-      materials && Object.keys(materials).length > 0
-        ? materials
-        : getDefaultPolygonMaterials(activePolygon.vertices.length);
-
-    const { totalByBand, byCategory, totalArea } = calculateSceneObjectsAbsorption(items);
-
-    const baseAbs = calculateRoomAbsorption(simGeo.surfaceAreas, simGeo.totalSurfaceArea, simMats, null);
-    const treatedAbs = calculateRoomAbsorption(simGeo.surfaceAreas, simGeo.totalSurfaceArea, simMats, totalByBand);
-
-    const baseRT = calculateReverberationTimes(
-      simGeo.volume,
-      simGeo.totalSurfaceArea,
-      simGeo.surfaceAreas,
-      baseAbs,
-      simMats,
-      includeAirAbsorption,
-      null
-    );
-    const treatedRT = calculateReverberationTimes(
-      simGeo.volume,
-      simGeo.totalSurfaceArea,
-      simGeo.surfaceAreas,
-      treatedAbs,
-      simMats,
-      includeAirAbsorption,
-      totalByBand
-    );
-
-    return {
-      volume: simGeo.volume,
-      totalByBand,
-      byCategory,
-      totalArea,
-      baseRT,
-      treatedRT,
-    };
-  }, [opts.usePolygon, geometry, activePolygon, materials, items, includeAirAbsorption]);
-
-  // Filtrado del catálogo
-  const filteredCatalog = useMemo(() => {
-    let source = [];
-    if (catalogGroup === 'panels') {
-      source = Object.values(PANEL_CATALOG);
-    } else if (catalogGroup === 'diffusers') {
-      source = Object.values(DIFFUSER_CATALOG);
-    } else if (catalogGroup === 'all') {
-      source = [
-        ...Object.values(FURNITURE_CATALOG),
-        ...Object.values(PANEL_CATALOG),
-        ...Object.values(DIFFUSER_CATALOG),
-      ];
-    } else {
-      source = Object.values(FURNITURE_CATALOG).filter(
-        (it) => (it.subCategory || 'studio') === catalogGroup
-      );
-    }
-
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return source;
-    return source.filter(
-      (it) =>
-        it.name.toLowerCase().includes(q) ||
-        (it.subtitle && it.subtitle.toLowerCase().includes(q)) ||
-        (it.description && it.description.toLowerCase().includes(q))
-    );
-  }, [catalogGroup, searchQuery]);
-
+  const flat = opts.mode !== 'room' || opts.environment === 'studio';
+  const previewMatte = flat ? (opts.night || isDarkMode ? '#141526' : '#eeecf3') : null;
   const size = SIZES.find((s) => s.id === opts.size) ?? SIZES[0];
-  const quality = QUALITIES.find((q) => q.id === opts.quality) ?? QUALITIES[1];
-  const matte = opts.background === 'transparent' ? null : opts.background;
+  const aspect = size.w / size.h;
 
-  const render = async () => {
-    if (cinematicPlaying) setCinematicPlaying(false);
-    setBusy(true);
+  /* ------------------------------------------------------- impacto acústico */
+
+  const acoustic = useMemo(() => {
+    const geo = opts.usePolygon && hasProjectPlan && geometry?.volume ? geometry : calculatePolygonGeometry(activePolygon.vertices, activePolygon.height, activePolygon.curvatures || {});
+    const mats = syncMaterials && materials && Object.keys(materials).length ? materials : getDefaultPolygonMaterials(activePolygon.vertices.length);
+    const { totalByBand } = calculateSceneObjectsAbsorption(items);
+    const base = calculateReverberationTimes(geo.volume, geo.totalSurfaceArea, geo.surfaceAreas, calculateRoomAbsorption(geo.surfaceAreas, geo.totalSurfaceArea, mats, null), mats, includeAirAbsorption, null);
+    const treated = calculateReverberationTimes(geo.volume, geo.totalSurfaceArea, geo.surfaceAreas, calculateRoomAbsorption(geo.surfaceAreas, geo.totalSurfaceArea, mats, totalByBand), mats, includeAirAbsorption, totalByBand);
+    return { totalByBand, base, treated };
+  }, [opts.usePolygon, hasProjectPlan, geometry, activePolygon, syncMaterials, materials, items, includeAirAbsorption]);
+
+  /* ----------------------------------------------------------- vistas y recorridos */
+
+  const myPath = opts.shots.length >= 2 ? { id: 'mine', label: 'Mis vistas', hint: 'Une tus vistas guardadas en orden', loop: opts.tourLoop, duration: Math.max(6, opts.shots.length * 4), keys: opts.shots.map((s) => s.pose) } : null;
+  const allPaths = { ...presets, ...(myPath ? { mine: myPath } : {}) };
+
+  const play = (path) => {
+    if (!path) return;
+    if (playing === path.id) {
+      viewport.current?.stop();
+      return;
+    }
+    setPlaying(path.id);
+    viewport.current?.play(path, { onEnd: () => setPlaying(null) });
+  };
+
+  const saveShot = () => {
+    const pose = viewport.current?.getPose();
+    if (!pose) return;
+    const n = opts.shots.length + 1;
+    patch({ shots: [...opts.shots, { id: `vista_${Date.now().toString(36)}`, name: `Vista ${n}`, pose }] });
+    notify(`Vista ${n} guardada.`);
+  };
+
+  /* ------------------------------------------------------------ archivo */
+
+  const saveFile = () => {
+    const data = serializeStudio({ opts, items, polygon: activePolygon });
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), `pozole-estudio-${opts.roomType || 'sala'}-${stamp}.json`);
+    setFileMenu(false);
+    notify('Proyecto guardado como archivo .json.');
+  };
+
+  const openFile = async (file) => {
+    if (!file) return;
     try {
-      const type = opts.format === 'webp' ? 'image/webp' : 'image/png';
-      const blob = await viewport.current.renderFinal({
-        width: size.w,
-        height: size.h,
-        samples: quality.samples,
-        type,
-        matte,
+      const parsed = parseStudioFile(await file.text());
+      viewport.current?.stop();
+      commitItems(parsed.items);
+      setSelectedItemId(null);
+      patch({
+        ...parsed.settings,
+        palette: { ...DEFAULTS.palette, ...(parsed.settings.palette || {}) },
+        usePolygon: false,
+        customPolygon: parsed.polygon,
+        dims: parsed.dims,
+        shots: parsed.shots,
+        mode: 'room',
       });
-      if (!blob) return;
-      const what =
-        opts.mode === 'room' ? 'sala-personalizada' : opts.mode === 'diffuser' ? 'mi-difusor' : opts.product;
-      const name = `pozole-${what}-${size.w}x${size.h}.${opts.format}`;
-      const url = URL.createObjectURL(blob);
-      if (last) URL.revokeObjectURL(last.url);
-      setLast({ url, name, kb: Math.round(blob.size / 1024) });
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      a.click();
+      notify(`Se abrió «${file.name}» con ${parsed.items.length} objetos${parsed.skipped ? ` (${parsed.skipped} no reconocidos)` : ''}.`);
+    } catch (err) {
+      notify(err.message, 'error');
     } finally {
-      setBusy(false);
+      setFileMenu(false);
+      if (fileInput.current) fileInput.current.value = '';
     }
   };
+
+  const canUndo = historyRef.current.past.length > 0;
+  const canRedo = historyRef.current.future.length > 0;
+  const viewTab = VIEW_TABS.find((v) => v.id === viewMode) ?? VIEW_TABS[0];
+  const hintVisible = opts.mode === 'room' && !hints[viewMode] && !playing;
+  const rt500 = acoustic.base[500]?.sabine || 0;
+  const rt500t = acoustic.treated[500]?.sabine || 0;
 
   return (
     <div className="space-y-3">
-      {/* ====================================================================
-          BARRA SUPERIOR COMPACTA: PLANTILLAS 1-CLIC + UNDO/REDO + MOTOR + EXPORTAR
-         ==================================================================== */}
-      <div className={`${CARD} px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2.5`}>
-        {/* Izquierda: Selector de modo + Plantillas de Sala en 1 clic */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex p-0.5 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] text-[11px] font-bold">
-            {[
-              ['room', 'Sala 3D', Box],
-              ['product', 'Pieza', Grid3x3],
-              ['diffuser', 'Difusor', Wand2],
-            ].map(([id, label, Icon]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => patch({ mode: id })}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
-                  opts.mode === id
-                    ? 'bg-[#5833c7] text-white shadow-xs'
-                    : `${MUTED} hover:text-[#1d1d1f] dark:hover:text-white`
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" /> {label}
-              </button>
-            ))}
+      {/* ================================================== barra superior */}
+      <div className={`${CARD} px-3 py-2 flex flex-wrap items-center gap-2`}>
+        <Segmented
+          value={opts.mode}
+          onChange={(m) => {
+            viewport.current?.stop();
+            patch({ mode: m });
+            setSelectedItemId(null);
+          }}
+          options={[
+            ['room', 'Sala', Box],
+            ['product', 'Pieza', Grid3x3],
+            ['diffuser', 'Mi difusor', Wand2],
+          ]}
+        />
+
+        {opts.mode === 'room' && (
+          <div className="order-last sm:order-none w-full sm:w-auto sm:flex-1 flex sm:justify-center overflow-x-auto [scrollbar-width:none]">
+            <Segmented value={viewMode} onChange={(m) => setViewMode(m)} options={VIEW_TABS.map((v) => [v.id, v.label, v.icon])} strong />
           </div>
+        )}
+        {opts.mode !== 'room' && <div className="flex-1" />}
 
+        <div className="flex items-center gap-1.5">
           {opts.mode === 'room' && (
-            <div className="flex flex-wrap items-center gap-1">
-              {[
-                ['project', '🏠 Mi Sala'],
-                ['studio', '🎙️ Estudio'],
-                ['classroom', '🎓 Colegio/Uni'],
-                ['meeting', '💼 Juntas'],
-                ['cinema', '🎬 Cine'],
-                ['industrial', '🏭 Industrial'],
-              ].map(([id, label]) => {
-                const active =
-                  (id === 'project' && opts.usePolygon) ||
-                  (id !== 'project' && !opts.usePolygon && opts.roomType === id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => handleSelectRoomPreset(id)}
-                    className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold transition cursor-pointer ${
-                      active ? CHIP_ON : CHIP_OFF
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Derecha: Deshacer/Rehacer + Rendimiento + Exportar */}
-        <div className="flex flex-wrap items-center gap-2">
-          {opts.mode === 'room' && (
-            <div className="inline-flex items-center rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-[#f5f5f7] dark:bg-[#18192a] p-0.5">
-              <button
-                type="button"
-                onClick={handleUndo}
-                disabled={!canUndo}
-                title="Deshacer (Ctrl+Z)"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold disabled:opacity-35 hover:bg-black/5 dark:hover:bg-white/10 transition cursor-pointer"
-              >
-                <Undo2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Ctrl+Z</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleRedo}
-                disabled={!canRedo}
-                title="Rehacer (Ctrl+Y)"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold disabled:opacity-35 hover:bg-black/5 dark:hover:bg-white/10 transition cursor-pointer"
-              >
-                <Redo2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
-          {/* Motor GPU */}
-          <div
-            className="inline-flex items-center gap-0.5 bg-[#f5f5f7] dark:bg-[#18192a] p-0.5 rounded-xl border border-black/[0.06] dark:border-white/[0.08]"
-            title={activePerf.desc}
-          >
-            {PERF_MODES.map((pm) => (
-              <button
-                key={pm.id}
-                type="button"
-                onClick={() => patch({ perfMode: pm.id })}
-                title={pm.desc}
-                className={`px-2 py-1 rounded-lg text-[10.5px] font-bold transition cursor-pointer ${
-                  opts.perfMode === pm.id
-                    ? pm.id === 'eco'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-[#5833c7] text-white'
-                    : `${MUTED} hover:text-[#1d1d1f] dark:hover:text-white`
-                }`}
-              >
-                {pm.badge}
-              </button>
-            ))}
-          </div>
-
-          {/* Botón Exportar con opciones desplegables sin salir del Viewport */}
-          <div className="relative">
-            <div className="inline-flex items-center rounded-xl bg-[#5833c7] text-white shadow-sm">
-              <button
-                type="button"
-                onClick={render}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold hover:bg-[#4726aa] rounded-l-xl transition cursor-pointer disabled:opacity-60"
-              >
-                <Download className="w-3.5 h-3.5" />
-                {busy ? 'Renderizando…' : 'Descargar PNG'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowExportPopover((v) => !v)}
-                title="Formato y calidad de exportación"
-                className="px-2 py-1.5 border-l border-white/20 hover:bg-[#4726aa] rounded-r-xl transition cursor-pointer"
-              >
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {showExportPopover && (
-              <div className="absolute right-0 mt-2 w-72 z-30 rounded-2xl bg-white dark:bg-[#16182b] border border-black/10 dark:border-white/15 shadow-2xl p-3.5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold ${TITLE}`}>Ajustes de exportación</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowExportPopover(false)}
-                    className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <Choice
-                  label="Proporción"
-                  stacked
-                  options={SIZES.map((s) => [s.id, s.label])}
-                  value={opts.size}
-                  onChange={(v) => patch({ size: v })}
-                />
-                <Choice
-                  label="Calidad"
-                  options={QUALITIES.map((q) => [q.id, q.label])}
-                  value={opts.quality}
-                  onChange={(v) => patch({ quality: v })}
-                />
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className={MUTED}>
-                    {size.w}×{size.h} px · {quality.samples} pasadas
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => patch({ format: opts.format === 'png' ? 'webp' : 'png' })}
-                    className="font-bold text-[#5833c7] dark:text-[#c4b5fd] underline cursor-pointer"
-                  >
-                    Formato: {opts.format.toUpperCase()}
-                  </button>
-                </div>
+            <>
+              <IconButton title="Deshacer (Ctrl+Z)" disabled={!canUndo} onClick={undo} icon={Undo2} />
+              <IconButton title="Rehacer (Ctrl+Y)" disabled={!canRedo} onClick={redo} icon={Redo2} />
+              <div className="relative" data-menu>
+                <button type="button" onClick={() => setFileMenu((v) => !v)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold ${SOFT} ${TITLE} hover:bg-black/[0.06] dark:hover:bg-white/10 cursor-pointer`}>
+                  <FolderOpen className="w-3.5 h-3.5" /> Archivo <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+                {fileMenu && (
+                  <Menu onClose={() => setFileMenu(false)}>
+                    <MenuItem icon={Save} label="Guardar proyecto" hint="Descarga un archivo .json" onClick={saveFile} />
+                    <MenuItem icon={FolderOpen} label="Abrir proyecto…" hint="Un .json guardado antes" onClick={() => fileInput.current?.click()} />
+                    <MenuItem icon={FilePlus2} label="Empezar sala vacía" hint="Ctrl+Z la devuelve" onClick={() => { setFileMenu(false); applyPreset('empty'); }} />
+                    <p className={`px-3 pt-2 pb-1 text-[11px] ${MUTED} border-t ${LINE} mt-1`}>Los cambios también se guardan solos en este navegador.</p>
+                  </Menu>
+                )}
+                <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={(e) => openFile(e.target.files?.[0])} />
               </div>
-            )}
-          </div>
+            </>
+          )}
+          <button type="button" onClick={() => setExportTab('image')} className="inline-flex items-center gap-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm cursor-pointer">
+            <Download className="w-3.5 h-3.5" /> Exportar
+          </button>
         </div>
       </div>
 
-      {/* ====================================================================
-          ÁREA PRINCIPAL CENTRADA EN EL VIEWPORT (SIN SCROLL DE PÁGINA)
-         ==================================================================== */}
-      <div className="grid lg:grid-cols-12 gap-4 items-start">
-        {/* ------------------------------------------------------------------
-            IZQUIERDA / CENTRO (8 COLUMNAS): VIEWPORT 3D PROTAGONISTA + HUD FLOTANTE
-           ------------------------------------------------------------------ */}
-        <div className="lg:col-span-8 space-y-2.5">
-          <div className={`${CARD} p-2.5`}>
-            <div
-              className="relative rounded-2xl overflow-hidden"
-              style={
-                matte && matte.startsWith('#')
-                  ? { background: matte }
-                  : {
-                      background: `repeating-conic-gradient(${
-                        isDarkMode ? '#1a1b2c 0 25%, #15162a 0 50%' : '#f3f3f6 0 25%, #fafafc 0 50%'
-                      }) 0 0 / 22px 22px`,
-                    }
-              }
-            >
-              {/* HUD FLOTANTE SUPERIOR: HERRAMIENTA 3D + CÁMARA INTERIOR + TOUR CINEMÁTICO */}
-              {opts.mode === 'room' && (
-                <div className="absolute top-2.5 inset-x-2.5 z-10 flex flex-wrap items-center justify-between gap-1.5 pointer-events-none">
-                  {/* Selector Orbitar vs Mover Objetos + Vistas Rápidas */}
-                  <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
-                    <div className="inline-flex items-center p-0.5 rounded-xl bg-black/70 backdrop-blur-md text-white text-[11px] font-bold shadow-md">
-                      <button
-                        type="button"
-                        onClick={() => setInteractionMode('auto')}
-                        title="Arrastra para girar cámara (o arrastra el objeto seleccionado)"
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg transition cursor-pointer ${
-                          interactionMode !== 'move' ? 'bg-[#5833c7] text-white' : 'text-white/75 hover:text-white'
-                        }`}
-                      >
-                        <MousePointer className="w-3 h-3" /> Orbitar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setInteractionMode(interactionMode === 'move' ? 'auto' : 'move')}
-                        title="Arrastra cualquier mueble o panel directamente en 3D (Alt+arrastrar en techo cambia altura)"
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg transition cursor-pointer ${
-                          interactionMode === 'move' ? 'bg-emerald-600 text-white' : 'text-white/75 hover:text-white'
-                        }`}
-                      >
-                        <Move className="w-3 h-3" /> Mover 3D
-                      </button>
-                    </div>
-
-                    {/* Botón para Entrar / Salir de Vista en 1ª Persona dentro de la sala */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCinematicPlaying(false);
-                        if (view?.firstPerson) {
-                          setView(home);
-                        } else {
-                          enterInteriorView();
-                        }
-                      }}
-                      title="Coloca la cámara dentro del recinto con las 4 paredes cerradas (arrastra para mirar 360°)"
-                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-md backdrop-blur-md transition cursor-pointer ${
-                        view?.firstPerson && !cinematicPlaying
-                          ? 'bg-emerald-600 text-white ring-2 ring-emerald-300'
-                          : 'bg-black/70 text-white hover:bg-[#5833c7]'
-                      }`}
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      {view?.firstPerson && !cinematicPlaying ? 'Salir al Exterior' : 'Entrar a Sala (1ª Persona)'}
-                    </button>
-                  </div>
-
-                  {/* Controles de Tour Cinemático Interior + Zoom + Día/Noche */}
-                  <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!cinematicPlaying) {
-                          setCinematicMode('interior_path');
-                          setCinematicPlaying(true);
-                        } else {
-                          setCinematicPlaying(false);
-                        }
-                      }}
-                      title="Recorre el interior de la sala siguiendo la ruta trazada P1 → P2 → P3 → P4"
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-md backdrop-blur-md transition cursor-pointer ${
-                        cinematicPlaying
-                          ? 'bg-amber-500 text-white ring-2 ring-amber-200'
-                          : 'bg-black/70 text-white hover:bg-[#5833c7]'
-                      }`}
-                    >
-                      {cinematicPlaying ? <Pause className="w-3.5 h-3.5" /> : <Film className="w-3.5 h-3.5" />}
-                      {cinematicPlaying ? 'Detener Tour Interior' : 'Tour Cinemático Interior'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => patch({ night: !opts.night })}
-                      title={opts.night ? 'Cambiar a Luz de Día' : 'Cambiar a Ambiente Nocturno'}
-                      className="p-1.5 rounded-xl bg-black/70 backdrop-blur-md text-white hover:text-amber-300 shadow-md cursor-pointer"
-                    >
-                      {opts.night ? <Moon className="w-3.5 h-3.5 text-amber-300" /> : <Sun className="w-3.5 h-3.5" />}
-                    </button>
-
-                    <div className="inline-flex items-center rounded-xl bg-black/70 backdrop-blur-md text-white text-[10.5px] font-mono shadow-md">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setView((v) => ({
-                            ...v,
-                            zoom: clamp(Math.round(((v.zoom || 1) - 0.15) * 100) / 100, 0.45, 3.0),
-                          }))
-                        }
-                        className="p-1.5 hover:text-[#c4b5fd] cursor-pointer"
-                        title="Alejar (Rueda del ratón)"
-                      >
-                        <ZoomOut className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="px-1">{Math.round((view.zoom || 1) * 100)}%</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setView((v) => ({
-                            ...v,
-                            zoom: clamp(Math.round(((v.zoom || 1) + 0.15) * 100) / 100, 0.45, 3.0),
-                          }))
-                        }
-                        className="p-1.5 hover:text-[#c4b5fd] cursor-pointer"
-                        title="Acercar (Rueda del ratón)"
-                      >
-                        <ZoomIn className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* LIENZO WEBGL THREE.JS */}
-              <div
-                className="mx-auto"
-                style={{ maxWidth: size.w >= size.h ? '100%' : `${(size.w / size.h) * 620}px` }}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+        {/* ================================================== visor */}
+        <div className="lg:col-span-8 min-w-0 space-y-2">
+          <div className={`${CARD} p-2`}>
+            <div className="relative rounded-2xl overflow-hidden mx-auto" style={{ maxWidth: aspect < 1 ? `${aspect * 640}px` : '100%', background: flat ? previewMatte : '#9cb6d4' }}>
+              <SceneViewport
+                ref={viewport}
+                spec={spec}
+                selectedItemId={opts.mode === 'room' ? selectedItemId : null}
+                onSelectItem={opts.mode === 'room' ? setSelectedItemId : null}
+                onMoveItem={opts.mode === 'room' ? updateItem : null}
+                mode={opts.mode === 'room' ? viewMode : 'orbit'}
+                onModeChange={setViewMode}
+                moveTool={viewMode === 'plan' ? 'move' : 'auto'}
+                matte={previewMatte}
+                aspect={aspect}
+                quality={opts.previewQuality}
               >
-                <RenderViewport
-                  ref={viewport}
-                  spec={settled}
-                  view={view}
-                  onViewChange={(nextV) => {
-                    if (cinematicPlaying) setCinematicPlaying(false);
-                    setView(nextV);
-                  }}
-                  onSelectItem={opts.mode === 'room' ? (id) => setSelectedItemId(id) : null}
-                  onMoveItem={opts.mode === 'room' ? updateItemById : null}
-                  interactionMode={interactionMode}
-                  matte={matte}
-                  aspect={size.w / size.h}
-                  previewMax={activePerf.previewMax}
-                  previewSamples={activePerf.previewSamples}
-                  shadowSize={activePerf.shadowSize}
-                  skipBloom={activePerf.skipBloom}
-                />
-              </div>
-
-              {/* ================================================================
-                  BARRA CONTEXTUAL FLOTANTE INFERIOR PARA EL OBJETO SELECCIONADO
-                  (Editar tamaño, alargar mesas/estantes, bajar del techo, poner en repisa o bloquear SIN salir del Viewport)
-                 ================================================================ */}
-              {opts.mode === 'room' && selectedItem && (
-                <FloatingItemQuickBar
-                  item={selectedItem}
-                  layout={layout}
-                  activeSupport={activeSupportForSelected}
-                  availableSurfaces={availableSurfaces}
-                  onPlaceOnSurface={handlePlaceSelectedOnSurface}
-                  onChange={updateSelectedItem}
-                  onToggleLock={() => handleToggleLock(selectedItem.id)}
-                  onDuplicate={() => handleDuplicateItem(selectedItem)}
-                  onDelete={() => handleDeleteItem(selectedItem.id)}
-                  onClose={() => setSelectedItemId(null)}
-                  onOpenAdvanced={() => setShowAdvancedModal((v) => !v)}
-                  showAdvanced={showAdvancedModal}
-                />
-              )}
-            </div>
-
-            {/* PIE COMPACTO DEL VIEWPORT: CÁMARAS RÁPIDAS + FONDOS + ATAJOS */}
-            <div className="flex flex-wrap items-center justify-between gap-2 px-1.5 pt-2">
-              <div className="flex flex-wrap items-center gap-1">
-                <span className={`text-[10px] font-bold ${MUTED} mr-0.5`}>Cámara:</span>
-                {CAMERAS.map((c) => (
-                  <button
-                    key={c.label}
-                    type="button"
-                    onClick={() => {
-                      setCinematicPlaying(false);
-                      setView((v) => ({ ...v, ...c.view }));
-                    }}
-                    className={`rounded-lg border px-2 py-0.5 text-[10px] font-semibold transition cursor-pointer ${
-                      !view?.firstPerson && Math.abs((view?.azimuth || 0) - c.view.azimuth) < 5 ? CHIP_ON : CHIP_OFF
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCinematicPlaying(false);
-                    enterInteriorView();
-                  }}
-                  className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition cursor-pointer ${
-                    view?.firstPerson ? CHIP_ON : CHIP_OFF
-                  }`}
-                >
-                  👁️ Interior
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCinematicPlaying(false);
-                    setView(home);
-                  }}
-                  className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-semibold transition cursor-pointer ${CHIP_OFF}`}
-                >
-                  <RotateCcw className="w-2.5 h-2.5" /> Reset
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1">
-                <span className={`text-[10px] font-bold ${MUTED} mr-0.5`}>Fondo:</span>
-                {BACKGROUNDS.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => patch({ background: b.id })}
-                    className={`rounded-lg border px-2 py-0.5 text-[10px] font-semibold transition cursor-pointer ${
-                      opts.background === b.id ? CHIP_ON : CHIP_OFF
-                    }`}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
+                {hintVisible && (
+                  <div className="absolute top-3 left-3 right-14 sm:right-auto sm:max-w-md hidden sm:flex items-start gap-2 rounded-xl bg-black/55 backdrop-blur px-3 py-2 text-[11.5px] leading-snug text-white/90">
+                    <span>{viewTab.hint}</span>
+                    <button type="button" aria-label="Ocultar ayuda" onClick={() => { const next = { ...hints, [viewMode]: true }; setHints(next); try { localStorage.setItem(HINTS_KEY, JSON.stringify(next)); } catch { /* */ } }} className="shrink-0 rounded-md p-0.5 hover:bg-white/15 cursor-pointer">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                {playing && (
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-black/60 backdrop-blur pl-3 pr-1 py-1 text-[12px] text-white">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                    {allPaths[playing]?.label ?? 'Recorrido'}
+                    <button type="button" onClick={() => viewport.current?.stop()} className="ml-1 inline-flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-2.5 py-1 font-semibold cursor-pointer">
+                      <Square className="w-3 h-3" /> Detener
+                    </button>
+                  </div>
+                )}
+                <div className="absolute right-3 bottom-3 flex flex-col gap-1 rounded-2xl bg-black/45 backdrop-blur p-1 text-white">
+                  {viewMode !== 'walk' && <OverlayButton title="Acercar" icon={Plus} onClick={() => viewport.current?.zoomBy(1.2)} />}
+                  {viewMode !== 'walk' && <OverlayButton title="Alejar" icon={Minus} onClick={() => viewport.current?.zoomBy(1 / 1.2)} />}
+                  <OverlayButton title="Volver a la vista inicial" icon={RotateCcw} onClick={() => viewport.current?.resetView()} />
+                  {opts.mode === 'room' && <OverlayButton title={opts.night ? 'Ver de día' : 'Ver de noche'} icon={opts.night ? Sun : Moon} onClick={() => patch({ night: !opts.night })} />}
+                </div>
+                {opts.mode === 'room' && selectedItem && !playing && (
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-3 flex items-center gap-0.5 rounded-full bg-[#141526]/85 backdrop-blur pl-3 pr-1 py-1 text-white shadow-lg max-w-[calc(100%-6rem)]">
+                    <span className="truncate text-[12px] font-semibold mr-1.5">{selectedItem.name}</span>
+                    {selectedItem.mount !== 'wall' && selectedItem.mount !== 'corner' && <PillButton title="Girar 45° (R)" icon={RotateCw} disabled={selectedItem.locked} onClick={() => rotateItem(selectedItem)} />}
+                    <PillButton title="Duplicar (Ctrl+D)" icon={Copy} onClick={() => duplicateItem(selectedItem)} />
+                    <PillButton title={selectedItem.locked ? 'Desbloquear (L)' : 'Bloquear (L)'} icon={selectedItem.locked ? Lock : Unlock} onClick={() => toggleLock(selectedItem.id)} />
+                    <PillButton title="Eliminar (Supr)" icon={Trash2} disabled={selectedItem.locked} onClick={() => deleteItem(selectedItem.id)} danger />
+                    <PillButton title="Quitar selección (Esc)" icon={X} onClick={() => setSelectedItemId(null)} />
+                  </div>
+                )}
+                {toast && (
+                  <div className={`absolute left-3 top-3 max-w-[80%] rounded-xl px-3 py-2 text-[12px] font-medium shadow-lg ${toast.tone === 'error' ? 'bg-rose-600 text-white' : 'bg-white/95 text-[#1d1d1f] dark:bg-[#1c1d30]/95 dark:text-white'}`} style={{ marginTop: hintVisible ? 52 : 0 }}>
+                    {toast.text}
+                  </div>
+                )}
+              </SceneViewport>
             </div>
           </div>
 
-          {/* RESUMEN ACÚSTICO COMPACTO DE 1 LÍNEA (DESPLEGABLE SI EL USUARIO QUIERE VER LA TABLA COMPLETA) */}
           {opts.mode === 'room' && (
             <div className={`${CARD} px-4 py-2.5`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-3 text-xs">
-                  <span className={`inline-flex items-center gap-1.5 font-bold ${TITLE}`}>
-                    <Activity className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa]" />
-                    RT60 (500 Hz):
-                  </span>
-                  <span className="font-mono text-[#86868b] dark:text-slate-400">
-                    Vacía: <strong>{(acousticImpact.baseRT[500]?.sabine || 0).toFixed(2)}s</strong>
-                  </span>
-                  <span className="text-[#86868b]">→</span>
-                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                    Con objetos 3D: {(acousticImpact.treatedRT[500]?.sabine || 0).toFixed(2)}s
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10.5px] font-mono font-bold bg-[#5833c7]/10 text-[#5833c7] dark:text-[#c4b5fd]">
-                    +{fmt(acousticImpact.totalByBand[500], 2)} m² Sabines ({items.filter((x) => x.enabled !== false).length} obj.)
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className={`hidden xl:inline text-[10px] ${MUTED}`}>
-                    Atajos: <kbd className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono">Ctrl+Z</kbd>{' '}
-                    <kbd className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono">Supr</kbd>{' '}
-                    <kbd className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono">L</kbd> Bloquear{' '}
-                    <kbd className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono">R</kbd> Rotar
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAcousticDrawer((v) => !v)}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5833c7] dark:text-[#c4b5fd] hover:underline cursor-pointer"
-                  >
-                    {showAcousticDrawer ? 'Ocultar bandas' : 'Ver bandas Hz'}
-                    {showAcousticDrawer ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              </div>
-
-              {showAcousticDrawer && (
-                <div className="pt-3 mt-2.5 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className={`text-[11px] ${MUTED}`}>
-                      Absorción equivalente añadida por paneles, difusores y mobiliario relevante:
-                    </span>
-                    {onToggleApplySceneObjects && (
-                      <button
-                        type="button"
-                        onClick={() => onToggleApplySceneObjects(!applySceneObjectsToProject)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border text-[11px] font-bold transition cursor-pointer ${
-                          applySceneObjectsToProject
-                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                            : CHIP_OFF
-                        }`}
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        {applySceneObjectsToProject ? 'Sincronizado con el proyecto ✓' : 'Aplicar al proyecto'}
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs">
+                <div className="flex items-center gap-1">
+                  {(viewMode === 'orbit' || viewMode === 'exterior') &&
+                    [
+                      ['Esquina', 40, 27],
+                      ['Frente', 0, 18],
+                      ['Lado', 90, 18],
+                      ['Arriba', 40, 68],
+                    ].map(([label, az, el]) => (
+                      <button key={label} type="button" onClick={() => viewport.current?.frame(az, viewMode === 'exterior' ? Math.min(el, 35) : el)} className={`rounded-lg px-2 py-1 font-medium ${IDLE} hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer`}>
+                        {label}
                       </button>
-                    )}
-                  </div>
+                    ))}
+                  {viewMode === 'walk' && <span className={MUTED}>Estás dentro de la sala, a la altura de los ojos.</span>}
+                  {viewMode === 'plan' && <span className={MUTED}>Vista de planta: arrastra los objetos para acomodarlos.</span>}
+                </div>
+                <button type="button" onClick={() => setShowBands((v) => !v)} className="inline-flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer">
+                  <span className={MUTED}>Reverberación a 500 Hz</span>
+                  <span className={`font-mono ${MUTED}`}>{fmt(rt500, 2)} s</span>
+                  <span className={MUTED}>→</span>
+                  <span className="font-mono font-semibold text-[#5833c7] dark:text-[#c4b5fd]">{fmt(rt500t, 2)} s</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition ${showBands ? 'rotate-180' : ''} ${MUTED}`} />
+                </button>
+              </div>
+              {showBands && (
+                <div className={`mt-2.5 pt-2.5 border-t ${LINE} space-y-2`}>
+                  <p className={`text-[11.5px] ${MUTED}`}>Tiempo de reverberación (Sabine) de la sala sola y con los objetos que pusiste. Verde: dentro del rango recomendado para el uso de la sala.</p>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs font-mono border-collapse">
+                    <table className="w-full text-xs font-mono">
                       <thead>
-                        <tr className="border-b border-black/[0.06] dark:border-white/[0.08] text-[10px] text-[#86868b] dark:text-slate-400">
-                          <th className="py-1 text-left font-sans font-bold">Banda (Hz)</th>
+                        <tr className={`text-[10.5px] ${MUTED}`}>
+                          <th className="py-1 text-left font-sans font-semibold">Banda</th>
                           {OCTAVE_BANDS.map((f) => (
-                            <th key={f} className="py-1 text-right font-bold">
-                              {f} Hz
-                            </th>
+                            <th key={f} className="py-1 text-right font-semibold">{f >= 1000 ? `${f / 1000}k` : f}</th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.05]">
+                      <tbody>
                         <tr>
-                          <td className={`py-1 font-sans font-semibold ${MUTED}`}>+Sabines 3D</td>
+                          <td className={`py-1 font-sans ${MUTED}`}>Sala sola</td>
                           {OCTAVE_BANDS.map((f) => (
-                            <td key={f} className="py-1 text-right text-[#5833c7] dark:text-[#c4b5fd] font-semibold">
-                              +{acousticImpact.totalByBand[f].toFixed(1)}
-                            </td>
+                            <td key={f} className={`py-1 text-right ${MUTED}`}>{fmt(acoustic.base[f]?.sabine, 2)}</td>
                           ))}
                         </tr>
                         <tr>
-                          <td className={`py-1 font-sans font-semibold ${MUTED}`}>RT60 Vacía</td>
-                          {OCTAVE_BANDS.map((f) => (
-                            <td key={f} className={`py-1 text-right ${MUTED}`}>
-                              {(acousticImpact.baseRT[f]?.sabine || 0).toFixed(2)}s
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className={`py-1 font-sans font-bold ${TITLE}`}>RT60 Tratada</td>
+                          <td className={`py-1 font-sans font-semibold ${TITLE}`}>Con objetos</td>
                           {OCTAVE_BANDS.map((f) => {
-                            const rt = acousticImpact.treatedRT[f]?.sabine || 0;
-                            const optMin = optimumRT?.min ?? 0.3;
-                            const optMax = optimumRT?.max ?? 0.8;
-                            const ok = rt >= optMin && rt <= optMax;
+                            const rt = acoustic.treated[f]?.sabine || 0;
+                            const ok = rt >= (optimumRT?.min ?? 0.3) && rt <= (optimumRT?.max ?? 0.8);
                             return (
-                              <td
-                                key={f}
-                                className={`py-1 text-right font-bold ${
-                                  ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                                }`}
-                              >
-                                {rt.toFixed(2)}s
-                              </td>
+                              <td key={f} className={`py-1 text-right font-semibold ${ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>{fmt(rt, 2)}</td>
                             );
                           })}
                         </tr>
                       </tbody>
                     </table>
                   </div>
+                  {onToggleApplySceneObjects && (
+                    <Toggle label="Usar estos objetos en los cálculos de toda la suite" checked={applySceneObjectsToProject} onChange={onToggleApplySceneObjects} />
+                  )}
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* ------------------------------------------------------------------
-            DERECHA (4 COLUMNAS): DOCK LATERAL COMPACTO CON SCROLL INTERNO
-            (Nunca te obliga a hacer scroll fuera del Viewport 3D)
-           ------------------------------------------------------------------ */}
-        <div className="lg:col-span-4">
+        {/* ================================================== panel lateral */}
+        <div className={`lg:col-span-4 min-w-0 relative ${opts.mode === 'room' ? 'lg:min-h-[540px]' : ''}`}>
           {opts.mode === 'room' && (
-            <div className={`${CARD} flex flex-col lg:h-[650px] overflow-hidden`}>
-              {/* 3 Pestañas claras en la cabecera del Dock */}
-              <div className="grid grid-cols-3 gap-1 p-1.5 border-b border-black/[0.07] dark:border-white/[0.08] bg-[#f8f8fa] dark:bg-[#151728] shrink-0">
-                {[
-                  ['catalog', '➕ Catálogo', Armchair],
-                  ['plan', `🗺️ Planta / Cine`, Film],
-                  ['room', '🎨 Sala / Muros', Ruler],
-                ].map(([id, label, Icon]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setDockTab(id)}
-                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-[11px] font-bold transition cursor-pointer ${
-                      dockTab === id
-                        ? 'bg-[#5833c7] text-white shadow-xs'
-                        : `${MUTED} hover:text-[#1d1d1f] dark:hover:text-white`
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* CONTENIDO DEL DOCK CON SCROLL INTERNO INDEPENDIENTE */}
-              <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
-                {/* ==========================================================
-                    TAB 1: CATÁLOGO AMPLIO DE OBJETOS REALES, MUEBLES Y TRATAMIENTO
-                   ========================================================== */}
-                {dockTab === 'catalog' && (
-                  <>
-                    {/* Buscador instantáneo */}
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#86868b]" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Buscar TV, laptop, cámara, luz, silla brazo, estante, puerta, bafle..."
-                        className="w-full pl-8 pr-7 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.06] dark:border-white/[0.08] text-xs text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#5833c7]"
-                      />
-                      {searchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setSearchQuery('')}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#86868b] hover:text-[#1d1d1f]"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Filtros rápidos por categoría */}
-                    <div className="flex flex-wrap gap-1">
-                      {[
-                        ['all', '✨ Todos'],
-                        ['education', '🎓 Colegio/Uni'],
-                        ['studio', '🪑 Muebles/Salas'],
-                        ['media', '📺 TV/Cámaras/Props'],
-                        ['lighting', '💡 Luces'],
-                        ['architecture', '🚪 Puertas/Ventanas'],
-                        ['industrial', '🏭 Industrial'],
-                        ['panels', '🟣 Paneles/Techo'],
-                        ['diffusers', '🟠 Difusores'],
-                      ].map(([id, label]) => (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => setCatalogGroup(id)}
-                          className={`px-2 py-1 rounded-lg text-[10.5px] font-bold transition cursor-pointer border ${
-                            catalogGroup === id ? CHIP_ON : CHIP_OFF
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Grid de 2 columnas para ver muchos objetos sin hacer casi scroll */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {filteredCatalog.map((catItem) => {
-                        const isDiff = catItem.category === 'diffusers';
-                        const isPanel = catItem.category === 'panels';
-                        const isSmallProp =
-                          catItem.mount === 'floor' &&
-                          !SUPPORT_SURFACE_SPECS[catItem.id] &&
-                          (catItem.subCategory === 'media' || catItem.id === 'desk_lamp');
-                        const targetSurface =
-                          selectedItem && SUPPORT_SURFACE_SPECS[selectedItem.typeId]
-                            ? selectedItem
-                            : availableSurfaces[0] || null;
-
-                        return (
-                          <div
-                            key={catItem.id}
-                            className="p-2.5 rounded-2xl border border-black/[0.07] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#17192b] hover:border-[#5833c7]/50 transition flex flex-col justify-between gap-2"
-                          >
-                            <div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                    isDiff
-                                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
-                                      : isPanel
-                                        ? 'bg-[#5833c7]/15 text-[#5833c7] dark:text-[#c4b5fd]'
-                                        : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                                  }`}
-                                >
-                                  {catItem.mount === 'wall'
-                                    ? 'Pared'
-                                    : catItem.mount === 'ceiling'
-                                      ? 'Techo ↕'
-                                      : catItem.mount === 'corner'
-                                        ? 'Esquina'
-                                        : SUPPORT_SURFACE_SPECS[catItem.id]
-                                          ? 'Soporte 📥'
-                                          : 'Piso'}
-                                </span>
-                                {catItem.coefficients?.[500] !== undefined && (
-                                  <span className="text-[9.5px] font-mono font-bold text-[#5833c7] dark:text-[#c4b5fd]">
-                                    α={catItem.coefficients[500].toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className={`text-xs font-bold ${TITLE} mt-1 leading-snug`}>{catItem.name}</div>
-                              <p className={`text-[10px] ${MUTED} line-clamp-2 mt-0.5`}>{catItem.subtitle}</p>
-                            </div>
-
-                            <div className="flex items-center gap-1 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => handleAddItem(catItem.id)}
-                                className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] text-white text-[10.5px] font-bold transition cursor-pointer"
-                              >
-                                <Plus className="w-3 h-3" /> Añadir
-                              </button>
-                              {isSmallProp && targetSurface && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddItem(catItem.id, targetSurface)}
-                                  title={`Colocar directamente sobre ${targetSurface.name}`}
-                                  className="px-2 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold transition cursor-pointer shrink-0"
-                                >
-                                  📥 En mesa/repisa
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-
-                {/* ==========================================================
-                    TAB 2: PLANTA 2D UNIFICADA + RUTA DE TOUR CINEMÁTICO INTERIOR + LISTA DE OBJETOS
-                   ========================================================== */}
-                {dockTab === 'plan' && (
-                  <>
-                    {/* Controles del Tour Cinemático que ENTRA a la sala */}
-                    <div className="p-3 rounded-2xl border border-black/[0.07] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#17192b] space-y-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-xs font-bold ${TITLE} flex items-center gap-1.5`}>
-                          <Film className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#a78bfa]" />
-                          Recorrido Cinemático Interior
-                        </span>
-                        <div className="inline-flex p-0.5 rounded-lg bg-black/5 dark:bg-white/10 text-[10px] font-bold">
-                          {[0.5, 1, 2].map((sp) => (
-                            <button
-                              key={sp}
-                              type="button"
-                              onClick={() => setCinematicSpeed(sp)}
-                              className={`px-1.5 py-0.5 rounded-md cursor-pointer ${
-                                cinematicSpeed === sp ? 'bg-[#5833c7] text-white' : MUTED
-                              }`}
-                            >
-                              {sp}×
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-1">
-                        {[
-                          ['interior_path', '🚶 Ruta Interior'],
-                          ['orbit', '🔄 Órbita 360°'],
-                          ['sweep', '🎥 Pendular'],
-                        ].map(([id, label]) => (
-                          <button
-                            key={id}
-                            type="button"
-                            onClick={() => setCinematicMode(id)}
-                            className={`py-1.5 px-2 rounded-xl border text-[10px] font-bold transition cursor-pointer ${
-                              cinematicMode === id ? CHIP_ON : CHIP_OFF
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="flex gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setCinematicPlaying((p) => !p)}
-                          className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs text-white transition cursor-pointer ${
-                            cinematicPlaying ? 'bg-amber-500 hover:bg-amber-600' : 'bg-[#5833c7] hover:bg-[#4726aa]'
-                          }`}
-                        >
-                          {cinematicPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                          {cinematicPlaying ? 'Pausar Tour' : 'Iniciar Tour en Sala'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCinematicPlaying(false);
-                            enterInteriorView();
-                          }}
-                          title="Pararse dentro de la sala y girar 360° con el ratón"
-                          className="px-2.5 py-2 rounded-xl border border-black/10 dark:border-white/15 text-[11px] font-bold hover:border-[#5833c7] transition cursor-pointer"
-                        >
-                          👁️ 1ª Persona
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Planta 2D Interactiva que muestra Objetos + Paradas de Cámara P1..P4 */}
-                    <InteractiveFloorPlan2D
-                      layout={layout}
-                      items={items}
-                      selectedItemId={selectedItemId}
-                      onSelectItem={setSelectedItemId}
-                      onUpdateItem={updateItemById}
-                      waypoints={waypoints}
-                      setWaypoints={setWaypoints}
-                      showWaypoints={cinematicMode === 'interior_path'}
-                      onJumpToWaypoint={(wp) => {
-                        setCinematicPlaying(false);
-                        enterInteriorView(wp);
-                      }}
-                    />
-
-                    {/* Lista rápida de objetos con candado de bloqueo (🔒), visibilidad y borrado */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-[#86868b] dark:text-slate-400">
-                        <span>Objetos en la sala ({items.length})</span>
-                        {items.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => handleSelectRoomPreset('empty')}
-                            className="text-[10px] text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                          >
-                            Vaciar sala
-                          </button>
-                        )}
-                      </div>
-                      <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
-                        {items.map((it) => {
-                          const isSel = it.id === selectedItemId;
-                          return (
-                            <div
-                              key={it.id}
-                              onClick={() => setSelectedItemId(it.id)}
-                              className={`px-2.5 py-1.5 rounded-xl border text-xs flex items-center justify-between gap-2 transition cursor-pointer ${
-                                isSel
-                                  ? 'border-[#5833c7] bg-[#5833c7]/10 dark:bg-[#5833c7]/20'
-                                  : 'border-black/[0.06] dark:border-white/[0.06] bg-[#fbfbfd] dark:bg-[#17192b] hover:border-[#5833c7]/40'
-                              }`}
-                            >
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                {it.locked && <Lock className="w-3 h-3 text-amber-500 shrink-0" />}
-                                <span className={`truncate font-semibold ${TITLE}`}>
-                                  {it.name} {it.count > 1 ? `(×${it.count})` : ''}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleLock(it.id)}
-                                  title={it.locked ? 'Desbloquear objeto (L)' : 'Bloquear posición (L)'}
-                                  className={`p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 ${
-                                    it.locked ? 'text-amber-500' : 'text-slate-400'
-                                  }`}
-                                >
-                                  {it.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateItemById(it.id, { enabled: it.enabled === false })}
-                                  title="Mostrar / Ocultar"
-                                  className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-slate-400"
-                                >
-                                  {it.enabled === false ? (
-                                    <EyeOff className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <Eye className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDuplicateItem(it)}
-                                  title="Duplicar (Ctrl+D)"
-                                  className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-slate-400"
-                                >
-                                  <Copy className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={it.locked}
-                                  onClick={() => handleDeleteItem(it.id)}
-                                  title={it.locked ? 'Objeto bloqueado' : 'Eliminar (Supr)'}
-                                  className="p-1 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 disabled:opacity-30"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* ==========================================================
-                    TAB 3: GEOMETRÍA DEL RECINTO, PUERTAS/VENTANAS DE MATERIALES Y COLORES
-                   ========================================================== */}
-                {dockTab === 'room' && (
-                  <div className="space-y-3.5">
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => patch({ usePolygon: true })}
-                        className={`p-2.5 rounded-2xl border text-left transition cursor-pointer ${
-                          opts.usePolygon ? CHIP_ON : CHIP_OFF
-                        }`}
-                      >
-                        <div className="text-xs font-bold flex items-center justify-between">
-                          <span>Planta Proyecto</span>
-                          {opts.usePolygon && <Check className="w-3.5 h-3.5" />}
-                        </div>
-                        <p className={`text-[10px] ${MUTED} mt-0.5`}>
-                          {roomPolygon?.vertices?.length || 4} muros ({fmt(layout.W)}×{fmt(layout.D)}×{fmt(layout.H)}m)
-                        </p>
+            <div className={`${CARD} flex flex-col h-[640px] lg:h-auto lg:absolute lg:inset-0 overflow-hidden`}>
+              {selectedItem ? (
+                <Inspector
+                  item={selectedItem}
+                  layout={layout}
+                  items={items}
+                  palette={opts.palette}
+                  onBack={() => setSelectedItemId(null)}
+                  onChange={(changes) => updateItem(selectedItem.id, changes)}
+                  onDuplicate={() => duplicateItem(selectedItem)}
+                  onDelete={() => deleteItem(selectedItem.id)}
+                  onToggleLock={() => toggleLock(selectedItem.id)}
+                  onFocus={() => viewport.current?.focusItem(selectedItem.id)}
+                />
+              ) : (
+                <>
+                  <div className={`grid grid-cols-4 gap-1 p-1.5 m-2 mb-0 rounded-2xl ${SOFT}`}>
+                    {[
+                      ['add', 'Agregar'],
+                      ['room', 'Sala'],
+                      ['objects', 'Objetos'],
+                      ['tour', 'Recorridos'],
+                    ].map(([id, label]) => (
+                      <button key={id} type="button" onClick={() => setPanel(id)} className={`rounded-xl py-1.5 text-[12px] font-semibold transition cursor-pointer ${panel === id ? ACTIVE : IDLE}`}>
+                        {label}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => patch({ usePolygon: false })}
-                        className={`p-2.5 rounded-2xl border text-left transition cursor-pointer ${
-                          !opts.usePolygon ? CHIP_ON : CHIP_OFF
-                        }`}
-                      >
-                        <div className="text-xs font-bold flex items-center justify-between">
-                          <span>Medidas Libres</span>
-                          {!opts.usePolygon && <Check className="w-3.5 h-3.5" />}
-                        </div>
-                        <p className={`text-[10px] ${MUTED} mt-0.5`}>Ajustar largo, ancho y alto</p>
-                      </button>
-                    </div>
-
-                    {opts.usePolygon && (
-                      <div className="space-y-2">
-                        <Toggle
-                          label="Sincronizar «Materiales» (Puerta en ambos lados, Vidrio, Muros)"
-                          checked={opts.syncSurfaceMaterials !== false}
-                          onChange={(v) => patch({ syncSurfaceMaterials: v })}
-                        />
-                        {opts.syncSurfaceMaterials !== false && projectMaterialSummary.length > 0 && (
-                          <div className="rounded-xl bg-[#f5f5f7] dark:bg-[#17192b] px-3 py-2 text-[10px] text-[#86868b] dark:text-slate-400">
-                            <span className="font-bold text-[#1d1d1f] dark:text-white">Guardado en Cookies ✓ · </span>
-                            {projectMaterialSummary.join(' · ')}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {!opts.usePolygon && (
-                      <div className="space-y-2 p-3 rounded-2xl bg-[#fbfbfd] dark:bg-[#17192b] border border-black/[0.06] dark:border-white/[0.08]">
-                        {[
-                          ['W', 'Largo (X)', 3.0, 16.0],
-                          ['D', 'Ancho (Z)', 3.0, 14.0],
-                          ['H', 'Altura (Y)', 2.2, 6.0],
-                        ].map(([k, label, min, max]) => (
-                          <Range
-                            key={k}
-                            label={label}
-                            unit="m"
-                            value={opts.dims[k]}
-                            min={min}
-                            max={max}
-                            step={0.1}
-                            onChange={(v) => patch({ dims: { ...opts.dims, [k]: v } })}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    <Choice
-                      label="Corte de muros"
-                      options={[
-                        ['auto', 'Auto'],
-                        ['back_left', '2 Muros'],
-                        ['full', '4 Muros'],
-                      ]}
-                      value={opts.cutMode || 'auto'}
-                      onChange={(v) => patch({ cutMode: v })}
-                    />
-
-                    {/* Paleta de colores, madera y piso */}
-                    <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-[#17192b] border border-black/[0.06] dark:border-white/[0.08] space-y-3">
-                      <span className={`text-xs font-bold ${TITLE} block`}>Acabados del recinto</span>
-                      <div className="flex flex-wrap gap-1">
-                        {THEMES.map((t) => (
-                          <button
-                            key={t.name}
-                            type="button"
-                            onClick={() => patch({ palette: { ...t } })}
-                            className={`inline-flex items-center gap-1.5 rounded-full border pl-1.5 pr-2.5 py-1 text-[10.5px] font-semibold transition cursor-pointer ${
-                              opts.palette.name === t.name ? CHIP_ON : CHIP_OFF
-                            }`}
-                          >
-                            <span className="flex -space-x-1">
-                              {[t.primary, t.secondary, t.accent].map((c) => (
-                                <span
-                                  key={c}
-                                  className="w-3 h-3 rounded-full ring-1 ring-white dark:ring-[#121322]"
-                                  style={{ background: c }}
-                                />
-                              ))}
-                            </span>
-                            {t.name}
-                          </button>
-                        ))}
-                      </div>
-
-                      <Choice
-                        label="Piso"
-                        stacked
-                        options={FLOORS}
-                        value={opts.palette.floor}
-                        onChange={(v) => patch({ palette: { ...opts.palette, name: '', floor: v } })}
-                      />
-                      <Choice
-                        label="Madera"
-                        options={WOODS}
-                        value={opts.palette.wood}
-                        onChange={(v) => patch({ palette: { ...opts.palette, name: '', wood: v } })}
-                      />
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-xs ${MUTED}`}>Color muros</span>
-                        <div className="flex items-center gap-1.5">
-                          {WALLS.map((c) => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => patch({ palette: { ...opts.palette, name: '', wall: c } })}
-                              className={`w-5 h-5 rounded-full border transition cursor-pointer ${
-                                opts.palette.wall === c
-                                  ? 'ring-2 ring-[#5833c7] ring-offset-1'
-                                  : 'border-black/15 dark:border-white/20'
-                              }`}
-                              style={{ background: c }}
-                            />
-                          ))}
-                          <input
-                            type="color"
-                            value={opts.palette.wall || '#f1eee8'}
-                            onChange={(e) => patch({ palette: { ...opts.palette, name: '', wall: e.target.value } })}
-                            className="w-5 h-5 rounded-full border-0 bg-transparent p-0 cursor-pointer"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                )}
-              </div>
+                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3.5">
+                    {panel === 'add' && <CatalogPanel palette={palette} onAdd={addItem} />}
+                    {panel === 'room' && (
+                      <RoomPanel
+                        opts={opts}
+                        patch={patch}
+                        layout={layout}
+                        hasProjectPlan={hasProjectPlan}
+                        applyPreset={applyPreset}
+                      />
+                    )}
+                    {panel === 'objects' && (
+                      <ObjectsPanel
+                        items={items}
+                        onSelect={(id) => {
+                          setSelectedItemId(id);
+                          viewport.current?.focusItem(id);
+                        }}
+                        onToggleLock={toggleLock}
+                        onToggleVisible={(it) => updateItem(it.id, { enabled: it.enabled === false })}
+                        onDelete={deleteItem}
+                        onClear={() => applyPreset('empty')}
+                      />
+                    )}
+                    {panel === 'tour' && (
+                      <TourPanel
+                        presets={presets}
+                        myPath={myPath}
+                        playing={playing}
+                        onPlay={play}
+                        onVideo={(path) => {
+                          patch({ video: { ...opts.video, path: path.id, duration: null } });
+                          setExportTab('video');
+                        }}
+                        shots={opts.shots}
+                        onSaveShot={saveShot}
+                        onGoShot={(s) => viewport.current?.setPose(s.pose)}
+                        onRenameShot={(id, name) => patch({ shots: opts.shots.map((s) => (s.id === id ? { ...s, name } : s)) })}
+                        onDeleteShot={(id) => patch({ shots: opts.shots.filter((s) => s.id !== id) })}
+                        loop={opts.tourLoop}
+                        onLoop={(v) => patch({ tourLoop: v })}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          {/* MODO PIEZA SUELTA */}
           {opts.mode === 'product' && (
-            <Panel icon={Grid3x3} title="Tratamiento individual">
+            <div className={`${CARD} p-4 space-y-4`}>
+              <h3 className={`text-sm font-bold ${TITLE}`}>Tratamiento individual</h3>
               <div className="grid grid-cols-2 gap-1.5">
                 {Object.entries(PRODUCT_KINDS).map(([id, k]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => patch({ product: id })}
-                    className={`rounded-xl border px-2.5 py-2 text-[11px] font-semibold text-left transition cursor-pointer ${
-                      opts.product === id ? CHIP_ON : CHIP_OFF
-                    }`}
-                  >
+                  <button key={id} type="button" onClick={() => patch({ product: id })} className={`rounded-xl border px-2.5 py-2 text-[12px] font-medium text-left transition cursor-pointer ${opts.product === id ? 'border-[#5833c7] bg-[#5833c7]/10 text-[#5833c7] dark:text-[#c4b5fd]' : `${LINE} ${TITLE} hover:border-[#5833c7]/40`}`}>
                     {k.label}
                   </button>
                 ))}
               </div>
               {PRODUCT_PRIMES[opts.product] && (
-                <div className="flex items-center justify-between gap-3">
-                  <span className={`text-xs ${MUTED}`}>Número primo p</span>
-                  <div className="inline-flex p-1 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] text-xs font-mono font-semibold">
-                    {PRODUCT_PRIMES[opts.product].map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setProductParam('p', p)}
-                        className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                          productParams.p === p ? 'bg-[#5833c7] text-white' : MUTED
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <Field label="Número primo p">
+                  <Segmented value={productParams.p} onChange={(p) => patch({ productParams: { ...opts.productParams, [opts.product]: { ...opts.productParams[opts.product], p } } })} options={PRODUCT_PRIMES[opts.product].map((p) => [p, String(p)])} />
+                </Field>
               )}
               {(PRODUCT_FIELDS[opts.product] || PRODUCT_FIELDS.absorber).map(([key, label, min, max, step, unit]) => (
-                <Range
-                  key={key}
-                  label={label}
-                  unit={unit}
-                  value={productParams[key]}
-                  min={min}
-                  max={max}
-                  step={step}
-                  decimals={step >= 1 ? 0 : step >= 0.05 ? 2 : 3}
-                  onChange={(v) => setProductParam(key, v)}
-                />
+                <Range key={key} label={label} unit={unit} value={productParams[key]} min={min} max={max} step={step} decimals={step >= 1 ? 0 : step >= 0.05 ? 2 : 3} onChange={(v) => patch({ productParams: { ...opts.productParams, [opts.product]: { ...opts.productParams[opts.product], [key]: v } } })} />
               ))}
-            </Panel>
+              <FinishPicker opts={opts} patch={patch} />
+            </div>
           )}
 
-          {/* MODO MI DIFUSOR */}
           {opts.mode === 'diffuser' && (
-            <Panel icon={Wand2} title="Mi difusor diseñado en la Suite">
+            <div className={`${CARD} p-4 space-y-3`}>
+              <h3 className={`text-sm font-bold ${TITLE}`}>Mi difusor</h3>
               {diffuserDesign?.validWidth ? (
                 <>
-                  <p className={`text-xs ${MUTED} leading-relaxed`}>
-                    Se dibuja el último diseño que hiciste en «Diseño de difusores», con sus medidas reales.
-                  </p>
+                  <p className={`text-xs ${MUTED} leading-relaxed`}>Se dibuja el último diseño de «Diseño de difusores», con sus medidas reales.</p>
                   <dl className="grid grid-cols-2 gap-2 text-xs">
                     {[
                       ['Tipo', DIFFUSER_TYPE_LABELS[diffuserDesign.type]],
@@ -2234,10 +925,7 @@ export default function RenderStudio({
                       ['Profundidad', `${fmt(diffuserDesign.maxDepth * 100)} cm`],
                       ['Banda', `${diffuserCfg.f0} – ${diffuserDesign.fMax ?? '—'} Hz`],
                     ].map(([k, v]) => (
-                      <div
-                        key={k}
-                        className="rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#18192a] px-3 py-2"
-                      >
+                      <div key={k} className={`rounded-xl ${SOFT} px-3 py-2`}>
                         <dt className={MUTED}>{k}</dt>
                         <dd className={`font-mono font-semibold ${TITLE}`}>{v}</dd>
                       </div>
@@ -2247,814 +935,810 @@ export default function RenderStudio({
               ) : (
                 <p className={`text-xs ${MUTED}`}>Aún no hay un diseño válido guardado.</p>
               )}
-            </Panel>
+              <a href="#diffusers" className="inline-flex text-xs font-semibold text-[#5833c7] dark:text-[#c4b5fd] hover:underline">Abrir el diseñador de difusores →</a>
+              <FinishPicker opts={opts} patch={patch} />
+            </div>
           )}
         </div>
       </div>
+
+      {exportTab && (
+        <ExportDialog
+          tab={exportTab}
+          setTab={setExportTab}
+          onClose={() => setExportTab(null)}
+          opts={opts}
+          patch={patch}
+          viewport={viewport}
+          paths={allPaths}
+          flat={flat}
+          isDarkMode={isDarkMode}
+          roomMode={opts.mode === 'room'}
+          fileBase={opts.mode === 'room' ? `sala-${opts.roomType || 'pozole'}` : opts.mode === 'diffuser' ? 'mi-difusor' : opts.product}
+        />
+      )}
     </div>
   );
 }
 
-/* ============================================================================
- * BARRA FLOTANTE DE EDICIÓN RÁPIDA EN EL VIEWPORT 3D
- * Permite alargar mesas/estantes, bajar paneles/bafles del techo, elegir repisa,
- * bloquear (🔒), rotar, duplicar o borrar sin hacer scroll ni cerrar el catálogo.
- * ============================================================================ */
-function FloatingItemQuickBar({
-  item,
-  layout,
-  activeSupport,
-  availableSurfaces,
-  onPlaceOnSurface,
-  onChange,
-  onToggleLock,
-  onDuplicate,
-  onDelete,
-  onClose,
-  onOpenAdvanced,
-  showAdvanced,
-}) {
-  const def = getCatalogItem(item.typeId);
-  const { W, D, H, walls } = layout;
-  const isLocked = Boolean(item.locked);
-  const isSupportItem = Boolean(SUPPORT_SURFACE_SPECS[item.typeId]);
-  const isSmallFloorItem = item.mount === 'floor' && !isSupportItem;
+/* ============================================================ panel: catálogo */
 
-  // Límites de ancho/largo según el tipo de objeto (ej. mesa de juntas hasta 6.0 m, ventanales/cortinas hasta 4.8 m)
-  const maxW =
-    item.typeId === 'meeting_table'
-      ? Math.min(6.0, W - 0.4)
-      : item.typeId === 'panoramic_window' ||
-          item.typeId === 'floor_to_ceiling_window' ||
-          item.typeId === 'draped_curtain' ||
-          item.typeId === 'stage_curtain'
-        ? 4.8
-        : item.typeId === 'mid_shelf_credenza' || item.typeId === 'bookshelf' || item.typeId === 'industrial_shelving'
-          ? 3.8
-          : 3.4;
-
-  const nearestSurface = useMemo(() => {
-    if (!isSmallFloorItem || !availableSurfaces?.length) return null;
-    let best = availableSurfaces[0];
-    let bestDist = Infinity;
-    availableSurfaces.forEach((s) => {
-      if (s.id === item.id) return;
-      const d = Math.hypot((Number(s.x) || 0) - (Number(item.x) || 0), (Number(s.z) || 0) - (Number(item.z) || 0));
-      if (d < bestDist) {
-        bestDist = d;
-        best = s;
-      }
-    });
-    return best;
-  }, [isSmallFloorItem, availableSurfaces, item]);
+function CatalogPanel({ palette, onAdd }) {
+  const [group, setGroup] = useState('all');
+  const [query, setQuery] = useState('');
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return Object.values(ALL_CATALOG_ITEMS)
+      .filter((def) => group === 'all' || catalogGroupOf(def) === group)
+      .filter((def) => !q || `${def.name} ${def.subtitle ?? ''} ${def.description ?? ''}`.toLowerCase().includes(q));
+  }, [group, query]);
 
   return (
-    <div className="absolute inset-x-2.5 bottom-10 z-20 rounded-2xl bg-[#101223]/90 backdrop-blur-md text-white border border-white/15 px-3 py-2 shadow-2xl space-y-2">
-      {/* Fila Principal: Nombre + Controles Clave + Acciones */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <button
-            type="button"
-            onClick={onToggleLock}
-            title={isLocked ? 'Desbloquear objeto (Tecla L)' : 'Bloquear posición para que no se mueva (Tecla L)'}
-            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10.5px] font-bold transition cursor-pointer ${
-              isLocked
-                ? 'bg-amber-500 text-black shadow-xs'
-                : 'bg-white/10 text-white/85 hover:bg-white/20'
-            }`}
-          >
-            {isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-            {isLocked ? 'Bloqueado' : 'Bloquear'}
-          </button>
-
-          <span className="text-xs font-bold text-[#c4b5fd] truncate max-w-[180px]">{item.name}</span>
-        </div>
-
-        {/* Sliders rápidos en línea según el tipo de objeto */}
-        <div className="flex flex-wrap items-center gap-3 text-[11px]">
-          {/* 1. ALTURA DE SEPARACIÓN DEL TECHO (Para Nubes, Bafles, Proyector, Luces de techo, Ducto) */}
-          {item.mount === 'ceiling' && (
-            <label className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl">
-              <span className="text-amber-300 font-bold whitespace-nowrap">↕ Separación techo:</span>
-              <input
-                type="range"
-                disabled={isLocked}
-                min={0.02}
-                max={Math.max(0.4, H - 1.35)}
-                step={0.02}
-                value={Number(item.dims?.drop) ?? 0.35}
-                onChange={(e) => onChange({ dims: { drop: Number(e.target.value) } })}
-                className="w-24 accent-amber-400 cursor-pointer"
-              />
-              <span className="font-mono font-bold w-11 text-right">
-                {fmt(Number(item.dims?.drop) ?? 0.35, 2)}m
-              </span>
-            </label>
-          )}
-
-          {/* 2. PARED DE MONTAJE Y ALTURA (Para objetos de pared) */}
-          {item.mount === 'wall' && (
-            <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-xl">
-              <span className="text-white/70 font-semibold">Muro:</span>
-              {walls.map((w) => (
-                <button
-                  key={w.index}
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => onChange({ wallIndex: w.index, along: 0 })}
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
-                    Number(item.wallIndex) === w.index ? 'bg-[#5833c7] text-white' : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                  P{w.index + 1}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* 3. ALARGAR / CAMBIAR ANCHO (Mesas de juntas, Estanterías medias, Ventanales, Cortinas, Paneles) */}
-          {item.dims?.w !== undefined && item.typeId !== 'diffuser_suite' && item.typeId !== 'classroom_desk_grid' && (
-            <label className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl">
-              <span className="text-white/75 font-semibold whitespace-nowrap">
-                {item.typeId === 'meeting_table' ? '↔ Largo mesa:' : '↔ Ancho:'}
-              </span>
-              <input
-                type="range"
-                disabled={isLocked}
-                min={0.25}
-                max={maxW}
-                step={0.05}
-                value={Number(item.dims.w) || 0.8}
-                onChange={(e) => onChange({ dims: { w: Number(e.target.value) } })}
-                className="w-20 sm:w-24 accent-[#a78bfa] cursor-pointer"
-              />
-              <span className="font-mono font-bold w-10 text-right">{fmt(item.dims.w, 2)}m</span>
-            </label>
-          )}
-
-          {/* Sillas automáticas en Mesa de Juntas */}
-          {item.typeId === 'meeting_table' && (
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={() => onChange({ dims: { withChairs: item.dims?.withChairs === false } })}
-              className={`px-2 py-1 rounded-xl text-[10.5px] font-bold cursor-pointer transition ${
-                item.dims?.withChairs !== false ? 'bg-emerald-600 text-white' : 'bg-white/10 text-white/70'
-              }`}
-            >
-              {item.dims?.withChairs !== false ? '✓ Con Sillas' : '+ Sillas'}
-            </button>
-          )}
-
-          {/* Altura para Estanterías, Cortinas, Ventanales o Paneles */}
-          {item.dims?.h !== undefined &&
-            (isSupportItem ||
-              item.mount === 'wall' ||
-              item.typeId === 'rolling_tv_stand' ||
-              item.typeId === 'studio_softbox_light' ||
-              item.typeId === 'ring_light_stand' ||
-              item.typeId === 'cinema_camera_tripod') && (
-              <label className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-xl">
-                <span className="text-white/75 font-semibold whitespace-nowrap">↕ Alto:</span>
-                <input
-                  type="range"
-                  disabled={isLocked}
-                  min={0.35}
-                  max={Math.max(1.4, H - 0.1)}
-                  step={0.05}
-                  value={Number(item.dims.h) || 1.2}
-                  onChange={(e) => onChange({ dims: { h: Number(e.target.value) } })}
-                  className="w-16 sm:w-20 accent-[#a78bfa] cursor-pointer"
-                />
-                <span className="font-mono font-bold w-10 text-right">{fmt(item.dims.h, 2)}m</span>
-              </label>
-            )}
-
-          {/* Repetición en fila para paneles, difusores, bafles o sillas */}
-          {(item.category === 'panels' ||
-            item.category === 'diffusers' ||
-            item.typeId === 'school_arm_chair' ||
-            item.typeId === 'student_desk') && (
-            <label className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-xl">
-              <span className="text-white/75 font-semibold">Cant:</span>
-              <input
-                type="range"
-                disabled={isLocked}
-                min={1}
-                max={8}
-                step={1}
-                value={Number(item.count) || 1}
-                onChange={(e) => onChange({ count: Number(e.target.value) })}
-                className="w-14 accent-[#a78bfa] cursor-pointer"
-              />
-              <span className="font-mono font-bold">×{item.count || 1}</span>
-            </label>
-          )}
-        </div>
-
-        {/* Botones de Acción Rápida */}
-        <div className="flex items-center gap-1">
-          {item.mount !== 'wall' && item.mount !== 'corner' && (
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={() => onChange({ rotation: ((Number(item.rotation) || 0) + 45) % 360 })}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-35 cursor-pointer"
-              title="Rotar 45° (Tecla R)"
-            >
-              <RotateCw className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onDuplicate}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 cursor-pointer"
-            title="Duplicar (Ctrl+D)"
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={onOpenAdvanced}
-            className={`px-2 py-1 rounded-lg text-[10.5px] font-bold cursor-pointer transition ${
-              showAdvanced ? 'bg-[#5833c7] text-white' : 'bg-white/10 hover:bg-white/20 text-white/85'
-            }`}
-            title="Más ajustes (Color, repisas, absorción α)"
-          >
-            <Sliders className="w-3.5 h-3.5 inline mr-1" />
-            Más
-          </button>
-          <button
-            type="button"
-            disabled={isLocked}
-            onClick={onDelete}
-            className="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 disabled:opacity-30 cursor-pointer"
-            title={isLocked ? 'Desbloquea para eliminar' : 'Eliminar (Tecla Supr)'}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-white/15 text-white/60 hover:text-white cursor-pointer"
-            title="Cerrar barra (Esc)"
-          >
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#86868b]" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar: cama, piano, nevera, panel…" className={`w-full pl-8 pr-8 py-2 rounded-xl ${SOFT} border ${LINE} text-[13px] ${TITLE} focus:outline-none focus:border-[#5833c7]`} />
+        {query && (
+          <button type="button" onClick={() => setQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#86868b] cursor-pointer" aria-label="Borrar búsqueda">
             <X className="w-3.5 h-3.5" />
           </button>
-        </div>
+        )}
       </div>
-
-      {/* Sub-fila automática: Colocar objetos sobre Mesas o Estanterías (niveles de repisa) */}
-      {isSmallFloorItem && (activeSupport || nearestSurface) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-white/10 text-[10.5px]">
-          {activeSupport ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-emerald-300 font-bold">
-                📥 Sobre {activeSupport.item.name} — Elegir nivel/repisa:
-              </span>
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => onChange({ y: 0 })}
-                className={`px-2 py-0.5 rounded-lg font-bold cursor-pointer ${
-                  (Number(item.y) || 0) < 0.03 ? 'bg-[#5833c7] text-white' : 'bg-white/10 text-white/75 hover:bg-white/20'
-                }`}
-              >
-                Piso (0m)
-              </button>
-              {activeSupport.levels.map((lv) => (
-                <button
-                  key={lv.label}
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => onChange({ y: lv.y })}
-                  className={`px-2 py-0.5 rounded-lg font-bold cursor-pointer ${
-                    Math.abs((Number(item.y) || 0) - lv.y) < 0.04
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white/10 text-white/75 hover:bg-white/20'
-                  }`}
-                >
-                  {lv.label} ({fmt(lv.y, 2)}m)
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-white/70">
-                💡 Puedes arrastrar este objeto sobre una mesa/estantería o usar:
-              </span>
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => onPlaceOnSurface(nearestSurface)}
-                className="px-2.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer"
-              >
-                📥 Colocar sobre {nearestSurface.name}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Cajón desplegable "Más" para Color, Profundidad D y Coeficientes α(f) */}
-      {showAdvanced && (
-        <div className="pt-2 border-t border-white/15 grid sm:grid-cols-3 gap-3 text-[11px]">
-          <div className="space-y-1.5">
-            <span className="text-white/70 font-bold block">Posición fina / Altura Y</span>
-            {item.mount === 'wall' ? (
-              <label className="flex items-center justify-between gap-2">
-                <span>Elevación muro:</span>
-                <input
-                  type="range"
-                  disabled={isLocked}
-                  min={0.25}
-                  max={Math.max(0.5, H - 0.25)}
-                  step={0.05}
-                  value={Number(item.elevation) || 1.35}
-                  onChange={(e) => onChange({ elevation: Number(e.target.value) })}
-                  className="w-24 accent-[#a78bfa]"
-                />
-                <span className="font-mono">{fmt(item.elevation, 2)}m</span>
-              </label>
-            ) : (
-              <label className="flex items-center justify-between gap-2">
-                <span>Altura desde piso (Y):</span>
-                <input
-                  type="range"
-                  disabled={isLocked}
-                  min={0}
-                  max={Math.max(0.5, H - 0.3)}
-                  step={0.02}
-                  value={Number(item.y) || 0}
-                  onChange={(e) => onChange({ y: Number(e.target.value) })}
-                  className="w-24 accent-[#a78bfa]"
-                />
-                <span className="font-mono">{fmt(item.y || 0, 2)}m</span>
-              </label>
-            )}
-            {item.dims?.d !== undefined && (
-              <label className="flex items-center justify-between gap-2">
-                <span>Fondo / Profundidad (D):</span>
-                <input
-                  type="range"
-                  disabled={isLocked}
-                  min={0.25}
-                  max={2.4}
-                  step={0.05}
-                  value={Number(item.dims.d) || 0.6}
-                  onChange={(e) => onChange({ dims: { d: Number(e.target.value) } })}
-                  className="w-24 accent-[#a78bfa]"
-                />
-                <span className="font-mono">{fmt(item.dims.d, 2)}m</span>
-              </label>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <span className="text-white/70 font-bold block">Color del objeto</span>
-            <div className="flex flex-wrap gap-1">
-              {COLOR_ROLES.map(([roleId, roleLabel]) => (
-                <button
-                  key={roleId}
-                  type="button"
-                  onClick={() => onChange({ colorRole: roleId })}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer ${
-                    (item.colorRole || 'primary') === roleId
-                      ? 'bg-[#5833c7] text-white'
-                      : 'bg-white/10 text-white/75 hover:bg-white/20'
-                  }`}
-                >
-                  {roleLabel}
-                </button>
-              ))}
-              {item.colorRole === 'custom' && (
-                <input
-                  type="color"
-                  value={item.customColor || '#7464cc'}
-                  onChange={(e) => onChange({ customColor: e.target.value })}
-                  className="w-6 h-5 rounded border-0 bg-transparent cursor-pointer"
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <span className="text-white/70 font-bold block">
-              Absorción 500Hz: {item.coefficients ? `α = ${(item.coefficients[500] ?? 0.5).toFixed(2)}` : 'Sabines fijos'}
-            </span>
-            {item.coefficients ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min={0.05}
-                  max={0.99}
-                  step={0.02}
-                  value={item.coefficients[500] ?? 0.7}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    onChange({
-                      coefficients: {
-                        125: clamp(v * 0.45, 0.05, 0.99),
-                        250: clamp(v * 0.75, 0.05, 0.99),
-                        500: v,
-                        1000: clamp(v * 1.05, 0.05, 0.99),
-                        2000: clamp(v * 1.05, 0.05, 0.99),
-                        4000: clamp(v, 0.05, 0.99),
-                      },
-                    });
-                  }}
-                  className="flex-1 accent-emerald-400"
-                />
-                {def.coefficients && (
-                  <button
-                    type="button"
-                    onClick={() => onChange({ coefficients: { ...def.coefficients } })}
-                    className="text-[10px] text-white/70 underline cursor-pointer"
-                  >
-                    Reset α
-                  </button>
-                )}
-              </div>
-            ) : (
-              <span className="text-[10px] text-white/60 block">
-                Este objeto es decorativo/equipamiento o aporta absorción fija por unidad.
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ============================================================================
- * PLANTA 2D INTERACTIVA UNIFICADA (OBJETOS + RUTA CINEMÁTICA INTERIOR P1..P4)
- * ============================================================================ */
-function InteractiveFloorPlan2D({
-  layout,
-  items,
-  selectedItemId,
-  onSelectItem,
-  onUpdateItem,
-  waypoints = [],
-  setWaypoints = null,
-  showWaypoints = true,
-  onJumpToWaypoint = null,
-}) {
-  const svgRef = useRef(null);
-  const [dragging, setDragging] = useState(null); // { type: 'item', id } | { type: 'wp', index }
-
-  const { W, D, outlinePoints, walls, corners } = layout;
-  const pad = Math.max(W, D) * 0.22 + 0.5;
-  const vbW = W + pad * 2;
-  const vbD = D + pad * 2;
-  const minX = -W / 2 - pad;
-  const minZ = -D / 2 - pad;
-
-  const clientToWorld = (clientX, clientY) => {
-    const svg = svgRef.current;
-    if (!svg) return { x: 0, z: 0 };
-    const rect = svg.getBoundingClientRect();
-    const nx = (clientX - rect.left) / Math.max(1, rect.width);
-    const nz = (clientY - rect.top) / Math.max(1, rect.height);
-    return {
-      x: minX + nx * vbW,
-      z: minZ + nz * vbD,
-    };
-  };
-
-  const getItem2DPos = (item) => {
-    if (item.mount === 'wall' && walls.length > 0) {
-      const wInfo = walls[((Number(item.wallIndex) || 0) % walls.length + walls.length) % walls.length];
-      const clampedAlong = clamp(Number(item.along) || 0, -wInfo.length / 2 + 0.1, wInfo.length / 2 - 0.1);
-      const pt = sampleWallPoint(wInfo, clampedAlong);
-      return {
-        x: pt.x + pt.inX * 0.08,
-        z: pt.z + pt.inZ * 0.08,
-        angleDeg: (pt.rotationY * 180) / Math.PI,
-      };
-    }
-    if (item.mount === 'corner' && corners.length > 0) {
-      const cInfo = corners[((Number(item.cornerIndex) || 0) % corners.length + corners.length) % corners.length];
-      return {
-        x: cInfo.x + cInfo.inX * 0.22,
-        z: cInfo.z + cInfo.inZ * 0.22,
-        angleDeg: (cInfo.rotationY * 180) / Math.PI,
-      };
-    }
-    return {
-      x: Number(item.x) || 0,
-      z: Number(item.z) || 0,
-      angleDeg: Number(item.rotation) || 0,
-    };
-  };
-
-  const polyPointsStr = outlinePoints.map((p) => `${p.x.toFixed(3)},${p.z.toFixed(3)}`).join(' ');
-  const wpPointsStr = waypoints.map((wp) => `${(Number(wp.x) || 0).toFixed(3)},${(Number(wp.z) || 0).toFixed(3)}`).join(' ');
-
-  return (
-    <div className="rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-[#f5f5f7] dark:bg-[#0e101d] p-2.5">
-      <div className="flex items-center justify-between text-[10px] text-[#86868b] dark:text-slate-400 mb-1.5 px-1">
-        <span className="font-bold uppercase tracking-wider">
-          Planta 2D (Arrastra muebles o nodos naranjas P1..P4)
-        </span>
-        {setWaypoints && showWaypoints && (
-          <button
-            type="button"
-            onClick={() => setWaypoints(createDefaultInteriorWaypoints(W, D))}
-            className="text-[#5833c7] dark:text-[#c4b5fd] font-bold hover:underline cursor-pointer"
-          >
-            Reset ruta
+      <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:thin]">
+        {CATALOG_GROUPS.map((g) => (
+          <button key={g.id} type="button" onClick={() => setGroup(g.id)} className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition cursor-pointer ${group === g.id ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#121322]' : `${SOFT} ${IDLE}`}`}>
+            {g.label}
           </button>
-        )}
+        ))}
       </div>
-
-      <svg
-        ref={svgRef}
-        viewBox={`${minX} ${minZ} ${vbW} ${vbD}`}
-        className="w-full h-52 touch-none select-none rounded-xl bg-white dark:bg-[#141628]"
-        onPointerMove={(e) => {
-          if (!dragging) return;
-          const pt = clientToWorld(e.clientX, e.clientY);
-
-          if (dragging.type === 'wp' && setWaypoints) {
-            const limX = Math.max(0.4, W / 2 - 0.35);
-            const limZ = Math.max(0.4, D / 2 - 0.35);
-            const nx = Math.round(clamp(pt.x, -limX, limX) * 20) / 20;
-            const nz = Math.round(clamp(pt.z, -limZ, limZ) * 20) / 20;
-            setWaypoints((prev) =>
-              prev.map((wp, idx) => (idx === dragging.index ? { ...wp, x: nx, z: nz } : wp))
-            );
-            return;
-          }
-
-          const item = items.find((it) => it.id === dragging.id);
-          if (!item || item.locked) return;
-
-          if (item.mount === 'wall' && walls.length > 0) {
-            const wInfo = walls[((Number(item.wallIndex) || 0) % walls.length + walls.length) % walls.length];
-            const vx = pt.x - wInfo.midX;
-            const vz = pt.z - wInfo.midZ;
-            const projAlong = vx * wInfo.tx + vz * wInfo.tz;
-            const halfLim = Math.max(0.1, wInfo.length / 2 - 0.25);
-            onUpdateItem(item.id, {
-              along: Math.round(clamp(projAlong, -halfLim, halfLim) * 20) / 20,
-            });
-          } else if (item.mount === 'corner' && corners.length > 0) {
-            let bestIdx = 0;
-            let bestDist = Infinity;
-            corners.forEach((c, idx) => {
-              const dist = Math.hypot(pt.x - c.x, pt.z - c.z);
-              if (dist < bestDist) {
-                bestDist = dist;
-                bestIdx = idx;
-              }
-            });
-            onUpdateItem(item.id, { cornerIndex: bestIdx });
-          } else {
-            const limX = W / 2 - 0.2;
-            const limZ = D / 2 - 0.2;
-            const nextX = Math.round(clamp(pt.x, -limX, limX) * 20) / 20;
-            const nextZ = Math.round(clamp(pt.z, -limZ, limZ) * 20) / 20;
-            if (item.mount === 'floor') {
-              const support = findSupportingSurface(item, nextX, nextZ, items);
-              if (support) {
-                onUpdateItem(item.id, { x: nextX, z: nextZ, y: support.defaultY });
-                return;
-              }
-            }
-            onUpdateItem(item.id, { x: nextX, z: nextZ });
-          }
-        }}
-        onPointerUp={() => setDragging(null)}
-        onPointerCancel={() => setDragging(null)}
-      >
-        {/* Polígono del piso */}
-        <polygon
-          points={polyPointsStr}
-          fill="rgba(88, 51, 199, 0.04)"
-          stroke="#5833c7"
-          strokeWidth={Math.max(W, D) * 0.012}
-          strokeLinejoin="round"
-        />
-
-        {/* Etiquetas de Paredes P1..PN */}
-        {walls.map((w) => {
-          const lx = w.midX - w.inX * (Math.max(W, D) * 0.09);
-          const lz = w.midZ - w.inZ * (Math.max(W, D) * 0.09);
-          const rTag = Math.max(W, D) * 0.042;
-          return (
-            <g
-              key={`wall-tag-${w.index}`}
-              className="cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                const sel = items.find((it) => it.id === selectedItemId);
-                if (sel && sel.mount === 'wall' && !sel.locked) {
-                  onUpdateItem(sel.id, { wallIndex: w.index, along: 0 });
-                }
-              }}
-            >
-              <circle cx={lx} cy={lz} r={rTag} fill="#5833c7" fillOpacity={0.14} />
-              <text
-                x={lx}
-                y={lz + rTag * 0.34}
-                textAnchor="middle"
-                fontSize={rTag * 1.05}
-                fontWeight="700"
-                fill="#5833c7"
-              >
-                P{w.index + 1}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Objetos colocados en planta */}
-        {items.map((item) => {
-          if (item.enabled === false) return null;
-          const pos = getItem2DPos(item);
-          const isSel = item.id === selectedItemId;
-          const count = Math.max(1, Number(item.count) || 1);
-          const unitW = Number(item.dims?.w) || 0.6;
-          const totalW = unitW * count + (count - 1) * (Number(item.spacing) || 0.12);
-          const depth =
-            item.mount === 'wall'
-              ? Math.max(0.16, Number(item.dims?.t) || 0.12)
-              : Number(item.dims?.d) || Number(item.dims?.w) || 0.6;
-
-          const fillCol =
-            item.category === 'diffusers'
-              ? '#d97706'
-              : item.category === 'panels'
-                ? '#5833c7'
-                : '#059669';
-
-          return (
-            <g
-              key={`plan2d-${item.id}`}
-              transform={`translate(${pos.x}, ${pos.z}) rotate(${-pos.angleDeg})`}
-              className={item.locked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                e.currentTarget.setPointerCapture(e.pointerId);
-                onSelectItem(item.id);
-                if (!item.locked) {
-                  setDragging({ type: 'item', id: item.id });
-                }
-              }}
-            >
-              <rect
-                x={-totalW / 2}
-                y={-depth / 2}
-                width={totalW}
-                height={depth}
-                rx={Math.min(totalW, depth) * 0.18}
-                fill={fillCol}
-                fillOpacity={isSel ? 0.9 : 0.55}
-                stroke={item.locked ? '#f59e0b' : isSel ? '#f59e0b' : '#ffffff'}
-                strokeWidth={isSel ? Math.max(W, D) * 0.012 : Math.max(W, D) * 0.005}
-              />
-            </g>
-          );
-        })}
-
-        {/* Ruta Cinemática Interior (P1 → P2 → P3 → P4) */}
-        {showWaypoints && waypoints.length >= 2 && (
-          <>
-            <polyline
-              points={`${wpPointsStr} ${(Number(waypoints[0].x) || 0).toFixed(3)},${(Number(waypoints[0].z) || 0).toFixed(3)}`}
-              fill="none"
-              stroke="#f59e0b"
-              strokeWidth={Math.max(W, D) * 0.01}
-              strokeDasharray={`${Math.max(W, D) * 0.03} ${Math.max(W, D) * 0.02}`}
-            />
-            {waypoints.map((wp, idx) => {
-              const rNode = Math.max(W, D) * 0.042;
-              const cx = Number(wp.x) || 0;
-              const cz = Number(wp.z) || 0;
-              return (
-                <g
-                  key={wp.id}
-                  transform={`translate(${cx}, ${cz})`}
-                  className="cursor-grab active:cursor-grabbing"
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                    setDragging({ type: 'wp', index: idx });
-                    if (onJumpToWaypoint) onJumpToWaypoint(wp);
-                  }}
-                >
-                  <circle cx={0} cy={0} r={rNode} fill="#f59e0b" stroke="#ffffff" strokeWidth={rNode * 0.22} />
-                  <text
-                    x={0}
-                    y={rNode * 0.36}
-                    textAnchor="middle"
-                    fontSize={rNode * 1.0}
-                    fontWeight="800"
-                    fill="#ffffff"
-                  >
-                    P{idx + 1}
-                  </text>
-                </g>
-              );
-            })}
-          </>
-        )}
-      </svg>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------------- Controles UI */
-
-function Panel({ icon: Icon, title, right, children }) {
-  return (
-    <section className={`${CARD} p-5 space-y-4`}>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className={`flex items-center gap-2 text-sm font-bold ${TITLE}`}>
-          <Icon className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa]" /> {title}
-        </h3>
-        {right}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Range({ label, unit, value, min, max, step, decimals = 1, onChange }) {
-  return (
-    <label className="block space-y-1">
-      <span className="flex justify-between text-xs">
-        <span className={MUTED}>{label}</span>
-        <span className={`font-mono font-semibold ${TITLE}`}>
-          {fmt(value, decimals)} {unit}
-        </span>
-      </span>
-      <input
-        type="range"
-        className="w-full accent-[#5833c7]"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
-    </label>
-  );
-}
-
-function Toggle({ label, checked, onChange }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`w-full flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[11px] font-semibold text-left transition cursor-pointer ${
-        checked ? CHIP_ON : CHIP_OFF
-      }`}
-    >
-      {label}
-      <span
-        className={`relative w-7 h-4 rounded-full shrink-0 transition ${
-          checked ? 'bg-[#5833c7]' : 'bg-black/15 dark:bg-white/15'
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
-            checked ? 'left-3.5' : 'left-0.5'
-          }`}
-        />
-      </span>
-    </button>
-  );
-}
-
-function Choice({ label, options, value, onChange, stacked = false }) {
-  return (
-    <div className={stacked ? 'space-y-1.5' : 'flex items-center justify-between gap-3'}>
-      <span className={`text-xs ${MUTED}`}>{label}</span>
-      <div
-        className={`${
-          stacked ? 'flex flex-wrap' : 'inline-flex'
-        } gap-1 p-1 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] text-[11px] font-semibold`}
-      >
-        {options.map(([id, text]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onChange(id)}
-            className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-              value === id
-                ? 'bg-white dark:bg-[#2a2c44] shadow-sm ' + TITLE
-                : MUTED + ' hover:text-[#1d1d1f] dark:hover:text-white'
-            }`}
-          >
-            {text}
+      <p className={`text-[11.5px] ${MUTED}`}>{list.length} objetos · un clic lo agrega frente a la cámara. Si tienes una mesa elegida, los objetos pequeños quedan encima.</p>
+      <div className="grid grid-cols-2 gap-2">
+        {list.map((def) => (
+          <button key={def.id} type="button" onClick={() => onAdd(def.id)} title={def.description || def.subtitle} className={`group text-left rounded-2xl border ${LINE} hover:border-[#5833c7]/60 hover:shadow-sm transition overflow-hidden cursor-pointer bg-[#fbfbfd] dark:bg-[#17192b]`}>
+            <Thumb key={`${def.id}|${palette.primary}|${palette.wood}`} typeId={def.id} palette={palette} />
+            <div className="px-2.5 pb-2 pt-1">
+              <div className={`text-[12px] font-semibold leading-tight ${TITLE} line-clamp-2`}>{def.name}</div>
+              <div className={`text-[10.5px] ${MUTED} mt-0.5`}>{def.mount === 'wall' ? 'En muro' : def.mount === 'ceiling' ? 'Del techo' : def.mount === 'corner' ? 'En esquina' : 'En piso'}</div>
+            </div>
           </button>
         ))}
       </div>
     </div>
   );
 }
+
+function Thumb({ typeId, palette }) {
+  const ref = useRef(null);
+  const [url, setUrl] = useState(() => cachedThumbnail(typeId, { palette }));
+  useEffect(() => {
+    if (url || !ref.current) return undefined;
+    let alive = true;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        requestThumbnail(typeId, { palette }).then((u) => alive && setUrl(u));
+      },
+      { rootMargin: '160px' }
+    );
+    io.observe(ref.current);
+    return () => {
+      alive = false;
+      io.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeId]);
+  return (
+    <div ref={ref} className="aspect-[4/3] grid place-items-center">
+      {url ? <img src={url} alt="" className="w-full h-full object-contain transition group-hover:scale-[1.04]" draggable={false} /> : <div className="w-10 h-10 rounded-full bg-black/[0.05] dark:bg-white/[0.06] animate-pulse" />}
+    </div>
+  );
+}
+
+/* ================================================================= panel: sala */
+
+function RoomPanel({ opts, patch, layout, hasProjectPlan, applyPreset }) {
+  const usingPlan = opts.usePolygon && hasProjectPlan;
+  return (
+    <div className="space-y-5">
+      <Section title="Plantilla" hint="Cambia la sala y sus muebles. Se puede deshacer.">
+        <div className="grid grid-cols-2 gap-1.5">
+          {hasProjectPlan && <PresetCard label="Mi proyecto" hint="La planta que dibujaste" active={usingPlan} onClick={() => applyPreset('project')} />}
+          {PRESETS.map((p) => (
+            <PresetCard key={p.id} label={p.label} hint={p.hint} active={!usingPlan && !opts.customPolygon && opts.roomType === p.id && p.id !== 'empty'} onClick={() => applyPreset(p.id)} />
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Medidas" hint={`${fmt(layout.W)} × ${fmt(layout.D)} m, ${fmt(layout.H)} m de alto`}>
+        {hasProjectPlan && <Toggle label="Usar la planta de mi proyecto" checked={usingPlan} onChange={(v) => patch({ usePolygon: v, customPolygon: v ? null : opts.customPolygon })} />}
+        {!usingPlan && opts.customPolygon && (
+          <div className={`rounded-xl ${SOFT} px-3 py-2 text-[12px] ${MUTED} flex items-center justify-between gap-2`}>
+            Planta abierta desde un archivo.
+            <button type="button" onClick={() => patch({ customPolygon: null })} className="font-semibold text-[#5833c7] dark:text-[#c4b5fd] cursor-pointer">Usar medidas libres</button>
+          </div>
+        )}
+        {!usingPlan && !opts.customPolygon && (
+          <div className="space-y-2.5">
+            {[
+              ['W', 'Largo', 2.5, 16],
+              ['D', 'Ancho', 2.5, 14],
+              ['H', 'Alto', 2.2, 6],
+            ].map(([k, label, min, max]) => (
+              <Range key={k} label={label} unit="m" value={opts.dims[k]} min={min} max={max} step={0.1} onChange={(v) => patch({ dims: { ...opts.dims, [k]: v } })} />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Exterior y luz">
+        <div className="grid grid-cols-2 gap-1.5">
+          {Object.entries(ENVIRONMENTS).map(([id, env]) => (
+            <button key={id} type="button" onClick={() => patch({ environment: id })} className={`flex items-center gap-2 rounded-xl border p-2 text-left transition cursor-pointer ${opts.environment === id ? 'border-[#5833c7] ring-1 ring-[#5833c7]/40' : `${LINE} hover:border-[#5833c7]/40`}`}>
+              <span className="w-8 h-8 rounded-lg shrink-0" style={{ background: ENV_SWATCH[id] }} />
+              <span>
+                <span className={`block text-[12px] font-semibold ${TITLE}`}>{env.label}</span>
+                <span className={`block text-[10.5px] ${MUTED} leading-tight`}>{env.hint}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <Field label="Momento">
+          <Segmented value={opts.night ? 'night' : 'day'} onChange={(v) => patch({ night: v === 'night' })} options={[['day', 'Día', Sun], ['night', 'Noche', Moon]]} />
+        </Field>
+        {!opts.night && opts.environment !== 'studio' && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[12px]">
+              <span className={MUTED}>Hora del sol</span>
+              <span className={`font-mono ${TITLE}`}>{opts.sunHour === null ? 'Automática' : `${Math.floor(opts.sunHour)}:${String(Math.round((opts.sunHour % 1) * 60)).padStart(2, '0')}`}</span>
+            </div>
+            <input type="range" className="w-full accent-[#5833c7]" min={6.5} max={17.5} step={0.25} value={opts.sunHour ?? 10} onChange={(e) => patch({ sunHour: Number(e.target.value) })} />
+            {opts.sunHour !== null && (
+              <button type="button" onClick={() => patch({ sunHour: null })} className="text-[11.5px] font-semibold text-[#5833c7] dark:text-[#c4b5fd] cursor-pointer">Volver a la luz automática</button>
+            )}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Acabados">
+        <FinishPicker opts={opts} patch={patch} withWalls />
+      </Section>
+
+      <Section title="Vista previa" hint="Si el equipo va lento, usa «Rápida».">
+        <Segmented value={opts.previewQuality} onChange={(v) => patch({ previewQuality: v })} options={Object.entries(PREVIEW_QUALITY).map(([id, q]) => [id, q.label])} full />
+        {hasProjectPlan && usingPlan && <Toggle label="Usar los materiales de mi proyecto en muros y piso" checked={opts.syncSurfaceMaterials !== false} onChange={(v) => patch({ syncSurfaceMaterials: v })} />}
+      </Section>
+    </div>
+  );
+}
+
+const ENV_SWATCH = {
+  garden: 'linear-gradient(180deg,#6fa0e0 0%,#bcd6ee 55%,#6f9a55 56%,#5c8a48 100%)',
+  city: 'linear-gradient(180deg,#5d8fd6 0%,#c6d6e6 50%,#9aa3b0 51%,#c7c9cf 100%)',
+  sunset: 'linear-gradient(180deg,#35488f 0%,#f2a56c 58%,#8c7a5a 59%,#6c6048 100%)',
+  studio: 'linear-gradient(180deg,#f4f2f8 0%,#e3e0ea 100%)',
+};
+
+function FinishPicker({ opts, patch, withWalls = false }) {
+  const set = (changes) => patch({ palette: { ...opts.palette, name: '', ...changes } });
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
+        {THEMES.map((t) => (
+          <button key={t.name} type="button" onClick={() => patch({ palette: { ...t } })} className={`inline-flex items-center gap-1.5 rounded-full border pl-1.5 pr-2.5 py-1 text-[11.5px] font-medium transition cursor-pointer ${opts.palette.name === t.name ? 'border-[#5833c7] text-[#5833c7] dark:text-[#c4b5fd]' : `${LINE} ${TITLE}`}`}>
+            <span className="flex -space-x-1">
+              {[t.primary, t.secondary, t.accent].map((c) => (
+                <span key={c} className="w-3 h-3 rounded-full ring-1 ring-white dark:ring-[#121322]" style={{ background: c }} />
+              ))}
+            </span>
+            {t.name}
+          </button>
+        ))}
+      </div>
+      {withWalls && (
+        <Field label="Piso" stacked>
+          <Segmented value={opts.palette.floor} onChange={(v) => set({ floor: v })} options={FLOORS} wrap />
+        </Field>
+      )}
+      <Field label="Madera" stacked>
+        <Segmented value={opts.palette.wood} onChange={(v) => set({ wood: v })} options={WOODS} wrap />
+      </Field>
+      {withWalls && (
+        <Field label="Muros">
+          <div className="flex items-center gap-1.5">
+            {WALLS.map((c) => (
+              <button key={c} type="button" aria-label={`Muros ${c}`} onClick={() => set({ wall: c })} className={`w-6 h-6 rounded-full border cursor-pointer ${opts.palette.wall === c ? 'ring-2 ring-[#5833c7] ring-offset-1 dark:ring-offset-[#121322]' : 'border-black/15 dark:border-white/20'}`} style={{ background: c }} />
+            ))}
+            <input type="color" aria-label="Color libre de muros" value={opts.palette.wall || '#f1eee8'} onChange={(e) => set({ wall: e.target.value })} className="w-6 h-6 rounded-full border-0 bg-transparent p-0 cursor-pointer" />
+          </div>
+        </Field>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================== panel: objetos */
+
+function ObjectsPanel({ items, onSelect, onToggleLock, onToggleVisible, onDelete, onClear }) {
+  if (!items.length) return <p className={`text-[13px] ${MUTED} text-center py-10`}>La sala está vacía. Agrega objetos desde «Agregar».</p>;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className={`text-[12px] ${MUTED}`}>{items.length} objetos en la sala</span>
+        <button type="button" onClick={onClear} className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer">Vaciar</button>
+      </div>
+      <ul className="space-y-1">
+        {items.map((it) => (
+          <li key={it.id} className={`group flex items-center gap-2 rounded-xl px-2.5 py-1.5 hover:bg-black/[0.035] dark:hover:bg-white/[0.05] ${it.enabled === false ? 'opacity-50' : ''}`}>
+            <button type="button" onClick={() => onSelect(it.id)} className="flex-1 min-w-0 text-left cursor-pointer">
+              <span className={`block truncate text-[12.5px] font-medium ${TITLE}`}>{it.name}{Number(it.count) > 1 ? ` ×${it.count}` : ''}</span>
+              <span className={`block text-[10.5px] ${MUTED}`}>{CATALOG_GROUPS.find((g) => g.id === catalogGroupOf(getCatalogItem(it.typeId)))?.label}</span>
+            </button>
+            {it.locked && <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+            <div className="flex items-center opacity-60 group-hover:opacity-100">
+              <SmallIcon title={it.enabled === false ? 'Mostrar' : 'Ocultar'} icon={it.enabled === false ? EyeOff : Eye} onClick={() => onToggleVisible(it)} />
+              <SmallIcon title={it.locked ? 'Desbloquear' : 'Bloquear'} icon={it.locked ? Lock : Unlock} onClick={() => onToggleLock(it.id)} />
+              <SmallIcon title="Eliminar" icon={Trash2} disabled={it.locked} onClick={() => onDelete(it.id)} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* =========================================================== panel: recorridos */
+
+function TourPanel({ presets, myPath, playing, onPlay, onVideo, shots, onSaveShot, onGoShot, onRenameShot, onDeleteShot, loop, onLoop }) {
+  const list = Object.values(presets);
+  return (
+    <div className="space-y-5">
+      <Section title="Recorridos listos" hint="Míralos aquí y conviértelos en video.">
+        <div className="space-y-1.5">
+          {list.map((p) => (
+            <PathRow key={p.id} path={p} playing={playing === p.id} onPlay={() => onPlay(p)} onVideo={() => onVideo(p)} />
+          ))}
+        </div>
+      </Section>
+      <Section title="Mis vistas" hint="Guarda encuadres que te gusten; con dos o más se arma tu propio recorrido.">
+        <button type="button" onClick={onSaveShot} className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#5833c7]/50 py-2 text-[12.5px] font-semibold text-[#5833c7] dark:text-[#c4b5fd] hover:bg-[#5833c7]/5 cursor-pointer">
+          <Plus className="w-3.5 h-3.5" /> Guardar la vista actual
+        </button>
+        {shots.length > 0 && (
+          <ul className="space-y-1">
+            {shots.map((s, i) => (
+              <li key={s.id} className="flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-black/[0.035] dark:hover:bg-white/[0.05]">
+                <span className={`w-5 text-center text-[11px] font-mono ${MUTED}`}>{i + 1}</span>
+                <input value={s.name} onChange={(e) => onRenameShot(s.id, e.target.value)} className={`flex-1 min-w-0 bg-transparent text-[12.5px] ${TITLE} focus:outline-none`} />
+                <SmallIcon title="Ir a esta vista" icon={Crosshair} onClick={() => onGoShot(s)} />
+                <SmallIcon title="Borrar" icon={Trash2} onClick={() => onDeleteShot(s.id)} />
+              </li>
+            ))}
+          </ul>
+        )}
+        {myPath && (
+          <>
+            <PathRow path={myPath} playing={playing === 'mine'} onPlay={() => onPlay(myPath)} onVideo={() => onVideo(myPath)} />
+            <Toggle label="Volver al inicio al terminar (bucle)" checked={loop} onChange={onLoop} />
+          </>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+function PathRow({ path, playing, onPlay, onVideo }) {
+  return (
+    <div className={`flex items-center gap-2 rounded-2xl border ${LINE} px-3 py-2`}>
+      <button type="button" onClick={onPlay} aria-label={playing ? 'Detener' : 'Reproducir'} className={`w-8 h-8 shrink-0 grid place-items-center rounded-full cursor-pointer ${playing ? 'bg-rose-500 text-white' : 'bg-[#5833c7] text-white hover:bg-[#4726aa]'}`}>
+        {playing ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className={`text-[12.5px] font-semibold ${TITLE}`}>{path.label}</div>
+        <div className={`text-[11px] ${MUTED} truncate`}>{path.hint} · {Math.round(path.duration)} s</div>
+      </div>
+      <button type="button" onClick={onVideo} className={`shrink-0 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11.5px] font-semibold ${IDLE} hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer`}>
+        <Film className="w-3.5 h-3.5" /> Video
+      </button>
+    </div>
+  );
+}
+
+/* ================================================================== inspector */
+
+function Inspector({ item, layout, items, palette, onBack, onChange, onDuplicate, onDelete, onToggleLock, onFocus }) {
+  const def = getCatalogItem(item.typeId);
+  const locked = Boolean(item.locked);
+  const { W, D, H, walls, corners } = layout;
+  const dims = item.dims || {};
+  const base = def.defaultDims || {};
+  const sabine500 = calculateItemAbsorption(item).byBand[500] || 0;
+  const surfaces = items.filter((it) => it.id !== item.id && it.enabled !== false && SUPPORT_SURFACE_SPECS[it.typeId]);
+  const canStack = item.mount === 'floor' && !SUPPORT_SURFACE_SPECS[item.typeId] && surfaces.length > 0;
+  const dimKeys = Object.keys(dims).filter((k) => typeof dims[k] === 'number' && DIM_LABELS[k] && !(k === 'drop' && item.mount !== 'ceiling'));
+  const range = (k) => {
+    const ref = Number(base[k]) || Number(dims[k]) || 1;
+    if (k === 'drop') return [0.02, Math.max(0.4, H - 1.3)];
+    if (k === 'h' && item.mount === 'wall') return [0.15, H - 0.1];
+    const max = k === 'w' ? Math.min(Math.max(ref * 2.6, 0.5), item.typeId === 'meeting_table' ? 6 : W) : k === 'd' ? Math.min(Math.max(ref * 2.6, 0.4), D) : Math.min(Math.max(ref * 2.4, 0.3), H);
+    return [Math.max(0.02, ref * 0.35), max];
+  };
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      <div className={`flex items-center gap-2 px-3 py-2.5 border-b ${LINE}`}>
+        <button type="button" onClick={onBack} className={`inline-flex items-center gap-0.5 rounded-lg px-1.5 py-1 text-[12px] font-medium ${IDLE} hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer`}>
+          <ChevronLeft className="w-4 h-4" /> Volver
+        </button>
+        <span className={`text-[11px] ${MUTED} ml-auto`}>{CATALOG_GROUPS.find((g) => g.id === catalogGroupOf(def))?.label}</span>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3.5 space-y-5">
+        <div className="flex gap-3 items-center">
+          <div className={`w-20 shrink-0 rounded-xl ${SOFT}`}>
+            <Thumb key={`${item.typeId}|${palette.primary}|${palette.wood}`} typeId={item.typeId} palette={palette} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <input value={item.name} onChange={(e) => onChange({ name: e.target.value })} className={`w-full bg-transparent text-[15px] font-bold ${TITLE} focus:outline-none border-b border-transparent focus:border-[#5833c7]`} />
+            <p className={`text-[11.5px] ${MUTED} mt-0.5 line-clamp-2`}>{def.subtitle}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-5 gap-1">
+          <ActionButton icon={Crosshair} label="Centrar" onClick={onFocus} />
+          <ActionButton icon={Copy} label="Duplicar" onClick={onDuplicate} />
+          <ActionButton icon={locked ? Lock : Unlock} label={locked ? 'Bloqueado' : 'Bloquear'} onClick={onToggleLock} active={locked} />
+          <ActionButton icon={item.enabled === false ? EyeOff : Eye} label={item.enabled === false ? 'Oculto' : 'Visible'} onClick={() => onChange({ enabled: item.enabled === false })} />
+          <ActionButton icon={Trash2} label="Eliminar" onClick={onDelete} disabled={locked} danger />
+        </div>
+        {locked && <p className={`text-[11.5px] ${MUTED} -mt-3`}>Está bloqueado: no se mueve ni se borra hasta que lo desbloquees.</p>}
+
+        <fieldset disabled={locked} className="space-y-5 disabled:opacity-60">
+          <Section title="Posición">
+            {item.mount === 'wall' && (
+              <>
+                <Field label="Muro">
+                  <Segmented value={((Number(item.wallIndex) || 0) % walls.length + walls.length) % walls.length} onChange={(v) => onChange({ wallIndex: v, along: 0 })} options={walls.map((w) => [w.index, `${w.index + 1}`])} wrap />
+                </Field>
+                <Range label="A lo largo del muro" unit="m" value={Number(item.along) || 0} min={-(walls[Number(item.wallIndex) % walls.length]?.length ?? W) / 2} max={(walls[Number(item.wallIndex) % walls.length]?.length ?? W) / 2} step={0.05} decimals={2} onChange={(v) => onChange({ along: v })} />
+                {!FLOOR_ANCHORED.has(item.typeId) && <Range label="Altura del centro" unit="m" value={Number(item.elevation) || 1.35} min={0.2} max={H - 0.15} step={0.05} decimals={2} onChange={(v) => onChange({ elevation: v })} />}
+              </>
+            )}
+            {item.mount === 'corner' && (
+              <Field label="Esquina">
+                <Segmented value={((Number(item.cornerIndex) || 0) % corners.length + corners.length) % corners.length} onChange={(v) => onChange({ cornerIndex: v })} options={corners.map((c) => [c.index, `${c.index + 1}`])} wrap />
+              </Field>
+            )}
+            {(item.mount === 'floor' || item.mount === 'ceiling' || item.mount === 'free') && (
+              <>
+                <Range label="Izquierda · derecha" unit="m" value={Number(item.x) || 0} min={-W / 2} max={W / 2} step={0.05} decimals={2} onChange={(v) => onChange({ x: v })} />
+                <Range label="Fondo · frente" unit="m" value={Number(item.z) || 0} min={-D / 2} max={D / 2} step={0.05} decimals={2} onChange={(v) => onChange({ z: v })} />
+                <Range label="Giro" unit="°" value={(((Number(item.rotation) || 0) % 360) + 360) % 360} min={0} max={345} step={15} decimals={0} onChange={(v) => onChange({ rotation: v })} />
+                {item.mount === 'floor' && <Range label="Altura sobre el piso" unit="m" value={Number(item.y) || 0} min={0} max={Math.max(0.5, H - 0.4)} step={0.01} decimals={2} onChange={(v) => onChange({ y: v })} />}
+              </>
+            )}
+            {canStack && (
+              <Field label="Poner sobre" stacked>
+                <div className="flex flex-wrap gap-1">
+                  <Chip active={(Number(item.y) || 0) < 0.02} onClick={() => onChange({ y: 0 })}>El piso</Chip>
+                  {surfaces.slice(0, 6).map((s) => {
+                    const lv = getSupportSurfaceLevels(s);
+                    const top = lv[lv.length - 1];
+                    return (
+                      <Chip key={s.id} active={Math.hypot((Number(s.x) || 0) - (Number(item.x) || 0), (Number(s.z) || 0) - (Number(item.z) || 0)) < 0.3 && Math.abs((Number(item.y) || 0) - top.y) < 0.04} onClick={() => onChange({ x: Number(s.x) || 0, z: Number(s.z) || 0, y: top.y, rotation: Number(s.rotation) || 0 })}>
+                        {s.name}
+                      </Chip>
+                    );
+                  })}
+                </div>
+              </Field>
+            )}
+          </Section>
+
+          {(dimKeys.length > 0 || Object.keys(INT_DIMS).some((k) => dims[k] !== undefined)) && (
+            <Section title="Tamaño">
+              {dimKeys.map((k) => {
+                const [min, max] = range(k);
+                return <Range key={k} label={DIM_LABELS[k]} unit="m" value={Number(dims[k])} min={round(min, 0.01)} max={round(max, 0.05)} step={k === 'drop' ? 0.02 : 0.01} decimals={2} onChange={(v) => onChange({ dims: { [k]: v } })} />;
+              })}
+              {Object.entries(INT_DIMS)
+                .filter(([k]) => typeof dims[k] === 'number')
+                .map(([k, [label, min, max]]) => (
+                  <Range key={k} label={label} unit="" value={Number(dims[k])} min={min} max={max} step={1} decimals={0} onChange={(v) => onChange({ dims: { [k]: v } })} />
+                ))}
+              {(def.category === 'panels' || def.category === 'diffusers' || REPEATABLE.has(item.typeId)) && (
+                <Range label="Cantidad en fila" unit="" value={Number(item.count) || 1} min={1} max={8} step={1} decimals={0} onChange={(v) => onChange({ count: v })} />
+              )}
+              {Object.entries(BOOL_DIMS)
+                .filter(([k]) => typeof dims[k] === 'boolean')
+                .map(([k, label]) => (
+                  <Toggle key={k} label={label} checked={dims[k]} onChange={(v) => onChange({ dims: { [k]: v } })} />
+                ))}
+              {typeof dims.screenKind === 'string' && (
+                <Field label="Pantalla" stacked>
+                  <Segmented value={dims.screenKind} onChange={(v) => onChange({ dims: { screenKind: v } })} options={SCREEN_KINDS} wrap />
+                </Field>
+              )}
+            </Section>
+          )}
+
+          <Section title="Apariencia">
+            {def.finishes && (
+              <Field label="Serie" stacked>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {def.finishes.map((f) => (
+                    <button key={f} type="button" onClick={() => onChange({ dims: { finish: f } })} className={`rounded-xl border px-2.5 py-1.5 text-left cursor-pointer ${dims.finish === f ? 'border-[#5833c7] ring-1 ring-[#5833c7]/40' : `${LINE} hover:border-[#5833c7]/40`}`}>
+                      <span className={`block text-[12px] font-semibold ${TITLE}`}>{AUDIO_FINISHES[f].label}</span>
+                      <span className={`block text-[10.5px] ${MUTED} leading-tight`}>{AUDIO_FINISHES[f].hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            )}
+            <Field label="Color" stacked>
+              <div className="flex flex-wrap items-center gap-1">
+                {COLOR_ROLES.map(([role, label]) => (
+                  <Chip key={role} active={(item.colorRole || 'primary') === role} onClick={() => onChange({ colorRole: role })}>
+                    {role !== 'custom' && <span className="inline-block w-2.5 h-2.5 rounded-full mr-1 align-[-1px] ring-1 ring-black/10" style={{ background: `#${(palette[role] ?? 0).toString(16).padStart(6, '0')}` }} />}
+                    {label}
+                  </Chip>
+                ))}
+                {item.colorRole === 'custom' && <input type="color" aria-label="Color libre" value={item.customColor || '#7464cc'} onChange={(e) => onChange({ customColor: e.target.value })} className="w-7 h-6 rounded border-0 bg-transparent cursor-pointer" />}
+              </div>
+            </Field>
+            <Field label="Madera" stacked>
+              <Segmented value={item.wood || ''} onChange={(v) => onChange({ wood: v || null })} options={[['', 'La de la sala'], ...WOODS]} wrap />
+            </Field>
+          </Section>
+
+          <Section title="Acústica">
+            {item.coefficients ? (
+              <Range
+                label="Absorción a 500 Hz (α)"
+                unit=""
+                value={item.coefficients[500] ?? 0.7}
+                min={0.05}
+                max={0.99}
+                step={0.01}
+                decimals={2}
+                onChange={(v) =>
+                  onChange({
+                    coefficients: { 125: clamp(v * 0.45, 0.05, 0.99), 250: clamp(v * 0.75, 0.05, 0.99), 500: v, 1000: clamp(v * 1.05, 0.05, 0.99), 2000: clamp(v * 1.05, 0.05, 0.99), 4000: clamp(v, 0.05, 0.99) },
+                  })
+                }
+              />
+            ) : null}
+            <p className={`text-[12px] ${MUTED}`}>
+              Aporta unos <span className={`font-mono font-semibold ${TITLE}`}>{fmt(sabine500, 2)} m²</span> de absorción a 500 Hz{Number(item.count) > 1 ? ` (las ${item.count} piezas)` : ''}.
+            </p>
+          </Section>
+        </fieldset>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================= exportación */
+
+function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat, isDarkMode, roomMode, fileBase }) {
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const abortRef = useRef(null);
+  const size = SIZES.find((s) => s.id === opts.size) ?? SIZES[0];
+  const iq = IMAGE_QUALITIES.find((q) => q.id === opts.imageQuality) ?? IMAGE_QUALITIES[1];
+  const video = opts.video;
+  const pathList = Object.values(paths);
+  const path = paths[video.path] ?? pathList[0];
+  const vs = VIDEO_SIZES.find((s) => s.id === video.size) ?? VIDEO_SIZES[1];
+  const vq = VIDEO_QUALITIES.find((q) => q.id === video.quality) ?? VIDEO_QUALITIES[1];
+  const duration = video.duration ?? path?.duration ?? 12;
+  const setVideo = (changes) => patch((o) => ({ video: { ...o.video, ...changes } }));
+
+  useEffect(() => () => result?.url && URL.revokeObjectURL(result.url), [result]);
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && !busy && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy, onClose]);
+
+  const matteFor = () => (flat ? (opts.transparent ? null : opts.night || isDarkMode ? '#141526' : '#f3f1f7') : null);
+
+  const renderImage = async () => {
+    setBusy(true);
+    setProgress(0);
+    setError(null);
+    setResult(null);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    try {
+      const type = opts.format === 'jpg' ? 'image/jpeg' : opts.format === 'webp' ? 'image/webp' : 'image/png';
+      const blob = await viewport.current.renderImage({ width: size.w, height: size.h, samples: iq.samples, type, quality: 0.93, matte: opts.format === 'png' ? matteFor() : matteFor() ?? '#f3f1f7', signal: ctrl.signal, onProgress: setProgress });
+      if (!blob) return;
+      const name = `pozole-${fileBase}-${size.w}x${size.h}.${opts.format}`;
+      downloadBlob(blob, name);
+      setResult({ kind: 'image', url: URL.createObjectURL(blob), name, kb: Math.round(blob.size / 1024) });
+    } catch (err) {
+      setError(err.message || 'No se pudo renderizar la imagen.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const renderVideo = async () => {
+    if (!path) return;
+    setBusy(true);
+    setProgress(0);
+    setError(null);
+    setResult(null);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    try {
+      const out = await viewport.current.renderVideo({ path: { ...path, duration }, width: vs.w, height: vs.h, fps: 30, samples: vq.samples, bitrate: vs.bitrate, matte: matteFor() ?? '#f3f1f7', signal: ctrl.signal, onProgress: setProgress });
+      if (!out) return;
+      const name = `pozole-recorrido-${path.id}-${vs.id}p.${out.ext}`;
+      downloadBlob(out.blob, name);
+      setResult({ kind: 'video', url: URL.createObjectURL(out.blob), name, kb: Math.round(out.blob.size / 1024) });
+    } catch (err) {
+      setError(err.message || 'No se pudo crear el video.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const frames = Math.round(duration * 30);
+  const estimate = Math.max(5, Math.round((frames * vq.samples * (vs.w > 1500 ? 0.028 : 0.016) + frames * 0.012) / 5) * 5);
+
+  return (
+    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/45 backdrop-blur-[2px] p-4" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}>
+      <div className={`${CARD} w-full max-w-[540px] max-h-[92vh] overflow-y-auto p-5 space-y-4`}>
+        <div className="flex items-center justify-between">
+          <Segmented
+            value={tab}
+            onChange={(t) => {
+              if (!busy) {
+                setTab(t);
+                setResult(null);
+              }
+            }}
+            options={[['image', 'Imagen', ImageIcon], ...(roomMode ? [['video', 'Video', Film]] : [])]}
+            strong
+          />
+          <IconButton title="Cerrar" icon={X} onClick={onClose} disabled={busy} />
+        </div>
+
+        {tab === 'image' && (
+          <div className="space-y-4">
+            <p className={`text-[12.5px] ${MUTED}`}>Se renderiza exactamente lo que ves en el visor, con más pasadas para afinar sombras y bordes.</p>
+            <Field label="Formato de imagen" stacked>
+              <div className="grid grid-cols-4 gap-1.5">
+                {SIZES.map((s) => (
+                  <button key={s.id} type="button" onClick={() => patch({ size: s.id })} className={`rounded-xl border px-2 py-2 text-center cursor-pointer ${opts.size === s.id ? 'border-[#5833c7] ring-1 ring-[#5833c7]/40' : `${LINE} hover:border-[#5833c7]/40`}`}>
+                    <span className="mx-auto mb-1 block rounded-[3px] border-2 border-current opacity-60" style={{ width: s.w >= s.h ? 26 : 26 * (s.w / s.h), height: s.w >= s.h ? 26 * (s.h / s.w) : 26 }} />
+                    <span className={`block text-[11.5px] font-semibold ${TITLE}`}>{s.label}</span>
+                    <span className={`block text-[10px] ${MUTED}`}>{s.w}×{s.h}</span>
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Calidad">
+              <Segmented value={opts.imageQuality} onChange={(v) => patch({ imageQuality: v })} options={IMAGE_QUALITIES.map((q) => [q.id, q.label])} />
+            </Field>
+            <Field label="Archivo">
+              <Segmented value={opts.format} onChange={(v) => patch({ format: v })} options={[['png', 'PNG'], ['jpg', 'JPG'], ['webp', 'WebP']]} />
+            </Field>
+            {flat && opts.format === 'png' && <Toggle label="Fondo transparente" checked={opts.transparent} onChange={(v) => patch({ transparent: v })} />}
+            <PrimaryAction busy={busy} progress={progress} onClick={renderImage} onCancel={() => abortRef.current?.abort()} icon={Download} label="Renderizar y descargar" />
+          </div>
+        )}
+
+        {tab === 'video' && (
+          <div className="space-y-4">
+            <p className={`text-[12.5px] ${MUTED}`}>El video se dibuja cuadro por cuadro, así que sale fluido aunque el equipo sea lento. Mientras se crea, no cierres la pestaña.</p>
+            <Field label="Recorrido" stacked>
+              <div className="grid grid-cols-2 gap-1.5">
+                {pathList.map((p) => (
+                  <button key={p.id} type="button" onClick={() => setVideo({ path: p.id, duration: null })} className={`rounded-xl border px-2.5 py-2 text-left cursor-pointer ${path?.id === p.id ? 'border-[#5833c7] ring-1 ring-[#5833c7]/40' : `${LINE} hover:border-[#5833c7]/40`}`}>
+                    <span className={`block text-[12px] font-semibold ${TITLE}`}>{p.label}</span>
+                    <span className={`block text-[10.5px] ${MUTED} leading-tight`}>{p.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Range label="Duración" unit="s" value={duration} min={5} max={40} step={1} decimals={0} onChange={(v) => setVideo({ duration: v })} />
+            <Field label="Resolución">
+              <Segmented value={vs.id} onChange={(v) => setVideo({ size: v })} options={VIDEO_SIZES.map((s) => [s.id, s.label])} />
+            </Field>
+            <Field label="Calidad">
+              <Segmented value={vq.id} onChange={(v) => setVideo({ quality: v })} options={VIDEO_QUALITIES.map((q) => [q.id, q.label])} />
+            </Field>
+            <p className={`text-[11.5px] ${MUTED}`}>{frames} cuadros a 30 por segundo · tardará alrededor de {estimate >= 60 ? `${Math.round(estimate / 60)} min` : `${estimate} s`} en este equipo.</p>
+            <PrimaryAction busy={busy} progress={progress} onClick={renderVideo} onCancel={() => abortRef.current?.abort()} icon={Film} label="Crear video" />
+          </div>
+        )}
+
+        {error && <p className="rounded-xl bg-rose-500/10 px-3 py-2 text-[12.5px] text-rose-700 dark:text-rose-300">{error}</p>}
+        {result && (
+          <div className={`rounded-2xl border ${LINE} p-2 space-y-2`}>
+            {result.kind === 'image' ? <img src={result.url} alt="Render" className="w-full rounded-xl" /> : <video src={result.url} className="w-full rounded-xl" controls autoPlay loop muted playsInline />}
+            <div className="flex items-center justify-between gap-2 px-1 pb-1">
+              <span className={`text-[11.5px] ${MUTED} truncate`}>
+                <Check className="w-3.5 h-3.5 inline text-emerald-500 mr-1" />
+                {result.name} · {result.kb >= 1024 ? `${fmt(result.kb / 1024, 1)} MB` : `${result.kb} KB`}
+              </span>
+              <a href={result.url} download={result.name} className="shrink-0 text-[12px] font-semibold text-[#5833c7] dark:text-[#c4b5fd] hover:underline">Descargar otra vez</a>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PrimaryAction({ busy, progress = 0, onClick, onCancel, icon: Icon, label }) {
+  return busy ? (
+    <div className="flex gap-2">
+      <div className="relative flex-1 overflow-hidden rounded-xl bg-[#5833c7]/25 py-2.5 text-center text-[13px] font-bold text-[#3d2394] dark:text-white">
+        <div className="absolute inset-y-0 left-0 bg-[#5833c7]/45 transition-[width] duration-300" style={{ width: `${Math.round(progress * 100)}%` }} />
+        <span className="relative">Trabajando… {Math.round(progress * 100)} %</span>
+      </div>
+      <button type="button" onClick={onCancel} className={`rounded-xl px-3 text-[12.5px] font-semibold ${SOFT} ${TITLE} cursor-pointer`}>Cancelar</button>
+    </div>
+  ) : (
+    <button type="button" onClick={onClick} className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#5833c7] hover:bg-[#4726aa] py-2.5 text-[13px] font-bold text-white cursor-pointer">
+      <Icon className="w-4 h-4" /> {label}
+    </button>
+  );
+}
+
+/* ===================================================== controles pequeños */
+
+function Segmented({ value, onChange, options, strong = false, full = false, wrap = false }) {
+  return (
+    <div className={`${full ? 'grid' : wrap ? 'flex flex-wrap' : 'inline-flex'} gap-0.5 rounded-xl ${SOFT} p-0.5`} style={full ? { gridTemplateColumns: `repeat(${options.length}, minmax(0,1fr))` } : undefined}>
+      {options.map(([id, label, Icon]) => (
+        <button key={String(id)} type="button" onClick={() => onChange(id)} className={`inline-flex items-center justify-center gap-1.5 rounded-[10px] px-2.5 ${strong ? 'py-1.5 text-[12.5px]' : 'py-1 text-[12px]'} font-semibold transition cursor-pointer ${value === id ? ACTIVE : IDLE}`}>
+          {Icon && <Icon className="w-3.5 h-3.5" />}
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Section({ title, hint, children }) {
+  return (
+    <section className="space-y-2.5">
+      <div>
+        <h4 className={`text-[12.5px] font-bold ${TITLE}`}>{title}</h4>
+        {hint && <p className={`text-[11.5px] ${MUTED}`}>{hint}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({ label, children, stacked = false }) {
+  return (
+    <div className={stacked ? 'space-y-1.5' : 'flex items-center justify-between gap-3'}>
+      <span className={`text-[12px] ${MUTED}`}>{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function Range({ label, unit, value, min, max, step, decimals = 1, onChange }) {
+  const v = Number(value) || 0;
+  return (
+    <label className="block space-y-1">
+      <span className="flex justify-between text-[12px]">
+        <span className={MUTED}>{label}</span>
+        <span className={`font-mono ${TITLE}`}>
+          {fmt(v, decimals)}
+          {unit ? ` ${unit}` : ''}
+        </span>
+      </span>
+      <input type="range" className="w-full accent-[#5833c7]" min={min} max={max} step={step} value={clamp(v, min, max)} onChange={(e) => onChange(Number(e.target.value))} />
+    </label>
+  );
+}
+
+function Toggle({ label, checked, onChange }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-[12px] font-medium text-left ${SOFT} ${TITLE} cursor-pointer`}>
+      {label}
+      <span className={`relative w-8 h-[18px] rounded-full shrink-0 transition ${checked ? 'bg-[#5833c7]' : 'bg-black/15 dark:bg-white/15'}`}>
+        <span className={`absolute top-[3px] w-3 h-3 rounded-full bg-white transition-all ${checked ? 'left-[17px]' : 'left-[3px]'}`} />
+      </span>
+    </button>
+  );
+}
+
+function Chip({ active, onClick, children }) {
+  return (
+    <button type="button" onClick={onClick} className={`rounded-lg px-2 py-1 text-[11.5px] font-medium transition cursor-pointer ${active ? 'bg-[#5833c7] text-white' : `${SOFT} ${IDLE}`}`}>
+      {children}
+    </button>
+  );
+}
+
+function PresetCard({ label, hint, active, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className={`rounded-xl border px-2.5 py-2 text-left transition cursor-pointer ${active ? 'border-[#5833c7] ring-1 ring-[#5833c7]/40' : `${LINE} hover:border-[#5833c7]/40`}`}>
+      <span className={`block text-[12px] font-semibold ${TITLE}`}>{label}</span>
+      <span className={`block text-[10.5px] ${MUTED}`}>{hint}</span>
+    </button>
+  );
+}
+
+function ActionButton({ icon: Icon, label, onClick, disabled = false, active = false, danger = false }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10.5px] font-medium transition cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${active ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' : danger ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10' : `${IDLE} hover:bg-black/[0.04] dark:hover:bg-white/[0.06]`}`}>
+      <Icon className="w-4 h-4" />
+      {label}
+    </button>
+  );
+}
+
+function IconButton({ icon: Icon, title, onClick, disabled = false }) {
+  return (
+    <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className={`p-2 rounded-xl ${IDLE} hover:bg-black/[0.05] dark:hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer`}>
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+}
+
+function SmallIcon({ icon: Icon, title, onClick, disabled = false }) {
+  return (
+    <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className="p-1 rounded-lg text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] disabled:opacity-30 cursor-pointer">
+      <Icon className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
+function OverlayButton({ icon: Icon, title, onClick }) {
+  return (
+    <button type="button" title={title} aria-label={title} onClick={onClick} className="p-1.5 rounded-xl hover:bg-white/15 cursor-pointer">
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+}
+
+function PillButton({ icon: Icon, title, onClick, disabled = false, danger = false }) {
+  return (
+    <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className={`p-1.5 rounded-full disabled:opacity-30 cursor-pointer ${danger ? 'hover:bg-rose-500/30 text-rose-200' : 'hover:bg-white/15'}`}>
+      <Icon className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
+function Menu({ children, onClose }) {
+  useEffect(() => {
+    const close = (e) => {
+      if (!e.target.closest?.('[data-menu]')) onClose();
+    };
+    const t = setTimeout(() => window.addEventListener('pointerdown', close), 0);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('pointerdown', close);
+    };
+  }, [onClose]);
+  return (
+    <div className={`absolute right-0 mt-2 w-64 z-40 rounded-2xl bg-white dark:bg-[#16182b] border ${LINE} shadow-2xl p-1.5`}>
+      {children}
+    </div>
+  );
+}
+
+function MenuItem({ icon: Icon, label, hint, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className="w-full flex items-start gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer">
+      <Icon className={`w-4 h-4 mt-0.5 ${MUTED}`} />
+      <span>
+        <span className={`block text-[12.5px] font-semibold ${TITLE}`}>{label}</span>
+        <span className={`block text-[11px] ${MUTED}`}>{hint}</span>
+      </span>
+    </button>
+  );
+}
+
