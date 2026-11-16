@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:ital,wght@1,300;1,400;1,500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -350,19 +350,187 @@
   --pz-accent: 184 115 10;    /* ámbar oscurecido para contraste sobre claro */
 }
 
+/* Oscuro tipo grafito (como el modo oscuro de las redes): fondo #18191a, tarjetas #242526 y
+   texto #e4e6eb. Las tarjetas se separan del fondo por el tono, no por bordes. */
 .dark {
-  --pz-canvas: 8 8 12;
-  --pz-surface: 11 11 16;
-  --pz-surface2: 16 16 23;
-  --pz-ink: 237 237 242;
-  --pz-brand: 135 103 249;
+  --pz-canvas: 24 25 26;
+  --pz-surface: 36 37 38;
+  --pz-surface2: 48 49 51;
+  --pz-ink: 228 230 235;
+  --pz-brand: 128 100 248;
   --pz-accent: 242 184 75;
 }
 
+/* Bloques de marca (estilo Nequi): un morado profundo con texto claro, igual en ambos temas */
+.pz-scope-brand {
+  --pz-canvas: 27 15 61;
+  --pz-surface: 41 25 88;
+  --pz-surface2: 52 34 108;
+  --pz-ink: 246 243 255;
+  --pz-brand: 176 152 255;
+  --pz-accent: 242 184 75;
+  background-color: rgb(var(--pz-canvas));
+  color: rgb(var(--pz-ink));
+}
+
+/* Franja suave con el color de la marca, para alternar secciones sin líneas divisorias */
+.pz-band {
+  background-color: rgb(var(--pz-brand) / 0.06);
+}
+.dark .pz-band {
+  background-color: rgb(var(--pz-surface) / 0.55);
+}
+
+/* Tarjeta limpia: blanca con sombra suave en claro; en oscuro, un tono más claro que el fondo */
+.pz-card {
+  background-color: rgb(var(--pz-surface));
+  box-shadow: 0 1px 2px rgb(20 12 50 / 0.05), 0 12px 32px -18px rgb(40 20 110 / 0.22);
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
+}
+.pz-card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 2px 4px rgb(20 12 50 / 0.06), 0 22px 44px -20px rgb(40 20 110 / 0.32);
+}
+.dark .pz-card,
+.pz-scope-brand .pz-card {
+  box-shadow: none;
+}
+
+/* Imagen que se «infla» al pasar el mouse: las esquinas se redondean hasta casi un círculo y la
+   imagen se oscurece un poco, como en las portadas de revistas digitales */
+.pz-morph {
+  border-radius: 22px;
+  overflow: hidden;
+  isolation: isolate;
+  transition: border-radius 0.7s cubic-bezier(0.22, 1, 0.36, 1), filter 0.7s ease;
+}
+.pz-morph > * {
+  transition: scale 0.7s cubic-bezier(0.22, 1, 0.36, 1), filter 0.7s ease;
+}
+.group:hover .pz-morph,
+.pz-morph:hover {
+  border-radius: 44% / 40%;
+}
+.group:hover .pz-morph > *,
+.pz-morph:hover > * {
+  scale: 1.04;
+  filter: brightness(0.82) saturate(1.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pz-morph,
+  .pz-morph > * {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Tipografía del sitio: familia IBM Plex
+     · Plex Sans            texto corrido, botones y navegación
+     · Plex Sans (300–500)  títulos: pesos ligeros y medios, nada de negritas pesadas
+     · Plex Serif cursiva   palabras de acento dentro de los títulos
+     · Las cifras usan números tabulares de Plex Sans (sin monoespaciada ni letras espaciadas)
+   La suite conserva su tipografía; esto solo aplica dentro de .pz-site.
+   ========================================================================== */
+.pz-site,
+.pz-site .font-sans {
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+}
+
+.pz-site h1,
+.pz-site h2,
+.pz-site .font-display {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+.pz-site h1,
+.pz-site h2 {
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+/* Plex se ve mejor sin negritas pesadas: lo «bold» del sitio baja a semibold */
+.pz-site .font-bold,
+.pz-site .font-extrabold,
+.pz-site .font-black {
+  font-weight: 600;
+}
+
+.pz-site h3 {
+  font-family: 'IBM Plex Sans', sans-serif;
+  letter-spacing: -0.005em;
+}
+
+.pz-site .font-mono,
+.pz-site code {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+}
+
+/* Subrayado a mano de las palabras destacadas (componente Accent de la landing) */
+.pz-mark {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+.pz-mark-line {
+  position: absolute;
+  left: -0.04em;
+  right: -0.04em;
+  bottom: -0.2em;
+  width: calc(100% + 0.08em);
+  height: 0.32em;
+  overflow: visible;
+  pointer-events: none;
+}
+.pz-mark-line path {
+  fill: none;
+  stroke: rgb(var(--pz-brand));
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.75s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.pz-mark-line path + path {
+  stroke-width: 3;
+  opacity: 0.75;
+  transition-delay: 0.45s;
+}
+/* Se dibuja cuando su bloque aparece al hacer scroll… */
+.pz-reveal-in .pz-mark-line path {
+  stroke-dashoffset: 0;
+  transition-delay: 0.55s;
+}
+.pz-reveal-in .pz-mark-line path + path {
+  transition-delay: 1s;
+}
+/* …y se vuelve a trazar al pasar el mouse por la palabra */
+@keyframes pz-mark-redraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.pz-mark:hover .pz-mark-line path {
+  animation: pz-mark-redraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+.pz-mark:hover .pz-mark-line path + path {
+  animation-delay: 0.3s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pz-mark-line path {
+    transition: none;
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+}
+
 .font-serif-accent {
-  font-family: 'Instrument Serif', Georgia, serif;
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-style: italic;
   font-weight: 400;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 /* Aparición al hacer scroll. Se anima con `translate` / `scale` (no `transform`) para no
@@ -430,6 +598,14 @@
 }
 .pz-hero-in {
   animation: pz-hero-in 1.3s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+/* Foto de portada: entra con un acercamiento lento, como un plano de cámara */
+@keyframes pz-hero-photo {
+  from { opacity: 0; scale: 1.08; }
+  to { opacity: 1; scale: 1; }
+}
+.pz-hero-photo {
+  animation: pz-hero-photo 2.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes pz-pop-in {
   0% { opacity: 0; scale: 0.3; }
@@ -534,7 +710,7 @@
 @media (prefers-reduced-motion: reduce) {
   .pz-reveal { opacity: 1; translate: none; scale: 1; filter: none; transition: none; }
   .pz-reveal .pz-pop { opacity: 1; scale: 1; translate: none; transition: none; }
-  .pz-word, .pz-enter, .pz-hero-in, .pz-pop-in { animation: none; }
+  .pz-word, .pz-enter, .pz-hero-in, .pz-pop-in, .pz-hero-photo { animation: none; }
   .pz-bar { scale: 1 1; transition: none; }
   .pz-progress-line { scale: 1 1; }
   .pz-marquee, .pz-ray, .pz-float, .pz-steam { animation: none; }

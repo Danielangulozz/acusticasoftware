@@ -5,7 +5,7 @@ export const BRAND = { name: 'POZOLE', suffix: 'ACÚSTICA', full: 'POZOLE ACÚST
 export const CONTACT_EMAIL = 'contacto@pozoleacustica.com';
 
 export const TEAM = [
-  { name: 'Daniel Angulo', role: 'Cofundador · Ingeniería de Sonido' },
-  { name: 'Jeronimo Gomez', role: 'Cofundador · Ingeniería de Sonido' },
-  { name: 'Brandon Guerra', role: 'Cofundador · Ingeniería de Sonido' },
+  { name: 'Daniel Angulo', role: 'Fundador · Ingeniería de Sonido' },
+  { name: 'Jeronimo Gomez', role: ' Compañero · Ingeniería de Sonido' },
+  { name: 'Brandon Guerra', role: ' Compañero · Ingeniería de Sonido' },
 ];

@@ -53,7 +53,7 @@ export default function QuickCalc() {
   const slider = (key, label, min, max2, step) => (
     <label className="block space-y-1.5">
       <span className="flex justify-between text-xs">
-        <span className="text-ink/55">{label}</span>
+        <span className="text-ink/70">{label}</span>
         <span className="font-mono font-semibold text-ink">{fmt(dims[key], 1)} m</span>
       </span>
       <input
@@ -69,13 +69,13 @@ export default function QuickCalc() {
   );
 
   return (
-    <div className="rounded-[28px] border border-ink/10 bg-surface overflow-hidden shadow-[0_30px_80px_-40px_rgb(var(--pz-brand)/0.45)]">
+    <div className="rounded-[28px] pz-card overflow-hidden">
       {/* Barra de ventana, como una vista previa del simulador */}
       <div className="flex items-center gap-2 px-5 py-3 border-b border-ink/[0.08] bg-surface2">
         <span className="w-2.5 h-2.5 rounded-full bg-ink/15" />
         <span className="w-2.5 h-2.5 rounded-full bg-ink/15" />
         <span className="w-2.5 h-2.5 rounded-full bg-ink/15" />
-        <span className="ml-3 font-mono text-[11px] text-ink/45">POZOLE Suite · calculadora exprés de RT60</span>
+        <span className="ml-3 font-mono text-[11px] text-ink/60">POZOLE Suite · calculadora exprés de RT60</span>
       </div>
 
       <div className="grid md:grid-cols-2">
@@ -85,7 +85,7 @@ export default function QuickCalc() {
           {slider('height', 'Alto', 2.2, 6, 0.1)}
 
           <div className="space-y-2">
-            <div className="text-xs text-ink/55">¿Cómo está la sala hoy?</div>
+            <div className="text-xs text-ink/70">¿Cómo está la sala hoy?</div>
             <div className="grid grid-cols-3 gap-1.5">
               {FINISHES.map((f) => (
                 <button
@@ -96,14 +96,14 @@ export default function QuickCalc() {
                   className={`rounded-xl border px-2 py-2 text-left transition-colors ${finish === f.id ? 'border-brand bg-brand/10' : 'border-ink/10 hover:border-ink/25'}`}
                 >
                   <div className="text-xs font-semibold text-ink">{f.label}</div>
-                  <div className="text-[10px] text-ink/45 leading-tight mt-0.5">{f.hint}</div>
+                  <div className="text-[10px] text-ink/60 leading-tight mt-0.5">{f.hint}</div>
                 </button>
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="text-xs text-ink/55">¿Para qué la usas?</div>
+            <div className="text-xs text-ink/70">¿Para qué la usas?</div>
             <div className="inline-flex p-1 rounded-full bg-ink/[0.05] border border-ink/10">
               {USES.map((u) => (
                 <button
@@ -111,7 +111,7 @@ export default function QuickCalc() {
                   type="button"
                   onClick={() => setUse(u.id)}
                   aria-pressed={use === u.id}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${use === u.id ? 'bg-ink text-canvas' : 'text-ink/60 hover:text-ink'}`}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${use === u.id ? 'bg-ink text-canvas' : 'text-ink/70 hover:text-ink'}`}
                 >
                   {u.label}
                 </button>
@@ -123,9 +123,9 @@ export default function QuickCalc() {
         <div className="p-6 sm:p-7 space-y-5 bg-canvas/40">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <div className="font-mono text-[10px] tracking-[0.2em] text-ink/45">RT60 ESTIMADO · MEDIOS</div>
+              <div className="text-[13px] font-medium text-ink/70">RT60 estimado · frecuencias medias</div>
               <div className="font-mono text-5xl font-bold tracking-tight text-ink mt-1">
-                {fmt(result.mid)} <span className="text-2xl text-ink/55">s</span>
+                {fmt(result.mid)} <span className="text-2xl text-ink/70">s</span>
               </div>
             </div>
             <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${verdictUI.cls}`}>{verdictUI.text}</span>
@@ -141,18 +141,18 @@ export default function QuickCalc() {
             </div>
             <div className="flex gap-2 mt-1.5">
               {OCTAVE_BANDS.map((f) => (
-                <span key={f} className="flex-1 text-center font-mono text-[10px] text-ink/45">{f >= 1000 ? `${f / 1000}k` : f}</span>
+                <span key={f} className="flex-1 text-center font-mono text-[10px] text-ink/60">{f >= 1000 ? `${f / 1000}k` : f}</span>
               ))}
             </div>
           </div>
 
           <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-2xl border border-ink/10 bg-surface p-3">
-              <dt className="text-[11px] text-ink/50">Recomendado para este uso</dt>
+            <div className="rounded-2xl pz-card p-3">
+              <dt className="text-[11px] text-ink/65">Recomendado para este uso</dt>
               <dd className="font-mono font-semibold text-ink mt-0.5">{fmt(result.opt.min)} – {fmt(result.opt.max)} s</dd>
             </div>
-            <div className="rounded-2xl border border-ink/10 bg-surface p-3">
-              <dt className="text-[11px] text-ink/50">Absorbente a añadir</dt>
+            <div className="rounded-2xl pz-card p-3">
+              <dt className="text-[11px] text-ink/65">Absorbente a añadir</dt>
               <dd className="font-mono font-semibold text-ink mt-0.5">{result.extraArea < 0.5 ? 'Ninguno' : `≈ ${Math.round(result.extraArea)} m²`}</dd>
             </div>
           </dl>
@@ -162,7 +162,7 @@ export default function QuickCalc() {
               Analizarla a fondo en POZOLE Suite
               <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
-            <span className="text-[11px] text-ink/40">Volumen: {Math.round(result.volume)} m³ · Norris-Eyring</span>
+            <span className="text-[11px] text-ink/55">Volumen: {Math.round(result.volume)} m³ · Norris-Eyring</span>
           </div>
         </div>
       </div>

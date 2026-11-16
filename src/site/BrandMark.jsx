@@ -66,8 +66,8 @@ export function BrandLockup({ size = 30, className = '' }) {
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <BrandMark size={size} />
       <span className="leading-none">
-        <span className="block font-display font-extrabold tracking-[0.08em] text-[15px] text-ink">{BRAND.name}</span>
-        <span className="block font-mono text-[9px] tracking-[0.34em] text-ink/50 mt-1">{BRAND.suffix}</span>
+        <span className="block font-display font-semibold tracking-[0.3em] text-[15px] text-ink">{BRAND.name}</span>
+        <span className="block text-[10px] font-medium tracking-[0.3em] text-ink/70 mt-1">{BRAND.suffix}</span>
       </span>
     </span>
   );

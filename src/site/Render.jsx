@@ -39,8 +39,7 @@ export default function Render({ name, alt, isDark = false, themed = false, eage
 
 export function RenderTag({ className = '' }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.16em] uppercase text-ink/40 ${className}`}>
-      <span className="w-1 h-1 rounded-full bg-ink/30" />
+    <span className={`text-[12px] text-ink/70 ${className}`}>
       Render conceptual
     </span>
   );

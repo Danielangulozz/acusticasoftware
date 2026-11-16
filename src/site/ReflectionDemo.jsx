@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Info, Sparkles } from 'lucide-react';
+import { CheckCircle2, Info } from 'lucide-react';
 import { quadraticResidueSequence } from '../utils/diffuserCalculations';
 
 const MODES = [
@@ -48,7 +48,7 @@ export default function ReflectionDemo() {
     <div className="grid lg:grid-cols-12 gap-8 items-center">
       <div className="lg:col-span-5 space-y-5">
         <div className="space-y-2">
-          <div className="text-xs font-mono uppercase tracking-wider text-ink/50">
+          <div className="text-[13px] font-medium text-ink/75">
             Haz clic para comparar el efecto en la onda:
           </div>
           <div className="inline-flex flex-wrap p-1 rounded-2xl bg-ink/[0.05] border border-ink/10 gap-1" role="tablist" aria-label="Comportamiento de la superficie">
@@ -59,7 +59,7 @@ export default function ReflectionDemo() {
                 aria-selected={mode === m.id}
                 onClick={() => setMode(m.id)}
                 className={`px-4 py-2 rounded-xl text-[13px] font-semibold transition-all ${
-                  mode === m.id ? 'bg-ink text-canvas shadow-sm' : 'text-ink/60 hover:text-ink'
+                  mode === m.id ? 'bg-ink text-canvas shadow-sm' : 'text-ink/70 hover:text-ink'
                 }`}
               >
                 {m.label}
@@ -68,13 +68,10 @@ export default function ReflectionDemo() {
           </div>
         </div>
 
-        <div key={mode} className="animate-fadeIn rounded-3xl border border-ink/10 bg-surface p-6 space-y-4">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 border border-brand/25 px-3 py-1 text-xs font-mono font-semibold text-brand">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{active.badge}</span>
-          </div>
+        <div key={mode} className="animate-fadeIn rounded-3xl pz-card p-6 space-y-4">
+          <div className="text-[14px] font-medium text-brand">{active.badge}</div>
           <h3 className="text-xl sm:text-2xl font-bold text-ink leading-snug">{active.title}</h3>
-          <p className="text-sm sm:text-base text-ink/65 leading-relaxed">{active.text}</p>
+          <p className="text-sm sm:text-base text-ink/75 leading-relaxed">{active.text}</p>
           <div className="pt-3 border-t border-ink/[0.08] flex items-start gap-2.5 text-xs sm:text-sm text-ink/75">
             <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
             <div>
@@ -85,8 +82,8 @@ export default function ReflectionDemo() {
         </div>
       </div>
 
-      <div className="lg:col-span-7 rounded-3xl border border-ink/10 bg-surface overflow-hidden p-4 sm:p-6 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-ink/55 pb-2 border-b border-ink/[0.07]">
+      <div className="lg:col-span-7 rounded-3xl pz-card overflow-hidden p-4 sm:p-6 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-ink/70 pb-2 border-b border-ink/[0.07]">
           <span className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-ink inline-block" />
             Onda entrante (Fuente)

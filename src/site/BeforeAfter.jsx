@@ -136,22 +136,22 @@ export default function BeforeAfter({ isDark }) {
         <CompareSlider isDark={isDark} />
         <div className="mt-2 flex items-center justify-between gap-3">
           <RenderTag />
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink/40">Arrastra para comparar</span>
+          <span className="text-[13px] text-ink/70">Arrastra para comparar</span>
         </div>
       </div>
 
-      <div className="lg:col-span-5 rounded-3xl border border-ink/10 bg-surface p-6 sm:p-7 space-y-6 shadow-[0_24px_60px_-30px_rgb(var(--pz-brand)/0.35)]">
+      <div className="lg:col-span-5 rounded-3xl pz-card p-6 sm:p-7 space-y-6">
         <div>
-          <div className="font-mono text-[10px] tracking-[0.2em] text-ink/45">TIEMPO DE REVERBERACIÓN · 500 Hz – 1 kHz</div>
+          <div className="text-[13px] font-medium text-ink/70">Tiempo de reverberación · 500 Hz – 1 kHz</div>
           <div className="mt-3 flex items-end gap-4 flex-wrap">
             <div>
-              <div className="text-xs text-ink/45">Antes</div>
-              <div className="font-mono text-3xl font-bold text-ink/35 line-through decoration-ink/30"><CountUp value={data.beforeMid} duration={900} /> s</div>
+              <div className="text-xs text-ink/60">Antes</div>
+              <div className="font-mono text-3xl font-bold text-ink/55 line-through decoration-ink/30"><CountUp value={data.beforeMid} duration={900} /> s</div>
             </div>
-            <div className="text-ink/30 text-2xl pb-1">→</div>
+            <div className="text-ink/50 text-2xl pb-1">→</div>
             <div>
-              <div className="text-xs text-ink/45">Después</div>
-              <div className="font-mono text-5xl font-bold text-ink tracking-tight"><CountUp from={data.beforeMid} value={data.afterMid} duration={2400} /> <span className="text-2xl text-ink/60">s</span></div>
+              <div className="text-xs text-ink/60">Después</div>
+              <div className="font-mono text-5xl font-bold text-ink tracking-tight"><CountUp from={data.beforeMid} value={data.afterMid} duration={2400} /> <span className="text-2xl text-ink/70">s</span></div>
             </div>
             <span className="ml-auto rounded-full bg-brand/10 text-brand font-mono text-sm font-bold px-3 py-1.5">−{reduction} %</span>
           </div>
@@ -159,7 +159,7 @@ export default function BeforeAfter({ isDark }) {
 
         <div>
           <BandChart data={data} />
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink/55">
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink/70">
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-ink/20" /> Sin tratar</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-brand" /> Tratada</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-accent/40" /> Objetivo {fmt(data.target)} ± 0,05 s</span>
@@ -169,19 +169,19 @@ export default function BeforeAfter({ isDark }) {
         <details className="group rounded-2xl border border-ink/10 bg-canvas/60 px-4 py-3">
           <summary className="cursor-pointer list-none flex items-center justify-between text-sm font-semibold text-ink">
             Qué se instaló · {Math.round(data.treatedArea)} m² de tratamiento
-            <span className="text-ink/40 transition-transform group-open:rotate-45 text-lg leading-none">+</span>
+            <span className="text-ink/55 transition-transform group-open:rotate-45 text-lg leading-none">+</span>
           </summary>
-          <ul className="mt-3 space-y-1.5 text-[13px] text-ink/65">
+          <ul className="mt-3 space-y-1.5 text-[13px] text-ink/75">
             {TREATMENT.map((t) => (
               <li key={t.name} className="flex justify-between gap-3">
-                <span>{t.name}{t.hidden && <span className="text-ink/35"> · oculto en el corte</span>}</span>
-                <span className="font-mono text-ink/50 shrink-0">{String(t.area).replace('.', ',')} m²</span>
+                <span>{t.name}{t.hidden && <span className="text-ink/55"> · oculto en el corte</span>}</span>
+                <span className="font-mono text-ink/65 shrink-0">{String(t.area).replace('.', ',')} m²</span>
               </li>
             ))}
           </ul>
         </details>
 
-        <p className="text-[11px] leading-relaxed text-ink/45">
+        <p className="text-[11px] leading-relaxed text-ink/60">
           Caso conceptual: sala de {String(ROOM.length).replace('.', ',')} × {String(ROOM.width).replace('.', ',')} × {String(ROOM.height).replace('.', ',')} m ({Math.round(VOLUME)} m³). Cifras estimadas con Norris-Eyring y coeficientes de absorción típicos; objetivo según ITU-R BS.1116 para salas de escucha crítica.
         </p>
 
