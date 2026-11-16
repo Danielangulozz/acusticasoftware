@@ -28,19 +28,10 @@ export default function Render({ name, alt, isDark = false, themed = false, eage
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"
           draggable={false}
-          className={`${variant === seen[0] ? 'relative' : 'absolute inset-0'} w-full h-full object-contain select-none transition-opacity duration-700 ${
-            variant === active ? 'opacity-100' : 'opacity-0'
-          } ${imgClassName}`}
+          className={`${variant === seen[0] ? 'relative' : 'absolute inset-0'} w-full h-full object-contain select-none transition-opacity duration-700 ${variant === active ? 'opacity-100' : 'opacity-0'
+            } ${imgClassName}`}
         />
       ))}
     </div>
-  );
-}
-
-export function RenderTag({ className = '' }) {
-  return (
-    <span className={`text-[12px] text-ink/70 ${className}`}>
-      Render conceptual
-    </span>
   );
 }

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, ArrowUpRight, Check, Compass, Ear, Plus, Ruler, Send } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Box, Check, Compass, Ear, FileText, Layers, MessageSquareText, Plus, Ruler, Send, Shapes, Speaker, Timer, Waves } from 'lucide-react';
 import ReflectionDemo from './ReflectionDemo';
 import BeforeAfter from './BeforeAfter';
 import QuickCalc from './QuickCalc';
@@ -562,17 +562,6 @@ function DiffuserPromo() {
 /* ------------------------------------------------------------------ SOFTWARE */
 
 function SoftwarePromo() {
-  const modules = [
-    ['1. Geometría 2D / 3D', 'Dibuja salas rectangulares, en L, trapecios o paredes curvas.', 'geometry'],
-    ['2. Materiales y absorción', 'Catálogo ISO 354 para piso, techo, muros, puertas y ventanas.', 'materials'],
-    ['3. Fuente y receptor', 'Ajusta potencia sonora (Lw), directividad (Q) y distancia crítica.', 'source'],
-    ['4. Tiempo de reverberación', 'Compara Sabine, Eyring y Millington contra el RT60 ideal.', 'results'],
-    ['5. Modos propios (graves)', 'Frecuencia de Schroeder, criterio de Bonello y mapa de presión.', 'modes'],
-    ['6. Inteligibilidad de voz', 'Porcentaje %ALcons, STI, ocupación de personas y logátomos.', 'intelligibility'],
-    ['Estudio de renders', 'Crea imágenes 3D de tu sala tratada o de un difusor a tu medida.', 'renders'],
-    ['Fichas técnicas', 'Cada fórmula, su norma y una comprobación con tus propios datos.', 'fichas'],
-  ];
-
   return (
     <section id="software" className={SECTION}>
       <div className={`${WRAP} space-y-12`}>
@@ -598,24 +587,62 @@ function SoftwarePromo() {
           <QuickCalc />
         </Reveal>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {modules.map(([t, d, hash], i) => (
-            <Reveal key={t} delay={i * 50}>
-              <a {...linkProps('/suite', hash)} className="group h-full pz-card pz-card-lift rounded-2xl p-5 flex flex-col justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-ink group-hover:text-brand transition-colors">{t}</span>
-                    <ArrowUpRight className="w-4 h-4 text-ink/50 group-hover:text-brand group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-                  </div>
-                  <p className="text-sm text-ink/70 leading-relaxed">{d}</p>
-                </div>
-                <span className="text-[13px] text-brand">Abrir en el simulador →</span>
-              </a>
-            </Reveal>
-          ))}
-        </div>
+        <SuiteModules />
       </div>
     </section>
+  );
+}
+
+/* -------------------------------------------------- MÓDULOS DEL SIMULADOR */
+
+const SUITE_MODULES = [
+  { title: 'Geometría 2D / 3D', text: 'Dibuja salas rectangulares, en L, trapecios o paredes curvas.', hash: 'geometry', Icon: Shapes },
+  { title: 'Materiales y absorción', text: 'Catálogo ISO 354 para piso, techo, muros, puertas y ventanas.', hash: 'materials', Icon: Layers },
+  { title: 'Fuente y receptor', text: 'Ajusta potencia sonora (Lw), directividad (Q) y distancia crítica.', hash: 'source', Icon: Speaker },
+  { title: 'Tiempo de reverberación', text: 'Compara Sabine, Eyring y Millington contra el RT60 ideal.', hash: 'results', Icon: Timer },
+  { title: 'Modos propios (graves)', text: 'Frecuencia de Schroeder, criterio de Bonello y mapa de presión.', hash: 'modes', Icon: Waves },
+  { title: 'Inteligibilidad de voz', text: 'Porcentaje %ALcons, STI, ocupación de personas y logátomos.', hash: 'intelligibility', Icon: MessageSquareText },
+  { title: 'Estudio de renders', text: 'Crea imágenes 3D de tu sala tratada o de un difusor a tu medida.', hash: 'renders', Icon: Box },
+  { title: 'Fichas técnicas', text: 'Cada fórmula, su norma y una comprobación con tus propios datos.', hash: 'fichas', Icon: FileText },
+];
+
+// Carrusel horizontal: se desliza con el dedo o con las flechas (en pantallas grandes)
+function SuiteModules() {
+  const track = useRef(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
+
+  const update = () => {
+    const el = track.current;
+    if (!el) return;
+    setEdge({ start: el.scrollLeft < 8, end: el.scrollLeft + el.clientWidth > el.scrollWidth - 8 });
+  };
+  useEffect(update, []);
+  const slide = (dir) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: 'smooth' });
+
+  const arrow = 'w-11 h-11 rounded-full grid place-items-center bg-surface text-ink shadow-md transition-opacity hover:text-brand disabled:opacity-30';
+  return (
+    <Reveal className="space-y-5">
+      <div className="hidden sm:flex justify-end gap-2">
+        <button type="button" className={arrow} onClick={() => slide(-1)} disabled={edge.start} aria-label="Módulos anteriores">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <button type="button" className={arrow} onClick={() => slide(1)} disabled={edge.end} aria-label="Más módulos">
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+      <ol ref={track} onScroll={update} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-px-4 sm:scroll-px-0 pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {SUITE_MODULES.map((m, i) => (
+          <li key={m.hash} className="snap-start shrink-0 w-[75%] sm:w-[40%] lg:w-[23.5%]">
+            <a {...linkProps('/suite', m.hash)} className="group h-full min-h-[260px] pz-card rounded-3xl p-6 flex flex-col">
+              <span className="text-[13px] text-ink/50 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+              <m.Icon className="w-9 h-9 text-brand mt-6 transition-transform group-hover:-translate-y-1 group-hover:rotate-[-6deg]" strokeWidth={1.5} />
+              <span className="mt-auto pt-6 block text-lg font-medium text-ink">{m.title}</span>
+              <span className="block text-sm text-ink/65 leading-relaxed mt-1">{m.text}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </Reveal>
   );
 }
 

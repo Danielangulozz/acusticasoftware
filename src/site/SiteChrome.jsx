@@ -237,9 +237,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-ink/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row gap-2 justify-between text-xs text-ink/70">
-          <span>Creado por Daniel Angulo</span>
-          <span>© 2026 POZOLE ACÚSTICA · TODOS LOS DERECHOS RESERVADOS</span>
-          <span>Renders e imágenes por POZOLE ACÚSTICA</span>
+          <span>© 2026 POZOLE ACÚSTICA · Desarrollado por <a href="https://github.com/Danielangulozz" target="_blank" rel="noopener noreferrer" className="text-ink/70 hover:text-ink transition-colors"> Daniel Angulo</a></span>
         </div>
       </div>
     </footer>
