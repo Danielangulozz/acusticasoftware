@@ -180,7 +180,7 @@ export default function WelcomeHero({
                       Revisa el Diagnóstico y Genera tu Informe
                     </div>
                     <div className="text-[11px] text-[#86868b] dark:text-slate-400 truncate">
-                      Comprueba si el eco (RT60) es óptimo y descarga el reporte en PDF
+                      Comprueba si la reverberación (RT60) es la adecuada y descarga el reporte en PDF
                     </div>
                   </div>
                 </div>
@@ -239,7 +239,7 @@ export default function WelcomeHero({
             <div className="flex items-center gap-2 text-[11px] font-mono font-bold text-[#10b981] bg-emerald-500/10 px-2.5 py-1 rounded-lg">
               <span title="Volumen total de aire en el recinto">V = {geometry?.volume ? geometry.volume.toFixed(1) : '180.0'} m³</span>
               <span className="text-[#86868b]">&bull;</span>
-              <span title="Distancia crítica: hasta dónde predomina el sonido directo sobre el eco">
+              <span title="Distancia crítica: hasta dónde predomina el sonido directo sobre el reverberado">
                 Dc = {criticalDistance ? criticalDistance.toFixed(2) : '0.51'} m
               </span>
             </div>

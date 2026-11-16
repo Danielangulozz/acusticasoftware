@@ -409,6 +409,26 @@ export class CameraRig {
     this.flyTo(to, { duration: clamp(distance * 0.38, 0.35, 1.6) });
   }
 
+  /** Camina hasta quedar a `distance` metros de un punto y lo mira de frente. */
+  walkToward(point, distance = 1.8) {
+    if (!this.walk || !this.layout) return;
+    const w = this.walk;
+    let dx = point[0] - w.x;
+    let dz = point[2] - w.z;
+    let len = Math.hypot(dx, dz);
+    if (len < 1e-3) {
+      dx = Math.sin(w.yaw);
+      dz = Math.cos(w.yaw);
+      len = 1;
+    }
+    const stop = Math.min(len, distance);
+    const p = constrainToRoom(point[0] - (dx / len) * stop, point[2] - (dz / len) * stop, this.layout, 0.35);
+    const flat = Math.hypot(point[0] - p.x, point[2] - p.z) || 1;
+    this.walk = { ...w, x: p.x, z: p.z, yaw: Math.atan2(point[0] - p.x, point[2] - p.z), pitch: clamp(Math.atan2(point[1] - w.eye, flat), -0.8, 0.5) };
+    this.mode = 'walk';
+    this.flyTo(this.poseFor('walk'), { duration: clamp(Math.hypot(p.x - w.x, p.z - w.z) * 0.38, 0.45, 1.6) });
+  }
+
   setEye(height) {
     if (!this.walk || !this.layout) return;
     this.walk.eye = clamp(height, 0.6, this.layout.H - 0.2);

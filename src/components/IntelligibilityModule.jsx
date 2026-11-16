@@ -654,7 +654,7 @@ export default function IntelligibilityModule({
                 </span>
               </div>
               <div>
-                <span className="font-bold text-[#1d1d1f] dark:text-white block">Más lejos (domina el eco de la sala)</span>
+                <span className="font-bold text-[#1d1d1f] dark:text-white block">Más lejos (domina el campo reverberante)</span>
                 <span className="text-[#86868b]">La pérdida se estanca en un valor que solo depende de la sala.</span>
                 <span className="text-[11px] text-[#5833c7] block mt-1">
                   Máximo de esta sala: {(9 * RT60_untreated + listenerFactorA).toFixed(2)} %
@@ -766,7 +766,7 @@ export default function IntelligibilityModule({
                 <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">RT60 (2000 Hz)</span>
                   <span className="text-xl font-bold text-rose-600">{RT60_untreated} s</span>
-                  <span className="text-[10px] text-rose-600 block">Excesivo (Eco/Cochambre)</span>
+                  <span className="text-[10px] text-rose-600 block">Excesivo (demasiada reverberación)</span>
                 </div>
 
                 <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">

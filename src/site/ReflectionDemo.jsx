@@ -17,8 +17,8 @@ const MODES = [
     label: '2. Absorber',
     title: 'Material poroso (Lana mineral, espuma, cortinas)',
     badge: 'Amortiguamiento de energía',
-    text: 'Atrapa parte de la onda sonora y reduce el tiempo de reverberación (RT60). Elimina el eco molesto, pero si cubres toda la sala con absorbentes quedará "muerta" y sin naturalidad.',
-    whenToUse: 'Primeras reflexiones, control de eco en aulas, oficinas y estudios.',
+    text: 'Atrapa parte de la onda sonora y reduce el tiempo de reverberación (RT60). Baja la reverberación excesiva, pero si cubres toda la sala con absorbentes quedará "muerta" y sin naturalidad.',
+    whenToUse: 'Primeras reflexiones, control de reverberación en aulas, oficinas y estudios.',
     effectLabel: 'Rebote muy débil (Energía disipada dentro del panel)',
   },
   {

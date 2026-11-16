@@ -29,7 +29,7 @@ export const SECTION_GROUPS = [
   {
     title: 'Resultados',
     items: [
-      { id: 'results', step: 4, label: 'Reverberación', title: 'Paso 4 · Reverberación', hint: 'Tiempo de eco y niveles por banda', icon: TableProperties },
+      { id: 'results', step: 4, label: 'Reverberación', title: 'Paso 4 · Reverberación', hint: 'Tiempo de reverberación y niveles por banda', icon: TableProperties },
       { id: 'charts', step: 5, label: 'Gráficas', title: 'Paso 5 · Gráficas', hint: 'Curvas por frecuencia y distancia', icon: LineChart },
       { id: 'modes', label: 'Graves y modos propios', title: 'Graves y modos propios', hint: 'Resonancias de baja frecuencia', icon: Waves },
       { id: 'intelligibility', label: 'Inteligibilidad de la voz', title: 'Inteligibilidad de la voz', hint: 'Qué tan bien se entiende la palabra', icon: MessageSquare },

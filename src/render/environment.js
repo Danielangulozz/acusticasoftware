@@ -88,6 +88,10 @@ export function environmentLighting(kind = 'studio', { night = false, sun = null
       if (el < 22 && kind !== 'sunset') lighting.key.intensity = base.key.intensity * (0.72 + 0.28 * (el / 22));
     }
   }
+  // Luz indirecta medida en la propia escena (dos rebotes): reemplaza casi todo el relleno artificial
+  lighting.gi = { intensity: night ? 1.25 : 1.0, bounces: 2 };
+  if (lighting.bounce) lighting.bounce = { ...lighting.bounce, intensity: lighting.bounce.intensity * 0.3 };
+  lighting.vignette = 0.14;
   return lighting;
 }
 

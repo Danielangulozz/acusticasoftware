@@ -182,7 +182,7 @@ function Hero({ isDark }) {
 
         <dl className="mt-14 sm:mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-0 border-t border-ink/10 pt-6">
           {[
-            ['Control de eco (RT60)', 'Reverberación calculada con Sabine, Eyring y Millington según el uso del recinto.'],
+            ['Control de reverberación (RT60)', 'Reverberación calculada con Sabine, Eyring y Millington según el uso del recinto.'],
             ['Claridad en graves', 'Modos propios, criterio de Bonello y proporciones óptimas de sala.'],
             ['Difusores calculados', 'QRD, PRD y MLS con respuesta polar y planos de corte listos.'],
             ['Voz entendible', '%ALcons y STI para aulas, auditorios y salas de conferencias.'],

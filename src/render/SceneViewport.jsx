@@ -92,6 +92,15 @@ const SceneViewport = forwardRef(function SceneViewport(
     const closed = inside || (rig.mode === 'exterior' && !plan);
     const shell = built.shell;
     let changed = setWallCut(shell, (p) => (closed ? true : plan ? false : (px - p.midX) * p.inX + (pz - p.midZ) * p.inZ > -0.05));
+    // La luz indirecta se mide dentro de la sala, salvo cuando se mira la sala cerrada desde afuera
+    const { W, D, H } = built.layout;
+    if (closed && !inside) {
+      const len = Math.hypot(px, pz) || 1;
+      const reach = Math.max(W, D) / 2 + 2;
+      engine.setProbePosition({ x: (px / len) * reach, y: 1.6, z: (pz / len) * reach });
+    } else {
+      engine.setProbePosition({ x: 0, y: Math.min(H * 0.55, 1.6), z: 0 });
+    }
     const ceiling = shell.userData.ceiling;
     if (ceiling && ceiling.visible !== closed) {
       ceiling.visible = closed;
@@ -574,7 +583,7 @@ const SceneViewport = forwardRef(function SceneViewport(
     focusItem: (id) => {
       const c = itemCenter(id);
       if (!c) return;
-      if (rigRef.current.mode === 'walk') rigRef.current.walkTo(c[0], c[2]);
+      if (rigRef.current.mode === 'walk') rigRef.current.walkToward(c);
       else rigRef.current.focusOn(c);
     },
     getPose: () => rigRef.current.getPose(),
@@ -587,12 +596,29 @@ const SceneViewport = forwardRef(function SceneViewport(
     walkTo: (x, z) => rigRef.current.walkTo(x, z),
 
     /** Imagen final: acumula `samples` pasadas al tamaño pedido y devuelve un Blob. */
-    async renderImage({ width, height, samples = 64, type = 'image/png', quality: jpeg = 0.92, matte: finalMatte = null, signal = null, onProgress = null }) {
+    async renderImage({ width, height, samples = 64, type = 'image/png', quality: jpeg = 0.92, matte: finalMatte = null, signal = null, onProgress = null, dof = 'none' }) {
       const engine = engineRef.current;
       if (!engine || !builtRef.current || stateRef.current.busy) return null;
       const end = beginExport(width, height);
       try {
         applyPose();
+        // Desenfoque de cámara: enfoca el objeto seleccionado o, si no hay, lo del centro del encuadre
+        if (dof && dof !== 'none') {
+          const camera = cameraRef.current;
+          let focus = null;
+          const sel = latest.current.selectedItemId ? builtRef.current.itemObjects?.get(latest.current.selectedItemId) : null;
+          if (sel) focus = camera.position.distanceTo(new THREE.Box3().setFromObject(sel).getCenter(new THREE.Vector3()));
+          if (!focus && builtRef.current.root) {
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(0, -0.1), camera);
+            focus = ray.intersectObject(builtRef.current.root, true).find((h) => deepVisible(h.object))?.distance ?? null;
+          }
+          if (!focus) {
+            const t = rigRef.current.pose.target;
+            focus = camera.position.distanceTo(new THREE.Vector3(t[0], t[1], t[2]));
+          }
+          engine.dof = { focus, aperture: Math.min(0.12, focus * (dof === 'strong' ? 0.012 : 0.005)) };
+        }
         engine.reset();
         while (engine.samples < samples && !signal?.aborted) {
           engine.step(Math.min(3, samples - engine.samples));
@@ -606,6 +632,7 @@ const SceneViewport = forwardRef(function SceneViewport(
         engine.present(finalMatte);
         return await engine.toBlob(type, jpeg);
       } finally {
+        engine.dof = null;
         end();
       }
     },

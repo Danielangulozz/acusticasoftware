@@ -15,7 +15,7 @@ export const SERVICES = [
   {
     icon: Mic2,
     title: 'Diagnóstico y medición in situ',
-    idealFor: 'Salas construidas con eco, ruido o mala claridad',
+    idealFor: 'Salas construidas con exceso de reverberación, ruido o poca claridad',
     text: 'Medimos cómo suena hoy tu espacio (RT60, claridad C80/D50 y mapa de presión sonora) bajo norma ISO 3382 para saber exactamente qué corregir.',
     tags: ['ISO 3382', 'REW', 'Mapas SPL'],
     suiteHash: 'modes',
@@ -23,7 +23,7 @@ export const SERVICES = [
   },
   {
     icon: AudioWaveform,
-    title: 'Tratamiento acústico y control de eco',
+    title: 'Tratamiento acústico y control de reverberación',
     idealFor: 'Estudios, restaurantes, oficinas y salas de ensayo',
     text: 'Calculamos cuántos metros cuadrados de paneles absorbentes y trampas de graves necesitas para llevar el tiempo de reverberación al punto ideal.',
     tags: ['Sabine', 'Eyring', 'Millington'],

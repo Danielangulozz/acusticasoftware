@@ -108,6 +108,7 @@ const RESOLVE_FRAG = /* glsl */ `
   uniform float backdropMix;
   uniform vec2 uvScale;
   uniform vec2 uvMax;
+  uniform float vignette;
   varying vec2 vUv;
 
   // Khronos PBR Neutral: comprime las altas luces sin torcer los colores base
@@ -136,6 +137,9 @@ const RESOLVE_FRAG = /* glsl */ `
     float a = clamp(acc.a, 0.0, 1.0);
     vec3 c = a > 0.0001 ? acc.rgb / a : vec3(0.0);
     c = c * exposure + texture2D(tBloom, vUv).rgb * bloom;
+    // Viñeta suave, como la caída de luz de un lente real
+    vec2 q = vUv - 0.5;
+    c *= 1.0 - vignette * smoothstep(0.18, 0.75, dot(q, q) * 2.2);
     float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = mix(vec3(luma), c, saturation);
     c = toSRGB(neutralToneMap(max(c, 0.0)));
@@ -195,6 +199,7 @@ export class RenderEngine {
       backdropMix: { value: 0 },
       uvScale: { value: new THREE.Vector2(1, 1) },
       uvMax: { value: new THREE.Vector2(1, 1) },
+      vignette: { value: 0 },
     });
 
     this.width = 0;
@@ -229,6 +234,68 @@ export class RenderEngine {
     this.skyLights = Array.from({ length: SKY_LIGHTS }, () => directional(SKY_SHADOW_LAYER));
     this.bounce = new THREE.HemisphereLight(0x000000, 0xffffff, 0);
     this.sky = this.skyLights[0];
+
+    // Luz indirecta: una sonda cúbica «fotografía» la escena ya iluminada desde un punto de la sala
+    // y se usa como luz ambiente y reflejos (dos rebotes). Se rehace cuando algo cambia.
+    this.pmrem = new THREE.PMREMGenerator(renderer);
+    this.probeRT = new THREE.WebGLCubeRenderTarget(128, { type: THREE.HalfFloatType });
+    this.probeCam = new THREE.CubeCamera(0.05, 700, this.probeRT);
+    this.probeCam.children.forEach((c) => c.layers.enable(SUN_ONLY_LAYER));
+    this.probeEnv = null;
+    this.probeDirty = true;
+    this.probePosition = null;
+    this.giEnabled = true;
+
+    // Desenfoque de lente (solo en la acumulación): { aperture, focus } en metros
+    this.dof = null;
+    this.lens = { pos: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3() };
+  }
+
+  /** Punto desde el que se mide la luz indirecta (null = centro de la escena). */
+  setProbePosition(v) {
+    const p = v ? new THREE.Vector3(v.x, v.y, v.z) : null;
+    const changed = (p === null) !== (this.probePosition === null) || (p && this.probePosition && p.distanceToSquared(this.probePosition) > 0.25);
+    if (changed) {
+      this.probePosition = p;
+      this.probeDirty = true;
+      this.reset();
+    }
+  }
+
+  /** Recalcula la luz indirecta si hace falta. Devuelve true si cambió. */
+  ensureProbe(force = false) {
+    const { scene, lighting, renderer } = this;
+    if (!scene) return false;
+    if (!this.giEnabled || !lighting.gi) {
+      scene.environment = this.envTexture;
+      scene.environmentIntensity = lighting.env ?? 0.25;
+      return false;
+    }
+    if (!this.probeDirty && !force && this.probeEnv) return false;
+    this.ensureCanonicalShadows();
+    const c = this.sphere.center;
+    const pos = this.probePosition ?? new THREE.Vector3(c.x, Math.max(1.0, c.y), c.z);
+    this.probeCam.position.copy(pos);
+    this.probeCam.updateMatrixWorld(true);
+    const prevTarget = renderer.getRenderTarget();
+    const bounces = lighting.gi.bounces ?? 2;
+    // Primer rebote: luz directa más un ambiente tenue
+    scene.environment = this.envTexture;
+    scene.environmentIntensity = (lighting.env ?? 0.22) * 0.6;
+    let env = null;
+    for (let b = 0; b < bounces; b++) {
+      this.probeCam.update(renderer, scene);
+      const next = this.pmrem.fromCubemap(this.probeRT.texture);
+      if (env) env.dispose();
+      env = next;
+      scene.environment = env.texture;
+      scene.environmentIntensity = lighting.gi.intensity ?? 1;
+    }
+    renderer.setRenderTarget(prevTarget);
+    if (this.probeEnv && this.probeEnv !== env) this.probeEnv.dispose();
+    this.probeEnv = env;
+    this.probeDirty = false;
+    return true;
   }
 
   get ownLights() {
@@ -309,8 +376,20 @@ export class RenderEngine {
     this.unload();
     this.scene = scene;
     this.lighting = lighting;
-    scene.environment = this.envTexture;
-    scene.environmentIntensity = lighting.env ?? 0.25;
+    // Mientras se recalcula, se usa la luz indirecta anterior (evita parpadeos al mover objetos)
+    if (lighting.gi && this.giEnabled && this.probeEnv) {
+      scene.environment = this.probeEnv.texture;
+      scene.environmentIntensity = lighting.gi.intensity ?? 1;
+    } else {
+      scene.environment = this.envTexture;
+      scene.environmentIntensity = lighting.env ?? 0.25;
+    }
+    this.probeDirty = true;
+
+    // El vidrio y lo transparente dejan pasar el sol (así entra luz por las ventanas)
+    scene.traverse((o) => {
+      if (o.isMesh && o.material?.transparent && o.castShadow) o.castShadow = false;
+    });
 
     // Esfera envolvente de lo que proyecta sombra → encuadre de los mapas de sombra
     scene.updateMatrixWorld(true);
@@ -383,6 +462,7 @@ export class RenderEngine {
   /** Avisa de que cambió algo que proyecta sombra (se movió u ocultó un objeto). */
   invalidateShadows() {
     this.shadowsDirty = true;
+    this.probeDirty = true;
     this.reset();
   }
 
@@ -399,16 +479,27 @@ export class RenderEngine {
 
     // Bóveda celeste: un estrato de elevación por luz, ponderado por coseno
     if (lighting.sky) {
-      const minElevation = lighting.sky.minElevation ?? 0.16;
-      this.skyLights.forEach((light, j) => {
-        const u1 = (j + halton(n, 5)) / SKY_LIGHTS;
-        const phi = 2 * Math.PI * (halton(n, 7) + j * 0.61803398875);
-        const y = Math.max(minElevation, Math.sqrt(1 - u1));
-        const r = Math.sqrt(Math.max(0, 1 - y * y));
-        dir.set(r * Math.cos(phi), y, r * Math.sin(phi));
-        this.aim(light, dir);
-        light.color.lerpColors(this.horizon, this.zenith, y);
-      });
+      const minElevation = lighting.sky.minElevation ?? 0.28;
+      if (n === 1) {
+        // Posición de reposo (cuadros en movimiento y primera pasada): todas las luces del cielo
+        // bajan casi desde arriba, así dan una sola sombra corta y suave en vez de varias sombras
+        // largas cruzadas. Las pasadas siguientes las reparten por la bóveda y se promedian.
+        dir.set(0.12, 1, 0.18).normalize();
+        this.skyLights.forEach((light) => {
+          this.aim(light, dir);
+          light.color.lerpColors(this.horizon, this.zenith, 0.8);
+        });
+      } else {
+        this.skyLights.forEach((light, j) => {
+          const u1 = (j + halton(n, 5)) / SKY_LIGHTS;
+          const phi = 2 * Math.PI * (halton(n, 7) + j * 0.61803398875);
+          const y = Math.max(minElevation, Math.sqrt(1 - u1));
+          const r = Math.sqrt(Math.max(0, 1 - y * y));
+          dir.set(r * Math.cos(phi), y, r * Math.sin(phi));
+          this.aim(light, dir);
+          light.color.lerpColors(this.horizon, this.zenith, y);
+        });
+      }
     }
 
     // Sol con penumbra: la primera pasada va centrada
@@ -454,6 +545,7 @@ export class RenderEngine {
     const { scene, camera, renderer } = this;
     if (!scene || !camera || !this.targets) return;
     this.ensureCanonicalShadows();
+    if (!this.probeEnv) this.ensureProbe();
     camera.clearViewOffset();
     if (!this.fast) {
       this.fast = new THREE.WebGLRenderTarget(this.width, this.height, { type: THREE.HalfFloatType, depthBuffer: true, samples: this.msaa });
@@ -482,12 +574,34 @@ export class RenderEngine {
 
     for (let i = 0; i < count; i++) {
       const n = this.samples + 1;
+      let lensShift = false;
       if (n === 1) {
         // Primera pasada centrada y con las sombras canónicas: idéntica al cuadro interactivo
         camera.clearViewOffset();
         this.ensureCanonicalShadows();
+        this.ensureProbe();
       } else {
-        camera.setViewOffset(width, height, halton(n, 2) - 0.5, halton(n, 3) - 0.5, width, height);
+        let ox = halton(n, 2) - 0.5;
+        let oy = halton(n, 3) - 0.5;
+        if (this.dof && this.dof.aperture > 0 && this.dof.focus > 0) {
+          // Lente con apertura: la cámara se mueve dentro de un disco y se corrige el encuadre
+          // para que el plano de enfoque quede fijo; lo que está fuera de él se desenfoca
+          const r = Math.sqrt(halton(n, 23)) * this.dof.aperture;
+          const a = 2 * Math.PI * halton(n, 29);
+          const dx = r * Math.cos(a);
+          const dy = r * Math.sin(a);
+          const L = this.lens;
+          L.pos.copy(camera.position);
+          L.right.setFromMatrixColumn(camera.matrixWorld, 0);
+          L.up.setFromMatrixColumn(camera.matrixWorld, 1);
+          camera.position.addScaledVector(L.right, dx).addScaledVector(L.up, dy);
+          camera.updateMatrixWorld();
+          const fpx = height / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+          ox -= (dx * fpx) / this.dof.focus;
+          oy += (dy * fpx) / this.dof.focus;
+          lensShift = true;
+        }
+        camera.setViewOffset(width, height, ox, oy, width, height);
         this.placeLights(n);
         this.shadowState = 'jittered';
       }
@@ -495,6 +609,10 @@ export class RenderEngine {
       renderer.setRenderTarget(targets.sample);
       renderer.clear();
       renderer.render(scene, camera);
+      if (lensShift) {
+        camera.position.copy(this.lens.pos);
+        camera.updateMatrixWorld();
+      }
 
       this.addMaterial.uniforms.tPrev.value = targets.accumA.texture;
       this.addMaterial.uniforms.tSample.value = targets.sample.texture;
@@ -544,6 +662,7 @@ export class RenderEngine {
     u.exposure.value = lighting.exposure ?? 1;
     u.saturation.value = lighting.saturation ?? 1;
     u.uvScale.value.set(sw / this.width, sh / this.height);
+    u.vignette.value = lighting.vignette ?? 0;
     u.uvMax.value.set((sw - 0.5) / this.width, (sh - 0.5) / this.height);
 
     if (matte && SCENIC_BACKDROPS.has(matte)) {
@@ -597,6 +716,9 @@ export class RenderEngine {
     this.disposeTargets();
     this.ownLights.forEach((light) => light.shadow.map?.dispose());
     this.envTexture.dispose();
+    this.probeEnv?.dispose();
+    this.probeRT.dispose();
+    this.pmrem.dispose();
     this.renderer.dispose();
   }
 }

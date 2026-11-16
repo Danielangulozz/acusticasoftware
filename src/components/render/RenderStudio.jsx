@@ -172,6 +172,7 @@ const DEFAULTS = {
   imageQuality: 'alta',
   format: 'png',
   transparent: false,
+  dof: 'none',
   shots: [],
   tourLoop: true,
   video: { size: '1080', quality: 'buena', duration: null },
@@ -558,12 +559,15 @@ export default function RenderStudio({
 
   const acoustic = useMemo(() => {
     const geo = opts.usePolygon && hasProjectPlan && geometry?.volume ? geometry : calculatePolygonGeometry(activePolygon.vertices, activePolygon.height, activePolygon.curvatures || {});
-    const mats = syncMaterials && materials && Object.keys(materials).length ? materials : getDefaultPolygonMaterials(activePolygon.vertices.length);
+    // Con la planta del proyecto se calcula siempre con sus materiales reales (igual que el resto de la
+    // suite), aunque el render no los dibuje; las plantillas usan materiales de referencia
+    const onProject = opts.usePolygon && hasProjectPlan;
+    const mats = onProject && materials && Object.keys(materials).length ? materials : getDefaultPolygonMaterials(activePolygon.vertices.length);
     const { totalByBand } = calculateSceneObjectsAbsorption(items);
     const base = calculateReverberationTimes(geo.volume, geo.totalSurfaceArea, geo.surfaceAreas, calculateRoomAbsorption(geo.surfaceAreas, geo.totalSurfaceArea, mats, null), mats, includeAirAbsorption, null);
     const treated = calculateReverberationTimes(geo.volume, geo.totalSurfaceArea, geo.surfaceAreas, calculateRoomAbsorption(geo.surfaceAreas, geo.totalSurfaceArea, mats, totalByBand), mats, includeAirAbsorption, totalByBand);
     return { totalByBand, base, treated };
-  }, [opts.usePolygon, hasProjectPlan, geometry, activePolygon, syncMaterials, materials, items, includeAirAbsorption]);
+  }, [opts.usePolygon, hasProjectPlan, geometry, activePolygon, materials, items, includeAirAbsorption]);
 
   /* ----------------------------------------------------------- vistas y recorridos */
 
@@ -761,7 +765,7 @@ export default function RenderStudio({
                   {viewMode === 'plan' && <span className={MUTED}>Vista de planta: arrastra los objetos para acomodarlos.</span>}
                 </div>
                 <button type="button" onClick={() => setShowBands((v) => !v)} className="inline-flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer">
-                  <span className={MUTED}>Reverberación a 500 Hz</span>
+                  <span className={MUTED}>{opts.usePolygon && hasProjectPlan ? 'Tu sala' : 'Esta plantilla'} · reverberación a 500 Hz</span>
                   <span className={`font-mono ${MUTED}`}>{fmt(rt500, 2)} s</span>
                   <span className={MUTED}>→</span>
                   <span className="font-mono font-semibold text-[#5833c7] dark:text-[#c4b5fd]">{fmt(rt500t, 2)} s</span>
@@ -770,7 +774,12 @@ export default function RenderStudio({
               </div>
               {showBands && (
                 <div className={`mt-2.5 pt-2.5 border-t ${LINE} space-y-2`}>
-                  <p className={`text-[11.5px] ${MUTED}`}>Tiempo de reverberación (Sabine) de la sala sola y con los objetos que pusiste. Verde: dentro del rango recomendado para el uso de la sala.</p>
+                  <p className={`text-[11.5px] ${MUTED}`}>
+                    Tiempo de reverberación (Sabine) de la sala sola y con los objetos que pusiste. Verde: dentro del rango recomendado para el uso de la sala.
+                    {opts.usePolygon && hasProjectPlan
+                      ? ' «Sala sola» es el mismo valor que muestra el panel lateral; los objetos solo cuentan allí si activas la opción de abajo.'
+                      : ' Es una plantilla con materiales de referencia, no tu proyecto: para comparar con el panel lateral elige «Mi proyecto» en Sala.'}
+                  </p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs font-mono">
                       <thead>
@@ -1453,7 +1462,7 @@ function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat
     abortRef.current = ctrl;
     try {
       const type = opts.format === 'jpg' ? 'image/jpeg' : opts.format === 'webp' ? 'image/webp' : 'image/png';
-      const blob = await viewport.current.renderImage({ width: size.w, height: size.h, samples: iq.samples, type, quality: 0.93, matte: opts.format === 'png' ? matteFor() : matteFor() ?? '#f3f1f7', signal: ctrl.signal, onProgress: setProgress });
+      const blob = await viewport.current.renderImage({ width: size.w, height: size.h, samples: iq.samples, type, quality: 0.93, matte: opts.format === 'png' ? matteFor() : matteFor() ?? '#f3f1f7', signal: ctrl.signal, onProgress: setProgress, dof: opts.dof });
       if (!blob) return;
       const name = `pozole-${fileBase}-${size.w}x${size.h}.${opts.format}`;
       downloadBlob(blob, name);
@@ -1527,6 +1536,10 @@ function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat
             <Field label="Archivo">
               <Segmented value={opts.format} onChange={(v) => patch({ format: v })} options={[['png', 'PNG'], ['jpg', 'JPG'], ['webp', 'WebP']]} />
             </Field>
+            <Field label="Desenfoque de cámara">
+              <Segmented value={opts.dof ?? 'none'} onChange={(v) => patch({ dof: v })} options={[['none', 'Ninguno'], ['soft', 'Suave'], ['strong', 'Marcado']]} />
+            </Field>
+            {opts.dof && opts.dof !== 'none' && <p className={`text-[11.5px] ${MUTED} -mt-2`}>Enfoca el objeto que tengas seleccionado (o lo del centro de la imagen); lo de adelante y atrás se suaviza como en una foto. Con calidad Alta o Máxima se ve más limpio.</p>}
             {flat && opts.format === 'png' && <Toggle label="Fondo transparente" checked={opts.transparent} onChange={(v) => patch({ transparent: v })} />}
             <PrimaryAction busy={busy} progress={progress} onClick={renderImage} onCancel={() => abortRef.current?.abort()} icon={Download} label="Renderizar y descargar" />
           </div>

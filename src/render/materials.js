@@ -682,27 +682,36 @@ export function createMaterials() {
     wood(kind = 'oak', variant = 0, { roughness = 0.58, tint = 0xffffff } = {}) {
       return memo(`wood:${kind}:${variant}:${roughness}:${tint}`, () => {
         const map = memo(`woodmap:${kind}:${variant % 4}`, () => texture(woodCanvas(kind, 100 + (variant % 4) * 17)));
-        return new THREE.MeshStandardMaterial({ map, color: tint, roughness, metalness: 0 });
+        // La veta se nota al tacto: el relieve sale de la misma textura
+        return new THREE.MeshStandardMaterial({ map, color: tint, roughness, metalness: 0, bumpMap: map, bumpScale: 0.35 });
       });
     },
     planks(kind = 'oak') {
       return memo(`planks:${kind}`, () => {
         const map = texture(planksCanvas(kind, 41));
-        return new THREE.MeshStandardMaterial({ map, roughness: 0.5, metalness: 0 });
+        // Piso barnizado: veta con relieve y una capa de laca que refleja la sala y las ventanas
+        return new THREE.MeshPhysicalMaterial({ map, roughness: 0.46, metalness: 0, bumpMap: map, bumpScale: 0.6, clearcoat: 0.45, clearcoatRoughness: 0.2 });
       });
     },
     fabric(color, { bump = 0.35 } = {}) {
       return memo(`fabric:${color}:${bump}`, () => {
         const map = weave.clone();
         map.repeat.set(1, 1);
-        return new THREE.MeshStandardMaterial({ color, map, bumpMap: map, bumpScale: bump, roughness: 1, metalness: 0 });
+        // Tela: brillo aterciopelado en los bordes (sheen), como los tapizados reales
+        const sheenColor = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.35);
+        return new THREE.MeshPhysicalMaterial({ color, map, bumpMap: map, bumpScale: bump, roughness: 0.95, metalness: 0, sheen: 0.9, sheenRoughness: 0.65, sheenColor });
       });
     },
     paint(color, { roughness = 0.92 } = {}) {
       return memo(`paint:${color}:${roughness}`, () => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, bumpMap: speckle, bumpScale: 0.08 }));
     },
     plastic(color, { roughness = 0.45 } = {}) {
-      return memo(`plastic:${color}:${roughness}`, () => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 }));
+      return memo(`plastic:${color}:${roughness}`, () =>
+        roughness <= 0.22
+          ? // Acabado lacado (pianos, guitarras, plásticos brillantes): capa transparente encima del color
+            new THREE.MeshPhysicalMaterial({ color, roughness: Math.max(0.25, roughness * 2), metalness: 0, clearcoat: 1, clearcoatRoughness: Math.max(0.03, roughness * 0.5) })
+          : new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 })
+      );
     },
     metal(color = 0x2b2b30, { roughness = 0.38 } = {}) {
       return memo(`metal:${color}:${roughness}`, () => new THREE.MeshStandardMaterial({ color, roughness, metalness: 1 }));

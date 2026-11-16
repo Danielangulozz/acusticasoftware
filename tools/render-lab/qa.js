@@ -55,6 +55,7 @@ export async function qa(
     e.present(null);
     out.push(await saveCanvas(name, e));
   };
+  e.setProbePosition({ x: 0, y: Math.min(dims.H * 0.55, 1.6), z: 0 });
   const closed = (on) => {
     setWallCut(built.shell, () => true);
     built.shell.userData.ceiling.visible = on;
@@ -75,6 +76,7 @@ export async function qa(
   }
   if (views.includes('out')) {
     closed(true);
+    e.setProbePosition({ x: 7, y: 1.6, z: 6.3 });
     e.setCamera(cameraFor(built, cams.out ?? { firstPerson: true, camX: 9.5, camY: 1.7, camZ: 8.5, lookX: 0, lookY: 1.5, lookZ: 0, fov: 50 }, w / h));
     await shot(`${tag}-out.jpg`);
   }

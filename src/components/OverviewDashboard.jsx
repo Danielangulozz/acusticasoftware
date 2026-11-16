@@ -62,7 +62,7 @@ export default function OverviewDashboard({
               Diagnóstico General de tu Sala
             </h2>
             <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-300 mt-1.5 leading-relaxed">
-              Aquí ves de un vistazo si el eco, el nivel sonoro y los graves están bajo control. Haz clic en cualquier paso para ajustar tu diseño.
+              Aquí ves de un vistazo si la reverberación, el nivel sonoro y los graves están bajo control. Haz clic en cualquier paso para ajustar tu diseño.
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export default function OverviewDashboard({
                 </>
               ) : isTooReverberant ? (
                 <>
-                  <strong>Atención: La sala tiene demasiado eco ({avgRT500.toFixed(2)} s).</strong> La meta ideal para este uso es{' '}
+                  <strong>Atención: La sala tiene demasiada reverberación ({avgRT500.toFixed(2)} s).</strong> La meta ideal para este uso es{' '}
                   <strong>{optimumRT.optimal} s</strong> ({optimumRT.min}s – {optimumRT.max}s). Te recomendamos agregar paneles absorbentes o cortinas en el <strong>Paso 2 (Materiales)</strong>.
                 </>
               ) : (
@@ -136,7 +136,7 @@ export default function OverviewDashboard({
           <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-4 rounded-2xl border border-black/[0.05] dark:border-white/10 flex flex-col justify-between">
             <div>
               <div className="text-[11px] font-bold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">
-                1. Tiempo de Eco (RT₆₀)
+                1. Tiempo de reverberación (RT₆₀)
               </div>
               <div className="text-2xl sm:text-3xl font-black font-mono text-[#0071e3] dark:text-sky-400 mt-1">
                 {rt500.sabine.toFixed(2)}
@@ -173,10 +173,10 @@ export default function OverviewDashboard({
             </div>
             <div className="mt-2 pt-2 border-t border-black/[0.04] dark:border-white/[0.05] space-y-1">
               <div className="text-[11px] font-semibold text-[#1d1d1f] dark:text-slate-200">
-                {isDirectDominant ? '✓ Oyente en Sonido Directo' : '⚠ Oyente en Zona de Eco'}
+                {isDirectDominant ? '✓ Oyente en Sonido Directo' : '⚠ Oyente en campo reverberante'}
               </div>
               <p className="text-[10.5px] text-[#86868b] dark:text-slate-400 leading-snug">
-                Más allá de {criticalDistance.toFixed(1)} m el eco de la sala suena más fuerte que la fuente.
+                Más allá de {criticalDistance.toFixed(1)} m el sonido reverberado de la sala suena más fuerte que el directo.
               </p>
             </div>
           </div>
@@ -280,7 +280,7 @@ export default function OverviewDashboard({
               icon: LineChart,
               color: 'bg-[#5856d6]/10 text-[#5856d6] dark:text-indigo-400',
               title: 'Paso 5 · Gráficas Acústicas',
-              sub: 'Curvas de tiempo de eco (RT60) y caída de presión sonora con la distancia',
+              sub: 'Curvas de tiempo de reverberación (RT60) y caída de presión sonora con la distancia',
             },
           ].map((item) => {
             const Icon = item.icon;

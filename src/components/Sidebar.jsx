@@ -15,7 +15,7 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
   };
 
   const inRange = optimumRT && rt500 >= optimumRT.min && rt500 <= optimumRT.max;
-  const status = !optimumRT ? null : inRange ? 'En rango' : rt500 > optimumRT.max ? 'Mucho eco' : 'Muy seca';
+  const status = !optimumRT ? null : inRange ? 'En rango' : rt500 > optimumRT.max ? 'Muy reverberante' : 'Muy seca';
   const plan = geometry ? [geometry.length, geometry.width].sort((a, b) => b - a) : [];
   const subtitleFor = (item) => (item.id === 'geometry' && geometry ? `${plan[0]} × ${plan[1]} × ${geometry.height} m · ${geometry.volume.toFixed(0)} m³` : item.hint);
 
@@ -100,7 +100,7 @@ export default function Sidebar({ activeSection, setActiveSection, isOpen, onClo
             </div>
             <div className="grid grid-cols-2 gap-1.5 text-center">
               <div className="bg-white dark:bg-[#0A0C14] p-2 rounded-xl border border-black/[0.04] dark:border-white/[0.06]" title="Tiempo de reverberación a 500 Hz: cuánto tarda en apagarse el sonido">
-                <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-medium">Eco (RT60)</div>
+                <div className="text-[10px] text-[#86868b] dark:text-slate-400 font-medium">Reverberación (RT60)</div>
                 <div className="text-xs font-bold font-mono mt-0.5 text-[#1d1d1f] dark:text-white">{rt500.toFixed(2)} s</div>
               </div>
               <div className="bg-white dark:bg-[#0A0C14] p-2 rounded-xl border border-black/[0.04] dark:border-white/[0.06]" title="Distancia hasta donde el sonido directo supera al de la sala">
