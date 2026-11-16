@@ -35,3 +35,12 @@ export default function Render({ name, alt, isDark = false, themed = false, eage
     </div>
   );
 }
+
+/** Rótulo «Render conceptual» que acompaña a las imágenes generadas con el motor propio */
+export function RenderTag({ className = '' }) {
+  return (
+    <span className={`text-[12px] text-ink/70 ${className}`}>
+      Render conceptual
+    </span>
+  );
+}
