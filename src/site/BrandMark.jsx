@@ -31,7 +31,7 @@ export function BrandGlyph({ steamClassName = '' }) {
           <rect
             key={i}
             className={steamClassName}
-            style={steamClassName ? { animationDelay: `${i * 90}ms` } : undefined}
+            style={steamClassName ? { animationDelay: `${i * 90}ms`, transitionDelay: `${250 + i * 110}ms` } : undefined}
             x={9.3 + i * (BAR + GAP)}
             y={BASE_Y - h}
             width={BAR}

@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, ArrowUpRight, Check, CheckCircle2, Compass, Ear, Plus, Ruler, Send } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, Compass, Ear, Plus, Ruler, Send } from 'lucide-react';
 import ReflectionDemo from './ReflectionDemo';
 import BeforeAfter from './BeforeAfter';
 import QuickCalc from './QuickCalc';
 import Render, { RenderTag } from './Render';
-import { SiteNav, SiteFooter, Eyebrow } from './SiteChrome';
-import { Reveal, Words, useScrollSteps } from './motion';
+import { SiteNav, SiteFooter, Eyebrow, WhatsAppButton } from './SiteChrome';
+import { BrandGlyph } from './BrandMark';
+import { AVATARS } from './TeamAvatars';
+import { Reveal, Words } from './motion';
 import { BRAND, CONTACT_EMAIL, TEAM } from './siteConfig';
 import { FAQ, PLANS, PROCESS, PRODUCTS, SERVICES, SPACES, SPACES_MARQUEE } from './content';
 import { linkProps, navigate } from '../router';
@@ -105,7 +107,9 @@ export default function LandingPage() {
       <Faq />
       <Team />
       <Contact interest={interest} />
+      <BrandStory />
       <SiteFooter />
+      <WhatsAppButton />
     </div>
   );
 }
@@ -416,48 +420,29 @@ function Spaces({ isDark }) {
 
 /* ------------------------------------------------------------------- PROCESO */
 
+// Línea de tiempo: el título queda fijo a la izquierda y los pasos bajan por la derecha
 function Process() {
-  // La línea se llena y los pasos se encienden a medida que la sección cruza la pantalla
-  const [ref, reached] = useScrollSteps(PROCESS.length);
   return (
     <section id="proceso" className={BAND}>
-      <div className={`${WRAP} space-y-14`}>
-        <Reveal className="max-w-2xl space-y-4">
-          <Eyebrow>PASO A PASO</Eyebrow>
-          <h2 className={H2}>Medir antes de opinar.</h2>
-          <p className="text-ink/70 leading-relaxed">Nuestro proceso de consultoría en 5 etapas claras: sin adivinanzas, todo verificado con instrumentos y simulación.</p>
-        </Reveal>
-        <div ref={ref} className="space-y-6">
-          <div className="hidden md:block relative h-px bg-ink/10" aria-hidden="true">
-            <div className="pz-progress-line absolute inset-0 bg-gradient-to-r from-brand to-accent" />
-          </div>
-          <ol className="grid md:grid-cols-5 gap-4">
-            {PROCESS.map((p, i) => {
-              const on = i < reached;
-              return (
-                <Reveal
-                  as="li"
-                  key={p.n}
-                  delay={i * 70}
-                  className={`relative pz-card rounded-2xl p-6 flex flex-col justify-between gap-4 ${on ? 'ring-1 ring-brand/35' : ''}`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <span className={`w-7 h-7 rounded-lg font-mono text-xs font-bold grid place-items-center transition-colors duration-500 ${on ? 'bg-brand text-white' : 'bg-brand/15 text-brand'}`}>{p.n}</span>
-                      <span className="h-px flex-1 bg-gradient-to-r from-ink/20 to-transparent" />
-                    </div>
-                    <h3 className="text-lg font-medium text-ink">{p.title}</h3>
-                    <p className="text-sm text-ink/70 leading-relaxed">{p.text}</p>
-                  </div>
-                  <div className={`pt-3 border-t border-ink/[0.07] flex items-center gap-1.5 text-[12.5px] transition-colors duration-500 ${on ? 'text-brand' : 'text-ink/70'}`}>
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>{p.deliverable}</span>
-                  </div>
-                </Reveal>
-              );
-            })}
-          </ol>
+      <div className={`${WRAP} grid lg:grid-cols-12 gap-10 lg:gap-16`}>
+        <div className="lg:col-span-5">
+          <Reveal className="lg:sticky lg:top-28 space-y-4">
+            <Eyebrow>Paso a paso</Eyebrow>
+            <h2 className={H2}>Medir antes de opinar.</h2>
+            <p className="text-ink/70 leading-relaxed">Cinco etapas claras: sin adivinanzas, todo verificado con instrumentos y simulación.</p>
+          </Reveal>
         </div>
+        <ol className="lg:col-span-7">
+          {PROCESS.map((p, i) => (
+            <Reveal as="li" key={p.n} delay={i * 60} className="relative pl-16 pb-10 last:pb-0">
+              {i < PROCESS.length - 1 && <span className="absolute left-[19px] top-12 bottom-1 w-px bg-brand/25" />}
+              <span className="absolute left-0 top-0 w-10 h-10 rounded-full bg-brand text-white grid place-items-center text-sm font-medium">{i + 1}</span>
+              <h3 className="text-xl font-medium text-ink pt-1.5">{p.title}</h3>
+              <p className="mt-2 text-ink/70 leading-relaxed max-w-xl">{p.text}</p>
+              <p className="mt-2 text-[13px] text-brand">{p.deliverable}</p>
+            </Reveal>
+          ))}
+        </ol>
       </div>
     </section>
   );
@@ -715,30 +700,44 @@ function Faq() {
 
 /* -------------------------------------------------------------------- EQUIPO */
 
+// El fundador va en el bloque grande; los otros dos en tarjetas apiladas a su lado
 function Team() {
+  const [lead, ...rest] = TEAM;
+  const LeadAvatar = AVATARS[lead.avatar];
   return (
     <section id="equipo" className={BAND}>
-      <div className={`${WRAP} space-y-12`}>
-        <Reveal className="space-y-4 max-w-2xl">
-          <Eyebrow>EQUIPO</Eyebrow>
-          <h2 className={H2}>
-            Ingenieros que escuchan.
-          </h2>
+      <div className={`${WRAP} grid lg:grid-cols-12 gap-10 lg:gap-12 items-center`}>
+        <Reveal className="lg:col-span-4 space-y-4">
+          <Eyebrow>Equipo</Eyebrow>
+          <h2 className={H2}>Ingenieros que escuchan.</h2>
+          <p className="text-ink/70 leading-relaxed max-w-sm">Tres ingenieros de sonido detrás de cada medición, cada simulación y cada difusor.</p>
         </Reveal>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {TEAM.map((m, i) => {
-            const initials = m.name.split(' ').map((w) => w[0]).join('');
+
+        <div className="lg:col-span-8 grid sm:grid-cols-2 gap-4">
+          <Reveal variant="scale" className="group sm:row-span-2 pz-scope-brand rounded-3xl p-3 pb-7 flex flex-col">
+            <div className="relative flex-1 min-h-[260px] rounded-[22px] bg-[radial-gradient(circle_at_50%_60%,rgb(var(--pz-brand)/0.45),transparent_70%)] grid place-items-end justify-center overflow-hidden">
+              <div className="w-64 h-64 translate-y-2">
+                <LeadAvatar />
+              </div>
+            </div>
+            <div className="px-4 pt-6">
+              <div className="text-2xl font-medium text-ink">{lead.name}</div>
+              <div className="text-sm text-ink/70 mt-1">{lead.role.trim()}</div>
+            </div>
+          </Reveal>
+
+          {rest.map((m, i) => {
+            const Avatar = AVATARS[m.avatar];
             return (
-              <Reveal key={m.name} delay={i * 80} className="group pz-card rounded-3xl p-3 pb-6 space-y-5">
-                <div className="rounded-[22px] overflow-hidden aspect-[4/3] bg-gradient-to-br from-brand/[0.22] to-brand/[0.06]">
-                  <div className="w-full h-full grid place-items-center relative">
-                    <Ear className="absolute w-40 h-40 text-brand/[0.08] -right-6 -bottom-6" />
-                    <span className="text-5xl font-medium text-ink/90 tracking-tight">{initials}</span>
+              <Reveal key={m.name} delay={100 + i * 80} className="group pz-card pz-card-lift rounded-3xl p-3 flex items-center gap-5">
+                <div className={`w-32 h-32 shrink-0 rounded-[22px] overflow-hidden grid place-items-end ${i === 0 ? 'bg-[#f2b84b]/25' : 'bg-brand/10'}`}>
+                  <div className="w-32 h-32 translate-y-1">
+                    <Avatar />
                   </div>
                 </div>
-                <div>
-                  <div className="px-3 text-lg font-medium text-ink">{m.name}</div>
-                  <div className="px-3 text-sm text-ink/75">{m.role}</div>
+                <div className="pr-3">
+                  <div className="text-lg font-medium text-ink">{m.name}</div>
+                  <div className="text-sm text-ink/70 mt-0.5">{m.role.trim()}</div>
                 </div>
               </Reveal>
             );
@@ -826,6 +825,32 @@ function Contact({ interest }) {
               <Ruler className="w-3.5 h-3.5" /> Se abrirá tu cliente de correo con el mensaje listo.
             </p>
           </form>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------------------------------------------------- MARCA */
+
+// Cierre de la página: el logo en grande, sin más (el vapor sube barra por barra al aparecer)
+function BrandStory() {
+  return (
+    <section id="marca" className={SECTION}>
+      <div className={WRAP}>
+        <Reveal variant="scale">
+          <div className="pz-scope-brand pz-logo-tile relative rounded-[32px] overflow-hidden py-20 sm:py-28 grid place-items-center">
+            <div className="absolute inset-0 bg-[radial-gradient(50%_60%_at_50%_45%,rgb(var(--pz-brand)/0.35),transparent_70%)] pointer-events-none" />
+            <div className="relative flex flex-col items-center gap-8">
+              <svg viewBox="5 1 30 35" overflow="visible" className="overflow-visible w-40 sm:w-56 h-auto drop-shadow-[0_24px_40px_rgba(0,0,0,0.35)]" role="img" aria-label={`Logo de ${BRAND.full}`}>
+                <BrandGlyph steamClassName="pz-logo-bar" />
+              </svg>
+              <div className="text-center leading-none">
+                <div className="text-4xl sm:text-6xl font-semibold tracking-[0.3em] pl-[0.3em] text-ink">{BRAND.name}</div>
+                <div className="mt-4 text-sm sm:text-lg font-medium tracking-[0.62em] pl-[0.62em] text-ink/70">{BRAND.suffix}</div>
+              </div>
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>

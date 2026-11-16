@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ChevronDown, Compass, Menu, Moon, Sun, X } from 'lucide-react';
 import { BrandLockup, BrandMark } from './BrandMark';
 import { linkProps } from '../router';
-import { BRAND } from './siteConfig';
+import { BRAND, WHATSAPP_MESSAGE, WHATSAPP_NUMBER } from './siteConfig';
 import { ScrollProgressBar } from './motion';
 
 // Menú agrupado: pocas entradas arriba y el detalle en desplegables, como un sitio de producto
@@ -94,10 +94,10 @@ export function SiteNav({ isDark, onToggleTheme }) {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center gap-8">
         <a {...linkProps('/')} className={`shrink-0 inline-flex items-center gap-3 ${tone}`} aria-label={`${BRAND.full}, inicio`}>
-          <BrandMark size={28} />
-          <span className="text-[17px] font-semibold tracking-[0.34em] leading-none">{BRAND.name}</span>
-          <span className={`hidden sm:inline text-[10px] font-medium tracking-[0.34em] leading-none ${overHero ? 'text-white/60' : 'text-ink/65'}`}>
-            {BRAND.suffix}
+          <BrandMark size={34} />
+          <span className="flex flex-col leading-none">
+            <span className="text-[17px] font-semibold tracking-[0.34em]">{BRAND.name}</span>
+            <span className={`mt-1.5 text-[9.5px] font-medium tracking-[0.5em] ${overHero ? 'text-white/65' : 'text-ink/65'}`}>{BRAND.suffix}</span>
           </span>
         </a>
 
@@ -266,4 +266,46 @@ const sentenceCase = (text) => (typeof text === 'string' ? text.charAt(0) + text
 
 export function Eyebrow({ children }) {
   return <div className="text-[15px] font-medium text-brand">{sentenceCase(children)}</div>;
+}
+
+/** Botón flotante de WhatsApp (esquina inferior derecha), en el morado de la marca */
+export function WhatsAppButton() {
+  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Escríbenos por WhatsApp"
+      className="group fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2.5"
+    >
+      <span className="hidden sm:block rounded-full bg-surface text-ink text-[13px] font-medium px-3.5 py-1.5 shadow-lg opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 pointer-events-none">
+        ¿Hablamos por WhatsApp?
+      </span>
+      <span className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#5833c7] text-white grid place-items-center shadow-[0_8px_22px_-6px_rgb(88_51_199/0.6)] transition-transform duration-300 group-hover:scale-110 group-active:scale-95">
+        <span className="absolute inset-0 rounded-full bg-[#5833c7] motion-safe:animate-ping opacity-25" />
+        <WhatsAppGlyph className="relative w-[22px] h-[22px] sm:w-6 sm:h-6" />
+      </span>
+    </a>
+  );
+}
+
+function WhatsAppGlyph({ className = '' }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
+      {/* Globo de chat con cola */}
+      <path
+        d="M16 3.5C9.1 3.5 3.5 9 3.5 15.8c0 2.4.7 4.6 1.9 6.5L3.6 28.5l6.4-1.7c1.8 1 3.9 1.5 6 1.5 6.9 0 12.5-5.5 12.5-12.3S22.9 3.5 16 3.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinejoin="round"
+      />
+      {/* Auricular */}
+      <path
+        d="M12.2 9.6c-.3-.7-.6-.7-.9-.7h-.8c-.3 0-.7.1-1.1.5-.4.4-1.4 1.4-1.4 3.4s1.5 3.9 1.7 4.2c.2.3 2.9 4.6 7.1 6.3 3.5 1.4 4.2 1.1 5 1 .8-.1 2.4-1 2.8-2 .3-1 .3-1.8.2-2-.1-.2-.4-.3-.8-.5l-2.8-1.4c-.4-.1-.6-.2-.9.2-.3.4-1 1.3-1.3 1.6-.2.3-.5.3-.9.1-.4-.2-1.7-.6-3.2-2-1.2-1-2-2.3-2.2-2.7-.2-.4 0-.6.2-.8l.6-.7c.2-.2.3-.4.4-.7.1-.3.1-.5 0-.7l-1.3-3.4Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
 }
