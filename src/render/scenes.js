@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { getMaterials } from './materials.js';
 import * as K from './kit.js';
 import { EXTRA_ITEM_LIGHTS, buildExtraObject } from './kitExtra.js';
+import { DOOR_TYPE_IDS, THROUGH_WALL_TYPES } from './openings.js';
 import { createLRU, disposeObject, mergeStatic } from './optimize.js';
 import { buildEnvironment, environmentLighting, normalizeEnvironment } from './environment.js';
 
@@ -563,6 +564,9 @@ function resolveItemColor(item, pal) {
   return pal.primary;
 }
 
+// La puerta solo se pinta si se eligió un color distinto de «Madera»
+const doorColor = (item, color) => (item.colorRole && item.colorRole !== 'wood' ? color : null);
+
 function buildSingleSceneObject(M, item, pal, night, diffuserDesign, practicals, parentGroup) {
   const dims = item.dims || {};
   const color = resolveItemColor(item, pal);
@@ -810,10 +814,15 @@ function buildSingleSceneObject(M, item, pal, night, diffuserDesign, practicals,
       return K.personFigure(M, { h, color });
 
     // 6. Elementos Arquitectónicos (Puertas en ambos lados, Ventanales Panorámicos, Cortinas Grandes)
+    // Puertas: el color elegido pinta la hoja (con «Madera» queda la madera de la sala)
     case 'arch_door':
-      return K.archDoor(M, { w, h, wood });
+    case 'door_metal':
+    case 'door_glass':
+    case 'door_sliding':
+    case 'door_technical':
+      return K.archDoor(M, { w, h, wood, color: doorColor(item, color), style: dims.doorStyle || 'wood' });
     case 'double_door':
-      return K.doubleDoor(M, { w, h, wood });
+      return K.doubleDoor(M, { w, h, wood, color: doorColor(item, color), style: dims.doorStyle || 'wood' });
     case 'arch_window':
       return K.archWindow(M, { w, h, double: true });
     case 'panoramic_window':
@@ -823,9 +832,9 @@ function buildSingleSceneObject(M, item, pal, night, diffuserDesign, practicals,
     case 'studio_visor_window':
       return K.studioVisorWindow(M, { w, h, wood });
     case 'draped_curtain':
-      return K.drapedCurtain(M, { w, h, color });
+      return K.drapedCurtain(M, { w, h, color, open: (Number(dims.open) || 0) / 100 });
     case 'stage_curtain':
-      return K.stageCurtain(M, { w, h, color });
+      return K.stageCurtain(M, { w, h, color, open: (Number(dims.open) || 0) / 100 });
 
     // 7. Sillas adicionales, Estanterías Medias, TV, Laptop, Cámaras y Luces
     case 'ergonomic_chair':
@@ -910,14 +919,7 @@ function buildSingleSceneObject(M, item, pal, night, diffuserDesign, practicals,
   }
 }
 
-const THROUGH_WALL_OPENING_TYPES = new Set([
-  'arch_door',
-  'double_door',
-  'arch_window',
-  'panoramic_window',
-  'floor_to_ceiling_window',
-  'studio_visor_window',
-]);
+const THROUGH_WALL_OPENING_TYPES = THROUGH_WALL_TYPES;
 
 /* --------------------------------------------------- cachés de la sala a medida */
 
@@ -1027,7 +1029,7 @@ function placeSceneItem(M, item, { pal, night, diffuserDesign, layout }) {
     const unitW = Number(proto.userData?.width) || Number(item.dims?.w) || 0.6;
     const pitch = unitW + spacing;
     const isThroughWall = THROUGH_WALL_OPENING_TYPES.has(item.typeId);
-    const isDoor = item.typeId === 'arch_door' || item.typeId === 'double_door';
+    const isDoor = DOOR_TYPE_IDS.has(item.typeId);
     container.userData.wallIndex = wIdx;
 
     for (let i = 0; i < count; i++) {

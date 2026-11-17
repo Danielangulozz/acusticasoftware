@@ -23,7 +23,8 @@ const item = (id, group, name, subtitle, mount, defaultDims, extra = {}) => ({
   mount,
   defaultDims,
   colorRole: extra.colorRole ?? 'primary',
-  sabines: extra.sabines ?? HARD,
+  // Por área (α por banda × superficie) o por unidad (Sabines fijos)
+  ...(extra.coefficients ? { coefficients: extra.coefficients } : { sabines: extra.sabines ?? HARD }),
   description: extra.description ?? subtitle,
   ...(extra.finishes ? { finishes: extra.finishes } : {}),
 });
@@ -127,6 +128,29 @@ const LIST = [
   item('electronic_drums', 'instruments', 'Batería electrónica', 'Pads, platillos y banqueta', 'floor', { w: 1.1, d: 1.0, h: 1.2 }, { colorRole: 'accent', sabines: S(0.06, 0.07, 0.08, 0.08, 0.08, 0.08) }),
 ];
 
+// Puertas (todas abren vano real en el muro; ver openings.js)
+const DOOR_WOODLIKE = S(0.25, 0.19, 0.11, 0.15, 0.19, 0.19);
+const DOOR_GLASS = S(0.33, 0.11, 0.07, 0.05, 0.04, 0.04);
+LIST.push(
+  item('door_metal', 'architecture', 'Puerta de metal', 'Hoja metálica pintada con manija de palanca', 'wall', { w: 0.92, h: 2.05, t: 0.06, doorStyle: 'metal' }, { colorRole: 'neutral', sabines: DOOR_WOODLIKE }),
+  item('door_glass', 'architecture', 'Puerta de vidrio', 'Vidrio templado con barra vertical', 'wall', { w: 0.92, h: 2.1, t: 0.02, doorStyle: 'glass' }, { colorRole: 'neutral', sabines: DOOR_GLASS }),
+  item('door_sliding', 'architecture', 'Puerta corrediza', 'Hoja colgada de un riel por el lado interior', 'wall', { w: 1.0, h: 2.1, t: 0.05, doorStyle: 'sliding' }, { colorRole: 'wood', sabines: DOOR_WOODLIKE }),
+  item('door_technical', 'architecture', 'Puerta de cuarto técnico', 'Metálica con rejilla de ventilación', 'wall', { w: 0.92, h: 2.05, t: 0.06, doorStyle: 'technical' }, { colorRole: 'neutral', sabines: DOOR_WOODLIKE }),
+  // Arquitectura
+  item('column', 'architecture', 'Columna cuadrada', 'Concreto, de piso a techo', 'floor', { w: 0.4, d: 0.4, h: 2.7 }, { colorRole: 'neutral', sabines: S(0.01, 0.01, 0.02, 0.02, 0.02, 0.03) }),
+  item('column_round', 'architecture', 'Columna redonda', 'Concreto, de piso a techo', 'floor', { w: 0.4, d: 0.4, h: 2.7 }, { colorRole: 'neutral', sabines: S(0.01, 0.01, 0.02, 0.02, 0.02, 0.03) }),
+  item('beam', 'architecture', 'Viga descolgada', 'Cruza la sala pegada al techo', 'ceiling', { w: 4.0, d: 0.3, h: 0.45, drop: 0.04 }, { colorRole: 'neutral', sabines: S(0.02, 0.02, 0.03, 0.03, 0.04, 0.04) }),
+  item('wall_lintel', 'architecture', 'Dintel', 'Refuerzo sobre una puerta o ventana', 'wall', { w: 1.3, h: 0.25, t: 0.12 }, { colorRole: 'neutral', sabines: SMALL }),
+  item('ceiling_soffit', 'architecture', 'Escalón de techo', 'Descuelgue o quiebre del techo', 'ceiling', { w: 2.0, d: 1.2, h: 0.3, drop: 0.04 }, { colorRole: 'neutral', sabines: S(0.03, 0.03, 0.03, 0.03, 0.04, 0.04) }),
+  item('ceiling_zone', 'architecture', 'Zona de techo', 'Reticular, yeso, madera, absorbente o franja reflectante', 'ceiling', { w: 2.4, d: 1.8, h: 0.03, drop: 0.04, ceilingFinish: 'grid' }, {
+    colorRole: 'neutral',
+    coefficients: { 125: 0.3, 250: 0.55, 500: 0.7, 1000: 0.8, 2000: 0.8, 4000: 0.75 },
+  }),
+  // Instalaciones
+  item('ac_grille', 'installations', 'Rejilla de aire acondicionado', 'Difusor de techo de cuatro vías', 'ceiling', { w: 0.6, d: 0.6, h: 0.04, drop: 0.04 }, { colorRole: 'neutral', sabines: SMALL }),
+  item('ceiling_speaker', 'installations', 'Parlante de techo', 'Empotrado, con rejilla redonda', 'ceiling', { w: 0.22, d: 0.22, h: 0.04, drop: 0.04 }, { colorRole: 'neutral', sabines: SMALL })
+);
+
 export const EXTRA_FURNITURE = Object.fromEntries(LIST.map((it) => [it.id, it]));
 
 /** Muebles nuevos que sirven de apoyo para poner objetos encima. */
@@ -158,7 +182,8 @@ export const CATALOG_GROUPS = [
   { id: 'office', label: 'Oficina y aula' },
   { id: 'lighting', label: 'Iluminación' },
   { id: 'tools', label: 'Taller' },
-  { id: 'architecture', label: 'Puertas y ventanas' },
+  { id: 'architecture', label: 'Arquitectura (puertas, ventanas, columnas, techo)' },
+  { id: 'installations', label: 'Instalaciones (aire, luces, parlantes, cámaras)' },
   { id: 'decor', label: 'Decoración' },
 ];
 
@@ -191,7 +216,7 @@ const LEGACY_GROUP = {
   floor_lamp: 'lighting',
   studio_softbox_light: 'lighting',
   ring_light_stand: 'lighting',
-  ceiling_led_panel: 'lighting',
+  ceiling_led_panel: 'installations',
   track_spotlight_bar: 'lighting',
   desk_lamp: 'lighting',
   wall_screen: 'tech',
@@ -201,9 +226,9 @@ const LEGACY_GROUP = {
   laptop_prop: 'tech',
   desktop_pc_setup: 'tech',
   cinema_camera_tripod: 'tech',
-  ptz_conference_cam: 'tech',
+  ptz_conference_cam: 'installations',
   coffee_maker_station: 'kitchen',
-  ac_split_unit: 'kitchen',
+  ac_split_unit: 'installations',
   meeting_table: 'office',
   task_chair: 'office',
   student_desk: 'office',

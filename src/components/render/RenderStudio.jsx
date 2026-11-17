@@ -16,6 +16,7 @@ import {
   Grid3x3,
   House,
   Image as ImageIcon,
+  Keyboard,
   Lock,
   Map as MapIcon,
   Minus,
@@ -28,6 +29,7 @@ import {
   Rotate3d,
   Save,
   Search,
+  SlidersHorizontal,
   Square,
   Sun,
   Trash2,
@@ -55,6 +57,8 @@ import { AUDIO_FINISHES } from '../../render/kitAudio';
 import { ENVIRONMENTS } from '../../render/environment';
 import { cachedThumbnail, requestThumbnail } from '../../render/thumbnails';
 import { parseStudioFile, serializeStudio } from '../../render/studioFile';
+import { CURTAIN_TYPE_IDS, DOOR_STYLES, DOOR_TYPE_IDS, FLOOR_ANCHORED_TYPES, WINDOW_TYPE_IDS } from '../../render/openings';
+import { CEILING_FINISHES, ceilingFinishCoefficients } from '../../render/kitBuilding';
 import { OCTAVE_BANDS, calculatePolygonGeometry, calculateReverberationTimes, calculateRoomAbsorption } from '../../utils/acousticCalculations';
 import { getDefaultPolygonMaterials } from '../../utils/defaultMaterials';
 import { DIFFUSER_TYPE_LABELS, designFromConfig, loadDiffuserConfig } from '../diffusers/diffuserConfig';
@@ -152,9 +156,10 @@ const INT_DIMS = { seats: ['Butacas', 2, 8], cols: ['Columnas', 1, 8], rows: ['F
 const BOOL_DIMS = { withChairs: 'Con sillas', mirror: 'Con espejo', stands: 'Con pedestales', riser: 'Sobre tarima' };
 const SCREEN_KINDS = [['daw', 'Audio'], ['movie', 'Película'], ['chart', 'Gráficas'], ['lecture', 'Clase']];
 const REPEATABLE = new Set(['school_arm_chair', 'student_desk', 'dining_chair', 'shell_chair', 'visitor_chair', 'bar_stool']);
-const FLOOR_ANCHORED = new Set(['arch_door', 'double_door', 'floor_to_ceiling_window']);
+const FLOOR_ANCHORED = FLOOR_ANCHORED_TYPES;
 
 const DEFAULTS = {
+  projectName: '',
   mode: 'room',
   usePolygon: true,
   customPolygon: null,
@@ -177,6 +182,21 @@ const DEFAULTS = {
   tourLoop: true,
   video: { size: '1080', quality: 'buena', duration: null },
 };
+
+/** Texto apto para nombre de archivo: sin tildes ni símbolos, palabras unidas con guiones. */
+const fileSlug = (text, fallback = 'pozole') =>
+  String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || fallback;
+/** Fecha y hora local para los nombres de archivo: 2026-11-17_1335 */
+const fileStamp = (d = new Date()) => {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+};
+const VIEW_MODE_LABEL = { orbit: 'Maqueta', walk: 'Recorrer', exterior: 'Exterior', plan: 'Planta' };
 
 const hexNum = (value) => parseInt(String(value || '#7464cc').replace('#', ''), 16);
 const fmt = (v, d = 1) => Number(v || 0).toFixed(d).replace('.', ',');
@@ -584,6 +604,25 @@ export default function RenderStudio({
     viewport.current?.play(path, { onEnd: () => setPlaying(null) });
   };
 
+  const projectSlug = fileSlug(
+    opts.projectName?.trim() ||
+      (opts.mode === 'room'
+        ? opts.usePolygon && hasProjectPlan
+          ? 'Mi-sala'
+          : PRESETS.find((p) => p.id === opts.roomType)?.label || 'Sala'
+        : opts.mode === 'diffuser'
+          ? 'Mi-difusor'
+          : opts.product)
+  );
+  /** Nombre de la vista en pantalla: la vista guardada en la que está la cámara, o el modo. */
+  const currentViewName = () => {
+    const pose = viewport.current?.getPose();
+    const near = (a, b) => a && b && Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < 0.03;
+    const shot = pose && opts.shots.find((sh) => near(sh.pose.pos, pose.pos) && near(sh.pose.target, pose.target));
+    return shot ? shot.name : VIEW_MODE_LABEL[pose?.mode] || 'Vista';
+  };
+  const exportName = (ext, view = currentViewName()) => `${projectSlug}_${fileSlug(view, 'Vista')}_${fileStamp()}.${ext}`;
+
   const saveShot = () => {
     const pose = viewport.current?.getPose();
     if (!pose) return;
@@ -596,8 +635,7 @@ export default function RenderStudio({
 
   const saveFile = () => {
     const data = serializeStudio({ opts, items, polygon: activePolygon });
-    const stamp = new Date().toISOString().slice(0, 10);
-    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), `pozole-estudio-${opts.roomType || 'sala'}-${stamp}.json`);
+    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), `${projectSlug}_${fileStamp()}.json`);
     setFileMenu(false);
     notify('Proyecto guardado como archivo .json.');
   };
@@ -887,6 +925,14 @@ export default function RenderStudio({
                         shots={opts.shots}
                         onSaveShot={saveShot}
                         onGoShot={(s) => viewport.current?.setPose(s.pose)}
+                        onUpdateShot={(id, pose) => {
+                          patch((o) => ({ shots: o.shots.map((sh) => (sh.id === id ? { ...sh, pose } : sh)) }));
+                          viewport.current?.setPose(pose, { animate: false });
+                        }}
+                        onRecaptureShot={(id) => {
+                          const pose = viewport.current?.getPose();
+                          if (pose) patch((o) => ({ shots: o.shots.map((sh) => (sh.id === id ? { ...sh, pose } : sh)) }));
+                        }}
                         onRenameShot={(id, name) => patch({ shots: opts.shots.map((s) => (s.id === id ? { ...s, name } : s)) })}
                         onDeleteShot={(id) => patch({ shots: opts.shots.filter((s) => s.id !== id) })}
                         loop={opts.tourLoop}
@@ -963,7 +1009,7 @@ export default function RenderStudio({
           flat={flat}
           isDarkMode={isDarkMode}
           roomMode={opts.mode === 'room'}
-          fileBase={opts.mode === 'room' ? `sala-${opts.roomType || 'pozole'}` : opts.mode === 'diffuser' ? 'mi-difusor' : opts.product}
+          exportName={exportName}
         />
       )}
     </div>
@@ -1050,6 +1096,14 @@ function RoomPanel({ opts, patch, layout, hasProjectPlan, applyPreset }) {
   const usingPlan = opts.usePolygon && hasProjectPlan;
   return (
     <div className="space-y-5">
+      <Section title="Proyecto" hint="Se usa en el nombre de las imágenes, videos y archivos que guardes.">
+        <input
+          value={opts.projectName || ''}
+          onChange={(e) => patch({ projectName: e.target.value.slice(0, 60) })}
+          placeholder="Por ejemplo: Sala 5E"
+          className={`w-full rounded-xl border ${LINE} bg-transparent px-3 py-2 text-[13px] ${TITLE} focus:outline-none focus:border-[#5833c7]`}
+        />
+      </Section>
       <Section title="Plantilla" hint="Cambia la sala y sus muebles. Se puede deshacer.">
         <div className="grid grid-cols-2 gap-1.5">
           {hasProjectPlan && <PresetCard label="Mi proyecto" hint="La planta que dibujaste" active={usingPlan} onClick={() => applyPreset('project')} />}
@@ -1176,12 +1230,22 @@ function ObjectsPanel({ items, onSelect, onToggleLock, onToggleVisible, onDelete
         <span className={`text-[12px] ${MUTED}`}>{items.length} objetos en la sala</span>
         <button type="button" onClick={onClear} className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer">Vaciar</button>
       </div>
+      {CATALOG_GROUPS.filter((g) => g.id !== 'all').map((g) => {
+        const list = items.filter((it) => catalogGroupOf(getCatalogItem(it.typeId)) === g.id);
+        if (!list.length) return null;
+        return (
+          <details key={g.id} open className="group/cat">
+            <summary className={`flex items-center gap-1.5 cursor-pointer list-none px-1 py-1 text-[11.5px] font-semibold ${MUTED}`}>
+              <ChevronDown className="w-3.5 h-3.5 -rotate-90 group-open/cat:rotate-0 transition-transform" />
+              {g.label}
+              <span className="ml-auto font-normal">{list.length}</span>
+            </summary>
       <ul className="space-y-1">
-        {items.map((it) => (
+        {list.map((it) => (
           <li key={it.id} className={`group flex items-center gap-2 rounded-xl px-2.5 py-1.5 hover:bg-black/[0.035] dark:hover:bg-white/[0.05] ${it.enabled === false ? 'opacity-50' : ''}`}>
             <button type="button" onClick={() => onSelect(it.id)} className="flex-1 min-w-0 text-left cursor-pointer">
               <span className={`block truncate text-[12.5px] font-medium ${TITLE}`}>{it.name}{Number(it.count) > 1 ? ` ×${it.count}` : ''}</span>
-              <span className={`block text-[10.5px] ${MUTED}`}>{CATALOG_GROUPS.find((g) => g.id === catalogGroupOf(getCatalogItem(it.typeId)))?.label}</span>
+              <span className={`block text-[10.5px] ${MUTED}`}>{it.mount === 'wall' ? `Muro ${(Number(it.wallIndex) || 0) + 1}` : it.mount === 'corner' ? `Esquina ${(Number(it.cornerIndex) || 0) + 1}` : it.mount === 'ceiling' ? 'Techo' : 'Piso'}</span>
             </button>
             {it.locked && <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
             <div className="flex items-center opacity-60 group-hover:opacity-100">
@@ -1192,14 +1256,49 @@ function ObjectsPanel({ items, onSelect, onToggleLock, onToggleVisible, onDelete
           </li>
         ))}
       </ul>
+          </details>
+        );
+      })}
+      <Shortcuts />
     </div>
+  );
+}
+
+const SHORTCUTS = [
+  ['Supr', 'Eliminar el objeto elegido'],
+  ['Ctrl + D', 'Duplicarlo'],
+  ['R / Shift + R', 'Girarlo 45°'],
+  ['L', 'Bloquearlo o desbloquearlo'],
+  ['Flechas', 'Moverlo 5 cm (con Shift, 20 cm)'],
+  ['Ctrl + Z / Ctrl + Y', 'Deshacer y rehacer'],
+  ['Esc', 'Soltar la selección'],
+  ['W A S D', 'Caminar en «Recorrer» (un toque da un paso)'],
+  ['Q / E', 'Girar en «Recorrer»'],
+];
+
+function Shortcuts() {
+  return (
+    <details className={`mt-3 rounded-xl border ${LINE} px-3 py-2`}>
+      <summary className={`flex items-center gap-1.5 cursor-pointer list-none text-[12px] font-semibold ${TITLE}`}>
+        <Keyboard className="w-3.5 h-3.5" /> Atajos de teclado
+      </summary>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11.5px]">
+        {SHORTCUTS.map(([k, v]) => (
+          <React.Fragment key={k}>
+            <dt><kbd className={`rounded border ${LINE} px-1.5 py-0.5 font-mono text-[10.5px] ${TITLE}`}>{k}</kbd></dt>
+            <dd className={MUTED}>{v}</dd>
+          </React.Fragment>
+        ))}
+      </dl>
+    </details>
   );
 }
 
 /* =========================================================== panel: recorridos */
 
-function TourPanel({ presets, myPath, playing, onPlay, onVideo, shots, onSaveShot, onGoShot, onRenameShot, onDeleteShot, loop, onLoop }) {
+function TourPanel({ presets, myPath, playing, onPlay, onVideo, shots, onSaveShot, onGoShot, onUpdateShot, onRecaptureShot, onRenameShot, onDeleteShot, loop, onLoop }) {
   const list = Object.values(presets);
+  const [editing, setEditing] = useState(null);
   return (
     <div className="space-y-5">
       <Section title="Recorridos listos" hint="Míralos aquí y conviértelos en video.">
@@ -1216,11 +1315,18 @@ function TourPanel({ presets, myPath, playing, onPlay, onVideo, shots, onSaveSho
         {shots.length > 0 && (
           <ul className="space-y-1">
             {shots.map((s, i) => (
-              <li key={s.id} className="flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-black/[0.035] dark:hover:bg-white/[0.05]">
-                <span className={`w-5 text-center text-[11px] font-mono ${MUTED}`}>{i + 1}</span>
-                <input value={s.name} onChange={(e) => onRenameShot(s.id, e.target.value)} className={`flex-1 min-w-0 bg-transparent text-[12.5px] ${TITLE} focus:outline-none`} />
-                <SmallIcon title="Ir a esta vista" icon={Crosshair} onClick={() => onGoShot(s)} />
-                <SmallIcon title="Borrar" icon={Trash2} onClick={() => onDeleteShot(s.id)} />
+              <li key={s.id} className="rounded-xl px-2 py-1 hover:bg-black/[0.035] dark:hover:bg-white/[0.05]">
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 text-center text-[11px] font-mono ${MUTED}`}>{i + 1}</span>
+                  <span className="flex-1 min-w-0">
+                    <input value={s.name} onChange={(e) => onRenameShot(s.id, e.target.value)} className={`w-full bg-transparent text-[12.5px] ${TITLE} focus:outline-none`} />
+                    <span className={`block text-[10.5px] ${MUTED}`}>{VIEW_MODE_LABEL[s.pose.mode] || 'Vista'} · cámara a {fmt(s.pose.pos[1], 2)} m</span>
+                  </span>
+                  <SmallIcon title="Ir a esta vista" icon={Crosshair} onClick={() => onGoShot(s)} />
+                  <SmallIcon title="Editar con números" icon={SlidersHorizontal} onClick={() => setEditing(editing === s.id ? null : s.id)} />
+                  <SmallIcon title="Borrar" icon={Trash2} onClick={() => onDeleteShot(s.id)} />
+                </div>
+                {editing === s.id && <ShotEditor shot={s} onChange={(pose) => onUpdateShot(s.id, pose)} onRecapture={() => onRecaptureShot(s.id)} />}
               </li>
             ))}
           </ul>
@@ -1232,6 +1338,64 @@ function TourPanel({ presets, myPath, playing, onPlay, onVideo, shots, onSaveSho
           </>
         )}
       </Section>
+    </div>
+  );
+}
+
+/** Casilla numérica que aplica el valor al salir o con Enter (deja escribir «1.» o «-0,5» sin saltos). */
+function NumBox({ value, onCommit }) {
+  const [text, setText] = useState(Number(value).toFixed(2));
+  useEffect(() => setText(Number(value).toFixed(2)), [value]);
+  const commit = () => {
+    const v = parseFloat(String(text).replace(',', '.'));
+    if (Number.isFinite(v)) onCommit(v);
+    else setText(Number(value).toFixed(2));
+  };
+  return (
+    <input
+      inputMode="decimal"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && commit()}
+      className={`w-full min-w-0 bg-transparent py-1 text-[12px] font-mono ${TITLE} focus:outline-none`}
+    />
+  );
+}
+
+/** Posición exacta de una vista guardada: cámara, punto al que mira, lente y modo. */
+function ShotEditor({ shot, onChange, onRecapture }) {
+  const pose = shot.pose;
+  const setVec = (key, i, v) => {
+    const next = [...pose[key]];
+    next[i] = v;
+    onChange({ ...pose, [key]: next });
+  };
+  const row = (label, key) => (
+    <div className="grid grid-cols-[4.2rem_1fr_1fr_1fr] items-center gap-1">
+      <span className={`text-[11px] ${MUTED}`}>{label}</span>
+      {['X', 'Y', 'Z'].map((axis, i) => (
+        <label key={axis} className={`flex items-center gap-1 rounded-lg border ${LINE} px-1.5`}>
+          <span className={`text-[10px] ${MUTED}`}>{axis}</span>
+          <NumBox value={pose[key][i]} onCommit={(v) => setVec(key, i, v)} />
+        </label>
+      ))}
+    </div>
+  );
+  return (
+    <div className="mt-2 mb-1 ml-7 space-y-1.5">
+      {row('Cámara (m)', 'pos')}
+      {row('Mira a (m)', 'target')}
+      <div className="grid grid-cols-[4.2rem_1fr] items-center gap-1">
+        <span className={`text-[11px] ${MUTED}`}>Lente</span>
+        <Segmented value={Math.round(pose.fov ?? 50)} onChange={(fov) => onChange({ ...pose, fov })} options={[[35, 'Angular'], [50, 'Normal'], [70, 'Tele']].map(([v, l]) => [v, `${l} ${v}°`])} />
+      </div>
+      <div className="grid grid-cols-[4.2rem_1fr] items-center gap-1">
+        <span className={`text-[11px] ${MUTED}`}>Modo</span>
+        <Segmented value={pose.mode || 'orbit'} onChange={(mode) => onChange({ ...pose, mode })} options={Object.entries(VIEW_MODE_LABEL)} wrap />
+      </div>
+      <p className={`text-[10.5px] ${MUTED}`}>X: izquierda a derecha · Y: altura · Z: fondo (−) a frente (+). El origen es el centro de la sala.</p>
+      <button type="button" onClick={onRecapture} className="text-[11.5px] font-semibold text-[#5833c7] dark:text-[#c4b5fd] hover:underline cursor-pointer">Reemplazar con la vista actual</button>
     </div>
   );
 }
@@ -1269,6 +1433,8 @@ function Inspector({ item, layout, items, palette, onBack, onChange, onDuplicate
     const ref = Number(base[k]) || Number(dims[k]) || 1;
     if (k === 'drop') return [0.02, Math.max(0.4, H - 1.3)];
     if (k === 'h' && item.mount === 'wall') return [0.15, H - 0.1];
+    const wallLen = item.mount === 'wall' ? walls[((Number(item.wallIndex) || 0) % walls.length + walls.length) % walls.length]?.length : null;
+    if (k === 'w' && wallLen && (WINDOW_TYPE_IDS.has(item.typeId) || DOOR_TYPE_IDS.has(item.typeId) || CURTAIN_TYPE_IDS.has(item.typeId))) return [0.4, wallLen - 0.1];
     const max = k === 'w' ? Math.min(Math.max(ref * 2.6, 0.5), item.typeId === 'meeting_table' ? 6 : W) : k === 'd' ? Math.min(Math.max(ref * 2.6, 0.4), D) : Math.min(Math.max(ref * 2.4, 0.3), H);
     return [Math.max(0.02, ref * 0.35), max];
   };
@@ -1317,6 +1483,19 @@ function Inspector({ item, layout, items, palette, onBack, onChange, onDuplicate
                 <Segmented value={((Number(item.cornerIndex) || 0) % corners.length + corners.length) % corners.length} onChange={(v) => onChange({ cornerIndex: v })} options={corners.map((c) => [c.index, `${c.index + 1}`])} wrap />
               </Field>
             )}
+            {item.mount === 'wall' && WINDOW_TYPE_IDS.has(item.typeId) && (
+              <button
+                type="button"
+                onClick={() => {
+                  const wall = walls[((Number(item.wallIndex) || 0) % walls.length + walls.length) % walls.length];
+                  const full = Math.max(0.6, (wall?.length ?? W) - 0.2);
+                  onChange({ along: 0, count: 1, dims: item.typeId === 'floor_to_ceiling_window' ? { w: full, h: Math.max(1, H - 0.12) } : { w: full } });
+                }}
+                className={`w-full rounded-xl border border-dashed ${LINE} py-1.5 text-[12px] font-semibold text-[#5833c7] dark:text-[#c4b5fd] hover:bg-[#5833c7]/5 cursor-pointer`}
+              >
+                Ajustar a todo el muro
+              </button>
+            )}
             {(item.mount === 'floor' || item.mount === 'ceiling' || item.mount === 'free') && (
               <>
                 <Range label="Izquierda · derecha" unit="m" value={Number(item.x) || 0} min={-W / 2} max={W / 2} step={0.05} decimals={2} onChange={(v) => onChange({ x: v })} />
@@ -1362,6 +1541,9 @@ function Inspector({ item, layout, items, palette, onBack, onChange, onDuplicate
                 .map(([k, label]) => (
                   <Toggle key={k} label={label} checked={dims[k]} onChange={(v) => onChange({ dims: { [k]: v } })} />
                 ))}
+              {CURTAIN_TYPE_IDS.has(item.typeId) && (
+                <Range label="Abierta" unit="%" value={Number(dims.open) || 0} min={0} max={100} step={5} decimals={0} onChange={(v) => onChange({ dims: { open: v } })} />
+              )}
               {typeof dims.screenKind === 'string' && (
                 <Field label="Pantalla" stacked>
                   <Segmented value={dims.screenKind} onChange={(v) => onChange({ dims: { screenKind: v } })} options={SCREEN_KINDS} wrap />
@@ -1371,6 +1553,21 @@ function Inspector({ item, layout, items, palette, onBack, onChange, onDuplicate
           )}
 
           <Section title="Apariencia">
+            {DOOR_TYPE_IDS.has(item.typeId) && (
+              <Field label="Tipo de puerta" stacked>
+                <Segmented value={dims.doorStyle || 'wood'} onChange={(v) => onChange({ dims: { doorStyle: v } })} options={DOOR_STYLES} wrap />
+              </Field>
+            )}
+            {item.typeId === 'ceiling_zone' && (
+              <Field label="Acabado del techo" stacked>
+                <Segmented
+                  value={dims.ceilingFinish || 'grid'}
+                  onChange={(v) => onChange({ dims: { ceilingFinish: v }, coefficients: ceilingFinishCoefficients(v) })}
+                  options={CEILING_FINISHES.map(([id, label]) => [id, label])}
+                  wrap
+                />
+              </Field>
+            )}
             {def.finishes && (
               <Field label="Serie" stacked>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -1428,7 +1625,7 @@ function Inspector({ item, layout, items, palette, onBack, onChange, onDuplicate
 
 /* ============================================================= exportación */
 
-function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat, isDarkMode, roomMode, fileBase }) {
+function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat, isDarkMode, roomMode, exportName }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
@@ -1464,11 +1661,43 @@ function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat
       const type = opts.format === 'jpg' ? 'image/jpeg' : opts.format === 'webp' ? 'image/webp' : 'image/png';
       const blob = await viewport.current.renderImage({ width: size.w, height: size.h, samples: iq.samples, type, quality: 0.93, matte: opts.format === 'png' ? matteFor() : matteFor() ?? '#f3f1f7', signal: ctrl.signal, onProgress: setProgress, dof: opts.dof });
       if (!blob) return;
-      const name = `pozole-${fileBase}-${size.w}x${size.h}.${opts.format}`;
+      // Nombre único: proyecto, vista y hora (así un render nuevo no reemplaza al anterior)
+      const name = exportName(opts.format);
       downloadBlob(blob, name);
       setResult({ kind: 'image', url: URL.createObjectURL(blob), name, kb: Math.round(blob.size / 1024) });
     } catch (err) {
       setError(err.message || 'No se pudo renderizar la imagen.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Todas las vistas guardadas en una tanda, cada una con su nombre
+  const renderAllShots = async () => {
+    const shots = opts.shots || [];
+    if (!shots.length) return;
+    setBusy(true);
+    setProgress(0);
+    setError(null);
+    setResult(null);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    const type = opts.format === 'jpg' ? 'image/jpeg' : opts.format === 'webp' ? 'image/webp' : 'image/png';
+    let last = null;
+    let done = 0;
+    try {
+      for (let i = 0; i < shots.length && !ctrl.signal.aborted; i++) {
+        viewport.current.setPose(shots[i].pose, { animate: false });
+        // eslint-disable-next-line no-await-in-loop
+        const blob = await viewport.current.renderImage({ width: size.w, height: size.h, samples: iq.samples, type, quality: 0.93, matte: matteFor() ?? '#f3f1f7', signal: ctrl.signal, onProgress: (p) => setProgress((i + p) / shots.length), dof: opts.dof });
+        if (!blob) break;
+        last = { blob, name: exportName(opts.format, shots[i].name) };
+        downloadBlob(blob, last.name);
+        done++;
+      }
+      if (last) setResult({ kind: 'image', url: URL.createObjectURL(last.blob), name: last.name, kb: Math.round(last.blob.size / 1024), note: `Se descargaron ${done} de ${shots.length} vistas.` });
+    } catch (err) {
+      setError(err.message || 'No se pudieron renderizar las vistas.');
     } finally {
       setBusy(false);
     }
@@ -1485,7 +1714,7 @@ function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat
     try {
       const out = await viewport.current.renderVideo({ path: { ...path, duration }, width: vs.w, height: vs.h, fps: 30, samples: vq.samples, bitrate: vs.bitrate, matte: matteFor() ?? '#f3f1f7', signal: ctrl.signal, onProgress: setProgress });
       if (!out) return;
-      const name = `pozole-recorrido-${path.id}-${vs.id}p.${out.ext}`;
+      const name = exportName(out.ext, `Recorrido-${path.label}`);
       downloadBlob(out.blob, name);
       setResult({ kind: 'video', url: URL.createObjectURL(out.blob), name, kb: Math.round(out.blob.size / 1024) });
     } catch (err) {
@@ -1542,6 +1771,11 @@ function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat
             {opts.dof && opts.dof !== 'none' && <p className={`text-[11.5px] ${MUTED} -mt-2`}>Enfoca el objeto que tengas seleccionado (o lo del centro de la imagen); lo de adelante y atrás se suaviza como en una foto. Con calidad Alta o Máxima se ve más limpio.</p>}
             {flat && opts.format === 'png' && <Toggle label="Fondo transparente" checked={opts.transparent} onChange={(v) => patch({ transparent: v })} />}
             <PrimaryAction busy={busy} progress={progress} onClick={renderImage} onCancel={() => abortRef.current?.abort()} icon={Download} label="Renderizar y descargar" />
+            {roomMode && (opts.shots?.length ?? 0) > 0 && !busy && (
+              <button type="button" onClick={renderAllShots} className={`w-full rounded-xl border ${LINE} py-2 text-[12.5px] font-semibold ${TITLE} hover:border-[#5833c7]/50 cursor-pointer`}>
+                {opts.shots.length === 1 ? 'Renderizar mi vista guardada con su nombre' : `Renderizar mis ${opts.shots.length} vistas guardadas, cada una con su nombre`}
+              </button>
+            )}
           </div>
         )}
 
@@ -1581,6 +1815,7 @@ function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat
               </span>
               <a href={result.url} download={result.name} className="shrink-0 text-[12px] font-semibold text-[#5833c7] dark:text-[#c4b5fd] hover:underline">Descargar otra vez</a>
             </div>
+            {result.note && <p className={`px-1 pb-1 text-[11.5px] ${MUTED}`}>{result.note}</p>}
           </div>
         )}
       </div>

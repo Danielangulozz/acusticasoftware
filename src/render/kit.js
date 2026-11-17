@@ -10,6 +10,7 @@ import {
   mlsSequence,
 } from '../utils/diffuserCalculations.js';
 import { getEdgeArcPoints } from '../utils/acousticCalculations.js';
+import { DOOR_TYPE_IDS } from './openings.js';
 
 /**
  * Kit de modelado paramétrico (metros, Y hacia arriba).
@@ -1019,11 +1020,13 @@ export function subwoofer(M, { w = 0.42, h = 0.45, d = 0.46 } = {}) {
  * Puerta arquitectónica de tamaño estándar (~0.92 × 2.05 m) visible por AMBOS LADOS de la pared
  * (marco que abraza todo el espesor del muro, hoja centrada, paneles y manijas tanto al interior +Z como al exterior -Z).
  */
-export function archDoor(M, { w = 0.92, h = 2.05, wood = 'oak', wallThickness = 0.13 } = {}) {
+export function archDoor(M, { w = 0.92, h = 2.05, wood = 'oak', color = null, style = 'wood', wallThickness = 0.13 } = {}) {
+  if (style && style !== 'wood') return styledDoor(M, { w, h, color, style, wood, wallThickness });
   const g = new THREE.Group();
   const r = rng(104);
-  const frameMat = M.wood(wood, 1, { roughness: 0.48 });
-  const leafMat = M.wood(wood, 0, { roughness: 0.52 });
+  // Con un color elegido la puerta va pintada (laca); sin él, en la madera de la sala
+  const frameMat = color != null ? M.paint(color, { roughness: 0.42 }) : M.wood(wood, 1, { roughness: 0.48 });
+  const leafMat = color != null ? M.paint(color, { roughness: 0.48 }) : M.wood(wood, 0, { roughness: 0.52 });
   const handleMat = M.metal(0xd4d4dc, { roughness: 0.22 });
   const darkSeal = M.plastic(0x232329, { roughness: 0.8 });
 
@@ -1070,11 +1073,12 @@ export function archDoor(M, { w = 0.92, h = 2.05, wood = 'oak', wallThickness = 
 }
 
 /** Puerta doble acústica de auditorio / estudio / aula (~1.65 × 2.10 m) con mirillas de vidrio y manijas en ambos lados. */
-export function doubleDoor(M, { w = 1.65, h = 2.10, wood = 'oak', wallThickness = 0.13 } = {}) {
+export function doubleDoor(M, { w = 1.65, h = 2.10, wood = 'oak', color = null, style = 'wood', wallThickness = 0.13 } = {}) {
+  if (style && style !== 'wood') return styledDoor(M, { w, h, color, style, wood, wallThickness, leaves: 2 });
   const g = new THREE.Group();
   const r = rng(109);
-  const frameMat = M.wood(wood, 1, { roughness: 0.48 });
-  const leafMat = M.wood(wood, 0, { roughness: 0.52 });
+  const frameMat = color != null ? M.paint(color, { roughness: 0.42 }) : M.wood(wood, 1, { roughness: 0.48 });
+  const leafMat = color != null ? M.paint(color, { roughness: 0.48 }) : M.wood(wood, 0, { roughness: 0.52 });
   const handleMat = M.metal(0xd4d4dc, { roughness: 0.22 });
   const glassMat = M.glass(0xbae6fd, { opacity: 0.36, roughness: 0.06 });
 
@@ -1103,6 +1107,98 @@ export function doubleDoor(M, { w = 1.65, h = 2.10, wood = 'oak', wallThickness 
       g.add(cyl(0.012, 0.012, 0.36, handleMat, { seg: 12, x: hx, y: y0 + 1.05, z: fz }));
       g.add(cyl(0.01, 0.01, 0.03, handleMat, { seg: 10, x: hx, y: y0 + 1.20, z: fz - side * 0.015, rx: Math.PI / 2 }));
       g.add(cyl(0.01, 0.01, 0.03, handleMat, { seg: 10, x: hx, y: y0 + 0.90, z: fz - side * 0.015, rx: Math.PI / 2 }));
+    }
+  }
+
+  g.userData.width = w;
+  g.userData.height = h;
+  return g;
+}
+
+/**
+ * Puertas de metal, aluminio y vidrio, vidrio templado, corrediza y de cuarto técnico (con rejilla de
+ * ventilación). Una o dos hojas; el marco abraza el vano por ambos lados del muro como en archDoor.
+ */
+function styledDoor(M, { w, h, color = null, style, wood = 'oak', wallThickness = 0.13, leaves = 1 }) {
+  const g = new THREE.Group();
+  const zMid = -wallThickness * 0.5;
+  const depth = wallThickness + 0.042;
+  const y0 = -h / 2;
+  const light = style === 'glass' || style === 'aluminum';
+  const frameMat = M.metal(light ? color ?? 0xa7adb5 : 0x3a3d44, { roughness: 0.32 });
+  const handleMat = M.metal(0xd4d4dc, { roughness: 0.2 });
+  const darkMat = M.plastic(0x1d1f24, { roughness: 0.75 });
+  const glassMat = M.glass(0xd6ecf8, { opacity: 0.26, roughness: 0.04 });
+  const frameW = light ? 0.045 : 0.052;
+
+  // Marco (en la corrediza, solo un remate fino: la hoja va por fuera del vano)
+  const fw = style === 'sliding' ? 0.03 : frameW;
+  g.add(box(fw, h, depth, frameMat, { x: -w / 2 + fw / 2, z: zMid }));
+  g.add(box(fw, h, depth, frameMat, { x: w / 2 - fw / 2, z: zMid }));
+  g.add(box(w + 0.03, fw, depth, frameMat, { y: h / 2 - fw / 2, z: zMid }));
+
+  const leafH = h - fw - 0.006;
+  const leafT = style === 'glass' ? 0.014 : 0.045;
+  const gap = 0.006;
+  const leafW = (w - fw * 2 - gap * (leaves + 1)) / leaves;
+  const tone = color ?? { metal: 0x6b7079, technical: 0x8a9097, aluminum: 0xb7bcc3, sliding: 0xe9e3d8 }[style] ?? 0x8a9097;
+  const leafMat = style === 'sliding' && color == null ? M.wood(wood, 0, { roughness: 0.5 }) : style === 'aluminum' ? M.metal(tone, { roughness: 0.3 }) : M.paint(tone, { roughness: 0.45 });
+
+  if (style === 'sliding') {
+    // Hoja colgada de un riel por el lado interior, un poco más ancha que el vano
+    const sw = w + 0.1;
+    const z = 0.035;
+    g.add(box(w * 2 + 0.1, 0.05, 0.05, frameMat, { x: w / 2, y: h / 2 + 0.06, z: z + 0.005 }));
+    g.add(box(sw, h + 0.02, leafT, leafMat, { y: 0.01, z }));
+    for (const gx of [-sw / 2 + 0.12, sw / 2 - 0.12]) g.add(cyl(0.022, 0.022, 0.02, handleMat, { seg: 14, x: gx, y: h / 2 + 0.05, z: z + 0.03, rx: Math.PI / 2 }));
+    g.add(box(0.03, 0.42, 0.02, handleMat, { r: 0.008, x: -sw / 2 + 0.09, y: y0 + 1.05, z: z + leafT / 2 + 0.012 }));
+    g.add(box(0.028, 0.36, 0.012, darkMat, { r: 0.006, x: -w / 2 + 0.09, y: y0 + 1.05, z: zMid - wallThickness / 2 - 0.004 }));
+    g.userData.width = w;
+    g.userData.height = h;
+    return g;
+  }
+
+  for (let i = 0; i < leaves; i++) {
+    const lx = -w / 2 + fw + gap + leafW / 2 + i * (leafW + gap);
+    const dir = leaves === 2 ? (i === 0 ? 1 : -1) : 1;
+    if (style === 'glass') {
+      // Vidrio templado de canto a canto con perfiles arriba y abajo
+      g.add(box(leafW, leafH - 0.16, leafT, glassMat, { x: lx, y: -fw / 2, z: zMid }));
+      g.add(box(leafW, 0.08, 0.04, frameMat, { x: lx, y: y0 + 0.04, z: zMid }));
+      g.add(box(leafW, 0.08, 0.04, frameMat, { x: lx, y: h / 2 - fw - 0.04, z: zMid }));
+    } else if (style === 'aluminum') {
+      // Perfilería de aluminio: vidrio arriba, panel ciego abajo
+      const st = 0.06;
+      g.add(box(st, leafH, leafT, leafMat, { x: lx - leafW / 2 + st / 2, y: -fw / 2, z: zMid }));
+      g.add(box(st, leafH, leafT, leafMat, { x: lx + leafW / 2 - st / 2, y: -fw / 2, z: zMid }));
+      g.add(box(leafW, st, leafT, leafMat, { x: lx, y: h / 2 - fw - st / 2, z: zMid }));
+      g.add(box(leafW, 0.5, leafT, leafMat, { x: lx, y: y0 + 0.25, z: zMid }));
+      g.add(box(leafW, st, leafT, leafMat, { x: lx, y: y0 + 0.5 + st / 2, z: zMid }));
+      g.add(box(leafW - st * 2, leafH - 0.5 - st * 2, 0.012, glassMat, { x: lx, y: y0 + 0.5 + st + (leafH - 0.5 - st * 2) / 2, z: zMid }));
+    } else {
+      // Metal pintado (y cuarto técnico, con rejilla de ventilación abajo)
+      g.add(box(leafW, leafH, leafT, leafMat, { r: 0.004, x: lx, y: -fw / 2, z: zMid }));
+      for (const side of [1, -1]) {
+        const faceZ = zMid + side * (leafT / 2 + 0.002);
+        g.add(box(leafW * 0.9, 0.22, 0.004, handleMat, { x: lx, y: y0 + 0.13, z: faceZ }));
+        if (style === 'technical') {
+          const gw = leafW * 0.62;
+          g.add(box(gw + 0.03, 0.4, 0.006, darkMat, { x: lx, y: y0 + 0.52, z: faceZ }));
+          for (let k = 0; k < 9; k++) g.add(box(gw, 0.018, 0.016, leafMat, { x: lx, y: y0 + 0.36 + k * 0.04, z: faceZ + side * 0.006, rx: side * 0.5 }));
+        }
+      }
+    }
+    // Manijas en ambos lados: barra vertical en vidrio, manija de palanca en el resto
+    const hx = lx + dir * (leafW / 2 - 0.09);
+    for (const side of [1, -1]) {
+      const faceZ = zMid + side * (leafT / 2 + 0.004);
+      if (style === 'glass' || style === 'aluminum') {
+        g.add(cyl(0.013, 0.013, 0.5, handleMat, { seg: 12, x: hx, y: y0 + 1.05, z: faceZ + side * 0.035 }));
+        for (const dy of [-0.2, 0.2]) g.add(cyl(0.008, 0.008, 0.035, handleMat, { seg: 8, x: hx, y: y0 + 1.05 + dy, z: faceZ + side * 0.018, rx: Math.PI / 2 }));
+      } else {
+        g.add(box(0.05, 0.12, 0.008, handleMat, { r: 0.004, x: hx, y: y0 + 1.02, z: faceZ }));
+        g.add(box(0.12, 0.018, 0.016, handleMat, { r: 0.006, x: hx - dir * 0.04, y: y0 + 1.05, z: faceZ + side * 0.03 }));
+      }
     }
   }
 
@@ -1245,28 +1341,49 @@ export function studioVisorWindow(M, { w = 2.20, h = 1.15, wood = 'walnut', wall
 }
 
 /** Cortina acústica pesada plisada de gran tamaño (~2.80 × 2.40 m por defecto) con riel superior metálico. */
-export function drapedCurtain(M, { w = 2.80, h = 2.40, color = 0x5833c7 } = {}) {
+/**
+ * Pliegues de una cortina. Con `open` (0 = cerrada, 1 = abierta) la tela se recoge hacia los dos
+ * lados: cada mitad cubre menos ancho y sus pliegues se juntan y se hacen más profundos.
+ */
+function curtainFolds(g, fab, { w, h, open = 0, z = 0.055, spacing = 0.105 }) {
+  const f = Math.min(1, Math.max(0, open));
+  if (f < 0.01) {
+    const folds = Math.max(12, Math.round(w / spacing));
+    const step = w / folds;
+    for (let i = 0; i < folds; i++) {
+      const x = -w / 2 + (i + 0.5) * step;
+      g.add(cyl(step * 0.66, step * 0.72, h, fab, { seg: 14, x, y: 0, z: (i % 2 === 0 ? 1 : -1) * 0.024 + z }));
+    }
+    return;
+  }
+  const half = (w / 2) * (1 - 0.86 * f);
+  const folds = Math.max(6, Math.round(w / spacing / 2));
+  const step = half / folds;
+  const amp = 0.024 * (1 + 1.6 * f);
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < folds; i++) {
+      const x = side * (w / 2 - (i + 0.5) * step);
+      const r = Math.max(step * 0.7, 0.03);
+      g.add(cyl(r * 0.94, r, h, fab, { seg: 12, x, y: 0, z: (i % 2 === 0 ? 1 : -1) * amp + z }));
+    }
+  }
+}
+
+export function drapedCurtain(M, { w = 2.80, h = 2.40, color = 0x5833c7, open = 0 } = {}) {
   const g = new THREE.Group();
   const fab = M.fabric(color, { bump: 0.72 });
   const rodMat = M.metal(0x3a3b44, { roughness: 0.32 });
 
   // Barra superior reforzada y soportes
   g.add(cyl(0.016, 0.016, w + 0.18, rodMat, { seg: 16, y: h / 2 + 0.025, z: 0.055, rz: Math.PI / 2 }));
-  // Pliegues verticales profundos y densos
-  const folds = Math.max(12, Math.round(w / 0.105));
-  const step = w / folds;
-  for (let i = 0; i < folds; i++) {
-    const x = -w / 2 + (i + 0.5) * step;
-    const zOff = (i % 2 === 0 ? 1 : -1) * 0.024 + 0.055;
-    g.add(cyl(step * 0.66, step * 0.72, h, fab, { seg: 14, x, y: 0, z: zOff }));
-  }
+  curtainFolds(g, fab, { w, h, open });
   g.userData.width = w;
   g.userData.height = h;
   return g;
 }
 
 /** Telón / Cortina panorámica pesada de piso a techo (~3.80 × 2.55 m) con cenefa superior para auditorios, cines o ventanales. */
-export function stageCurtain(M, { w = 3.80, h = 2.55, color = 0x7f1d1d } = {}) {
+export function stageCurtain(M, { w = 3.80, h = 2.55, color = 0x7f1d1d, open = 0 } = {}) {
   const g = new THREE.Group();
   const fab = M.fabric(color, { bump: 0.78 });
   const trimGold = M.metal(0xd97706, { roughness: 0.35 });
@@ -1283,14 +1400,8 @@ export function stageCurtain(M, { w = 3.80, h = 2.55, color = 0x7f1d1d } = {}) {
   }
   g.add(box(w, 0.018, 0.02, trimGold, { y: h / 2 - valH + 0.01, z: 0.105 }));
 
-  // Cuerpo completo plisado
-  const folds = Math.max(16, Math.round(w / 0.11));
-  const step = w / folds;
-  for (let i = 0; i < folds; i++) {
-    const x = -w / 2 + (i + 0.5) * step;
-    const zOff = (i % 2 === 0 ? 1 : -1) * 0.026 + 0.055;
-    g.add(cyl(step * 0.66, step * 0.72, h, fab, { seg: 14, x, y: 0, z: zOff }));
-  }
+  // Cuerpo plisado (se recoge hacia los lados según qué tan abierto esté)
+  curtainFolds(g, fab, { w, h, open, spacing: 0.11 });
 
   g.userData.width = w;
   g.userData.height = h;
@@ -2511,7 +2622,7 @@ function buildWallRibbonMesh(
   return lit(new THREE.Mesh(geo, material));
 }
 
-const CATALOG_DOOR_TYPES = new Set(['arch_door', 'double_door']);
+const CATALOG_DOOR_TYPES = DOOR_TYPE_IDS;
 const CATALOG_WINDOW_TYPES = new Set([
   'arch_window',
   'panoramic_window',

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { DOOR_TYPE_IDS } from '../openings.js';
 import * as THREE from 'three';
 import { ALL_CATALOG_ITEMS, createSceneItem, getSupportSurfaceLevels, calculateItemAbsorption } from '../catalog.js';
 import { CATALOG_GROUPS, EXTRA_FURNITURE, catalogGroupOf } from '../catalogExtra.js';
@@ -24,7 +25,10 @@ function measure(obj) {
 
 describe('catálogo ampliado', () => {
   it('cada objeto nuevo tiene un modelo propio', () => {
-    Object.keys(EXTRA_FURNITURE).forEach((id) => expect(EXTRA_TYPE_IDS, id).toContain(id));
+    // Las puertas nuevas reutilizan el constructor de puertas del kit base (con su estilo)
+    Object.keys(EXTRA_FURNITURE)
+      .filter((id) => !DOOR_TYPE_IDS.has(id))
+      .forEach((id) => expect(EXTRA_TYPE_IDS, id).toContain(id));
   });
 
   it('todos los objetos del catálogo se modelan con medidas razonables', () => {

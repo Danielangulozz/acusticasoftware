@@ -244,20 +244,27 @@ export class CameraRig {
     this.tween = { from: this.getPose(), to: { pos: [...pose.pos], target: [...pose.target], fov: pose.fov }, t: 0, duration, onDone };
   }
 
-  /** Adopta una postura cualquiera (una toma guardada): elige el modo según dónde quede la cámara. */
+  /**
+   * Adopta una postura cualquiera (una toma guardada). Si la toma trae su modo (`pose.mode`) se
+   * respeta siempre, aunque la cámara quede pegada a un muro; las tomas antiguas sin modo lo
+   * deducen de si la cámara queda dentro o fuera de la sala.
+   */
   adoptPose(pose, { animate = true } = {}) {
     this.playback = null;
+    const wanted = VIEW_MODES[pose.mode] ? pose.mode : null;
     const inside = this.isInside(pose.pos);
     const dx = pose.target[0] - pose.pos[0];
     const dy = pose.target[1] - pose.pos[1];
     const dz = pose.target[2] - pose.pos[2];
     const len = Math.hypot(dx, dy, dz) || 1;
-    if (inside && this.layout) {
+    if (this.layout && (wanted === 'walk' || (!wanted && inside))) {
       this.mode = 'walk';
-      this.walk = { x: pose.pos[0], z: pose.pos[2], eye: pose.pos[1], yaw: Math.atan2(dx, dz), pitch: clamp(Math.asin(dy / len), -1.1, 1.1) };
-      this.flyTo(this.poseFor('walk'), { animate });
+      const p = constrainToRoom(pose.pos[0], pose.pos[2], this.layout, 0.3);
+      const eye = clamp(pose.pos[1], 0.6, this.layout.H - 0.2);
+      this.walk = { x: p.x, z: p.z, eye, yaw: Math.atan2(dx, dz), pitch: clamp(Math.asin(dy / len), -1.1, 1.1) };
+      this.flyTo({ ...this.poseFor('walk'), fov: pose.fov ?? this.poseFor('walk').fov }, { animate });
     } else {
-      const mode = this.mode === 'exterior' ? 'exterior' : 'orbit';
+      const mode = wanted && wanted !== 'walk' ? wanted : this.mode === 'exterior' ? 'exterior' : 'orbit';
       this.mode = mode;
       const m = VIEW_MODES[mode];
       const c = this.center();
@@ -272,7 +279,7 @@ export class CameraRig {
   }
 
   getPose() {
-    return { pos: [...this.pose.pos], target: [...this.pose.target], fov: this.pose.fov };
+    return { pos: [...this.pose.pos], target: [...this.pose.target], fov: this.pose.fov, mode: this.mode };
   }
 
   /** Copia del estado de la cámara, para volver a él tras exportar una imagen o un video. */
@@ -395,6 +402,29 @@ export class CameraRig {
     w.x = p.x;
     w.z = p.z;
     this.pose = this.poseFor('walk');
+  }
+
+  /**
+   * Paso corto al tocar una tecla (sin dejarla sostenida): avanza, retrocede o se ladea medio metro,
+   * gira 15° o sube/baja la mirada 10 cm, con un viaje suave.
+   */
+  tapWalk(code) {
+    if (this.mode !== 'walk' || !this.walk || !this.layout) return;
+    const w = { ...this.walk };
+    const step = { KeyW: [0.5, 0], ArrowUp: [0.5, 0], KeyS: [-0.5, 0], ArrowDown: [-0.5, 0], KeyD: [0, 0.4], KeyA: [0, -0.4] }[code];
+    if (step) {
+      const fx = Math.sin(w.yaw);
+      const fz = Math.cos(w.yaw);
+      const p = constrainToRoom(w.x + fx * step[0] - fz * step[1], w.z + fz * step[0] + fx * step[1], this.layout, 0.3);
+      w.x = p.x;
+      w.z = p.z;
+    } else if (code === 'KeyQ' || code === 'ArrowLeft') w.yaw += Math.PI / 12;
+    else if (code === 'KeyE' || code === 'ArrowRight') w.yaw -= Math.PI / 12;
+    else if (code === 'KeyR') w.eye = clamp(w.eye + 0.1, 0.6, this.layout.H - 0.2);
+    else if (code === 'KeyF') w.eye = clamp(w.eye - 0.1, 0.6, this.layout.H - 0.2);
+    else return;
+    this.walk = w;
+    this.flyTo(this.poseFor('walk'), { duration: 0.28 });
   }
 
   /** Camina hasta un punto del piso. */

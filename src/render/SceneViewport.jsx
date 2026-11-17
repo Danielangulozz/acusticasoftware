@@ -1,7 +1,8 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { RenderEngine, tick } from './engine.js';
 import { buildScene } from './scenes.js';
+import { FLOOR_ANCHORED_TYPES } from './openings.js';
 import { setWallCut } from './kit.js';
 import { findSupportingSurface } from './catalog.js';
 import { CameraRig, pathPresets } from './cameraRig.js';
@@ -17,7 +18,7 @@ export const PREVIEW_QUALITY = {
   detailed: { label: 'Detallada', hint: 'Más resolución y sombras más finas', previewMax: 1500, samples: 64, shadowSize: 2048, minScale: 0.7 },
 };
 
-const FLOOR_ANCHORED = new Set(['arch_door', 'double_door', 'floor_to_ceiling_window']);
+const FLOOR_ANCHORED = FLOOR_ANCHORED_TYPES;
 
 const deepVisible = (obj) => {
   for (let o = obj; o; o = o.parent) if (o.visible === false) return false;
@@ -61,6 +62,13 @@ const SceneViewport = forwardRef(function SceneViewport(
   const rigRef = useRef(null);
   if (!rigRef.current) rigRef.current = new CameraRig();
   const keysRef = useRef(new Set());
+  const keyTimesRef = useRef(new Map());
+  const overlayRef = useRef(null);
+  // La visibilidad de la capa la maneja updateOverlay (fuera de React, para no reiniciarla en cada render)
+  const setOverlayNode = useCallback((node) => {
+    if (node) node.style.display = 'none';
+    overlayRef.current = node;
+  }, []);
   const dragRef = useRef(null);
   const helperRef = useRef(null);
   const sizeRef = useRef([0, 0]);
@@ -146,12 +154,62 @@ const SceneViewport = forwardRef(function SceneViewport(
     camera.lookAt(target[0], target[1], target[2]);
     camera.updateMatrixWorld();
     updateVisibility();
+    updateOverlay();
     const cb = latest.current.onCamera;
     if (cb) cb({ x: pos[0], y: pos[1], z: pos[2], yaw: Math.atan2(target[0] - pos[0], target[2] - pos[2]), mode: rig.mode, inside: rig.isInside() });
     if (rig.mode !== stateRef.current.reportedMode) {
       stateRef.current.reportedMode = rig.mode;
       latest.current.onModeChange?.(rig.mode);
     }
+  };
+
+  /* ------------------------------------------------- orientación en la vista de planta */
+
+  // En Planta se dibuja el número de cada muro (el mismo del panel) junto a su cara exterior y
+  // una brújula con el norte (−Z, el muro del fondo) y el eje X, girados según la cámara.
+  const projected = new THREE.Vector3();
+  const toScreen = (x, y, z, w, h) => {
+    projected.set(x, y, z).project(cameraRef.current);
+    return [((projected.x + 1) / 2) * w, ((1 - projected.y) / 2) * h];
+  };
+  const updateOverlay = () => {
+    const el = overlayRef.current;
+    const built = builtRef.current;
+    const show = Boolean(el && built?.layout && cameraRef.current && rigRef.current.mode === 'plan');
+    if (!el) return;
+    el.style.display = show ? '' : 'none';
+    if (!show) return;
+    const { walls, H } = built.layout;
+    const labels = el.querySelector('[data-walls]');
+    if (labels.childElementCount !== walls.length) {
+      labels.replaceChildren(
+        ...walls.map((wall) => {
+          const tag = document.createElement('span');
+          tag.className = 'absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-[#141526]/80 px-2 py-0.5 text-[11px] font-semibold text-white';
+          tag.textContent = `Muro ${wall.index + 1}`;
+          return tag;
+        })
+      );
+    }
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    walls.forEach((wall, i) => {
+      // Punto medio del muro (en los muros rectos se toma entre sus dos extremos) y un poco hacia afuera
+      const curved = Math.abs(Number(wall.bulge) || 0) > 1e-3;
+      const mx = curved ? wall.midX : (wall.v0.x + wall.v1.x) / 2;
+      const mz = curved ? wall.midZ : (wall.v0.z + wall.v1.z) / 2;
+      const [sx, sy] = toScreen(mx - wall.inX * 0.55, H * 0.5, mz - wall.inZ * 0.55, w, h);
+      const tag = labels.children[i];
+      tag.style.left = `${sx}px`;
+      tag.style.top = `${sy}px`;
+    });
+    const [ox, oy] = toScreen(0, 0, 0, w, h);
+    const angle = (x, z) => {
+      const [px, py] = toScreen(x, 0, z, w, h);
+      return (Math.atan2(py - oy, px - ox) * 180) / Math.PI;
+    };
+    el.querySelector('[data-north]').setAttribute('transform', `rotate(${angle(0, -1) + 90})`);
+    el.querySelector('[data-east]').setAttribute('transform', `rotate(${angle(1, 0) + 90})`);
   };
 
   /* ---------------------------------------------------------- objeto seleccionado */
@@ -356,13 +414,27 @@ const SceneViewport = forwardRef(function SceneViewport(
       return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable;
     };
     const WALK_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyR', 'KeyF', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
+    const times = keyTimesRef.current;
     const down = (e) => {
       if (rigRef.current.mode !== 'walk' || typing(e) || e.ctrlKey || e.metaKey || !WALK_KEYS.has(e.code)) return;
+      if (!e.repeat && !keys.has(e.code)) times.set(e.code, performance.now());
       keys.add(e.code);
       if (e.code.startsWith('Arrow')) e.preventDefault();
     };
-    const up = (e) => keys.delete(e.code);
-    const clear = () => keys.clear();
+    // Un toque corto (sin dejar la tecla sostenida) da un paso o un giro completo, en vez de perderse
+    const up = (e) => {
+      const t0 = times.get(e.code);
+      times.delete(e.code);
+      keys.delete(e.code);
+      if (t0 !== undefined && performance.now() - t0 < 220 && rigRef.current.mode === 'walk') {
+        rigRef.current.tapWalk(e.code);
+        stateRef.current.force = true;
+      }
+    };
+    const clear = () => {
+      keys.clear();
+      times.clear();
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     window.addEventListener('blur', clear);
@@ -702,6 +774,27 @@ const SceneViewport = forwardRef(function SceneViewport(
         }}
         onContextMenu={(e) => e.preventDefault()}
       />
+      <div
+        ref={setOverlayNode}
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        aria-hidden="true"
+      >
+        <div data-walls="" className="absolute inset-0" />
+        <div className="absolute top-3 right-3 w-[74px] h-[74px] rounded-full bg-black/45 backdrop-blur text-white">
+          <svg viewBox="-37 -37 74 74" className="w-full h-full">
+            <circle r="33" fill="none" stroke="rgb(255 255 255 / 0.25)" />
+            <g data-north="">
+              <path d="M0 -27 L6 -9 L0 -13 L-6 -9Z" fill="#f2b84b" />
+              <text y="-16" dy="-13" textAnchor="middle" fontSize="10" fontWeight="700" fill="#f2b84b">N</text>
+            </g>
+            <g data-east="">
+              <line y1="0" y2="-20" stroke="#ff6b6b" strokeWidth="2.5" strokeLinecap="round" />
+              <text y="-23" textAnchor="middle" fontSize="9" fontWeight="700" fill="#ff8a8a">X</text>
+            </g>
+            <circle r="2.5" fill="#fff" />
+          </svg>
+        </div>
+      </div>
       {children}
       {status.error && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-rose-600 dark:text-rose-300 bg-white/80 dark:bg-black/60">{status.error}</div>}
       {!status.error && (status.phase === 'refining' || exporting) && (

@@ -1319,6 +1319,8 @@ export function calculateItemAbsorption(item) {
   } else if (item.typeId === 'round_rug') {
     const r = Number(dims.r) || (Number(dims.w) || 1.8) / 2;
     unitArea = Math.PI * r * r;
+  } else if (item.typeId === 'ceiling_zone') {
+    unitArea = (Number(dims.w) || 2.4) * (Number(dims.d) || 1.8);
   } else if (item.typeId === 'rug') {
     unitArea = (Number(dims.w) || 2.4) * (Number(dims.d) || 1.7);
   } else {

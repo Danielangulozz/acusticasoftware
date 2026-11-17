@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import * as K from './kit.js';
 import { AUDIO_BUILDERS } from './kitAudio.js';
+import { BUILDING_BUILDERS } from './kitBuilding.js';
 import { add, bar, cone, disc, extrude, FAB, lathe, legs, lit, torus, tube, wuv } from './kitParts.js';
 
 /**
@@ -897,6 +898,7 @@ const BUILDERS = {
   sawhorse_table: sawhorseTable,
   paint_set: paintSet,
   ...AUDIO_BUILDERS,
+  ...BUILDING_BUILDERS,
 };
 
 export const EXTRA_TYPE_IDS = Object.keys(BUILDERS);

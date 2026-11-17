@@ -9,7 +9,8 @@ import { ALL_CATALOG_ITEMS, createSceneItem } from './catalog.js';
 export const STUDIO_FILE_KIND = 'pozole-estudio-3d';
 export const STUDIO_FILE_VERSION = 1;
 
-const SETTINGS = ['roomType', 'palette', 'night', 'environment', 'sunHour', 'size', 'imageQuality', 'format', 'previewQuality'];
+const SETTINGS = ['projectName', 'roomType', 'palette', 'night', 'environment', 'sunHour', 'size', 'imageQuality', 'format', 'previewQuality'];
+const VIEW_MODE_IDS = ['orbit', 'walk', 'exterior', 'plan'];
 const NUM_FIELDS = ['x', 'y', 'z', 'rotation', 'along', 'elevation', 'wallIndex', 'cornerIndex', 'count', 'spacing'];
 const STR_FIELDS = ['name', 'mount', 'colorRole', 'customColor', 'wood'];
 const BOOL_FIELDS = ['locked', 'frame'];
@@ -72,7 +73,8 @@ function cleanPose(p) {
   const v3 = (a) => (Array.isArray(a) && a.length === 3 && a.every((n) => Number.isFinite(Number(n))) ? a.map(Number) : null);
   const pos = v3(p?.pos);
   const target = v3(p?.target);
-  return pos && target ? { pos, target, fov: num(p.fov, 50) } : null;
+  if (!pos || !target) return null;
+  return VIEW_MODE_IDS.includes(p.mode) ? { pos, target, fov: num(p.fov, 50), mode: p.mode } : { pos, target, fov: num(p.fov, 50) };
 }
 
 /** Lee un archivo de proyecto. Lanza un Error con un mensaje para el usuario si no sirve. */
@@ -92,6 +94,7 @@ export function parseStudioFile(text) {
     if (data.settings?.[k] !== undefined) settings[k] = data.settings[k];
   });
   if (settings.palette && typeof settings.palette !== 'object') delete settings.palette;
+  if (settings.projectName !== undefined) settings.projectName = short(settings.projectName, 60);
   const shots = (Array.isArray(data.shots) ? data.shots : [])
     .map((s, i) => {
       const pose = cleanPose(s?.pose);

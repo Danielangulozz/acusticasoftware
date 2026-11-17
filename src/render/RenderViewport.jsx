@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { RenderEngine, tick } from './engine.js';
 import { buildScene, cameraFor } from './scenes.js';
 import { findSupportingSurface } from './catalog.js';
+import { FLOOR_ANCHORED_TYPES } from './openings.js';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -267,10 +268,7 @@ const RenderViewport = forwardRef(function RenderViewport(
       const rawAlong = vx * wInfo.tx + vz * wInfo.tz + dragState.offsetAlong;
       const halfLim = Math.max(0.1, wInfo.length / 2 - 0.22);
       const nextAlong = Math.round(clamp(rawAlong, -halfLim, halfLim) * 20) / 20;
-      const isFloorAnchoredWallItem =
-        item.typeId === 'arch_door' ||
-        item.typeId === 'double_door' ||
-        item.typeId === 'floor_to_ceiling_window';
+      const isFloorAnchoredWallItem = FLOOR_ANCHORED_TYPES.has(item.typeId);
       const nextElev = isFloorAnchoredWallItem
         ? item.elevation
         : Math.round(clamp(intersectPt.y + dragState.offsetY, 0.25, H - 0.25) * 20) / 20;
