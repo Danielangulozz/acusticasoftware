@@ -139,7 +139,7 @@ export default function ActiveRoom3DPreview({
   }, [probePoint, rotX, rotY, centroid, Lz, Lx, Ly]);
 
   return (
-    <div className={`bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden shadow-apple-sm transition-all ${className}`}>
+    <div className={`bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden shadow-apple-sm transition-all ${className}`}>
       
       {/* Barra superior de sincronización */}
       <div className="p-3.5 sm:p-4 bg-gradient-to-r from-[#5833c7]/[0.06] via-transparent to-[#0071e3]/[0.04] dark:from-[#5833c7]/15 dark:to-transparent border-b border-black/[0.06] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3">
@@ -159,12 +159,12 @@ export default function ActiveRoom3DPreview({
                 {Lx.toFixed(1)}m × {Ly.toFixed(1)}m × {Lz.toFixed(1)}m
               </span>
             </div>
-            <div className="text-xs text-[#86868b] dark:text-slate-400 mt-0.5 flex items-center gap-2">
+            <div className="text-xs text-[#86868b] dark:text-[#b0b3b8] mt-0.5 flex items-center gap-2">
               <span>Volumen: <strong className="text-[#1d1d1f] dark:text-white">{volume} m³</strong></span>
               <span>&bull;</span>
               <span>Superficie: <strong className="text-[#1d1d1f] dark:text-white">{surface} m²</strong></span>
               <span>&bull;</span>
-              <span>RT₆₀: <strong className="text-[#0071e3] dark:text-sky-400 font-mono">{Number(rt60).toFixed(2)}s</strong></span>
+              <span>RT₆₀: <strong className="text-[#0071e3] dark:text-[#a78bfa] font-mono">{Number(rt60).toFixed(2)}s</strong></span>
             </div>
           </div>
         </div>
@@ -174,7 +174,7 @@ export default function ActiveRoom3DPreview({
           <button
             type="button"
             onClick={onNavigateToGeometry}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#18192a] hover:bg-[#f5f5f7] dark:hover:bg-[#25263a] text-xs font-semibold text-[#5833c7] dark:text-purple-300 border border-black/[0.08] dark:border-white/[0.08] shadow-2xs transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-surface2 hover:bg-[#f5f5f7] dark:hover:bg-[#3a3b3c] text-xs font-semibold text-[#5833c7] dark:text-[#c4b5fd] border border-black/[0.08] dark:border-white/[0.08] shadow-2xs transition-all"
             title="Ir al Módulo 1 para modificar la geometría de la sala"
           >
             <span>Editar Dimensiones</span>
@@ -198,7 +198,7 @@ export default function ActiveRoom3DPreview({
         <div className="p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
           
           {/* Mini Canvas SVG 3D interactivo */}
-          <div className="md:col-span-8 bg-[#fbfbfd] dark:bg-[#0c0d18] rounded-2xl border border-black/[0.06] dark:border-white/[0.06] p-2 relative overflow-hidden flex items-center justify-center">
+          <div className="md:col-span-8 bg-[#fbfbfd] dark:bg-canvas rounded-2xl border border-black/[0.06] dark:border-white/[0.06] p-2 relative overflow-hidden flex items-center justify-center">
             
             <svg
               viewBox="0 0 360 190"
@@ -338,7 +338,7 @@ export default function ActiveRoom3DPreview({
             </svg>
 
             {/* Controles de cámara flotantes */}
-            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/80 dark:bg-[#18192a]/80 backdrop-blur-sm px-2 py-1 rounded-xl border border-black/[0.06] dark:border-white/[0.06] text-[10px] text-[#86868b] font-mono">
+            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/80 dark:bg-surface2/80 backdrop-blur-sm px-2 py-1 rounded-xl border border-black/[0.06] dark:border-white/[0.06] text-[10px] text-[#86868b] font-mono">
               <Compass className="w-3 h-3 text-[#5833c7]" />
               <span>Arrastra para rotar órbita 3D</span>
             </div>
@@ -346,7 +346,7 @@ export default function ActiveRoom3DPreview({
 
           {/* Ficha técnica compacta */}
           <div className="md:col-span-4 space-y-2.5 text-xs">
-            <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] space-y-2">
+            <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] space-y-2">
               <div className="text-[10px] uppercase font-bold tracking-wider text-[#86868b] flex items-center gap-1">
                 <Layers className="w-3 h-3 text-[#5833c7]" />
                 <span>Geometría &bull; Modo 3D Vivo</span>
@@ -366,7 +366,7 @@ export default function ActiveRoom3DPreview({
                 </div>
                 <div>
                   <span className="text-[#86868b] block text-[10px]">Recorrido (l):</span>
-                  <strong className="text-[#0071e3] dark:text-sky-400">{(4 * volume / surface).toFixed(2)} m</strong>
+                  <strong className="text-[#0071e3] dark:text-[#a78bfa]">{(4 * volume / surface).toFixed(2)} m</strong>
                 </div>
               </div>
             </div>
@@ -377,8 +377,8 @@ export default function ActiveRoom3DPreview({
               onClick={() => setShowOverlays(!showOverlays)}
               className={`w-full py-2 px-3 rounded-xl border text-[11px] font-semibold flex items-center justify-between transition-all ${
                 showOverlays
-                  ? 'bg-[#5833c7]/10 dark:bg-[#5833c7]/20 border-[#5833c7]/30 text-[#5833c7] dark:text-purple-300'
-                  : 'bg-white dark:bg-[#18192a] border-black/[0.08] dark:border-white/[0.08] text-[#86868b]'
+                  ? 'bg-[#5833c7]/10 dark:bg-[#5833c7]/20 border-[#5833c7]/30 text-[#5833c7] dark:text-[#c4b5fd]'
+                  : 'bg-white dark:bg-surface2 border-black/[0.08] dark:border-white/[0.08] text-[#86868b]'
               }`}
             >
               <span className="flex items-center gap-1.5">

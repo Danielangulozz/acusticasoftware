@@ -72,7 +72,7 @@ export default function ChartExportMenu({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={downloading}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/[0.04] dark:bg-white/10 hover:bg-[#5833c7]/10 dark:hover:bg-[#5833c7]/20 text-[#86868b] hover:text-[#5833c7] dark:text-slate-300 dark:hover:text-purple-300 border border-black/[0.06] dark:border-white/10 text-xs font-semibold transition active:scale-95 shadow-2xs"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/[0.04] dark:bg-white/10 hover:bg-[#5833c7]/10 dark:hover:bg-[#5833c7]/20 text-[#86868b] hover:text-[#5833c7] dark:text-[#ccced2] dark:hover:text-[#c4b5fd] border border-black/[0.06] dark:border-white/10 text-xs font-semibold transition active:scale-95 shadow-2xs"
         title="Descargar gráfica como imagen PNG o datos en Excel"
       >
         {successMsg ? (
@@ -95,7 +95,7 @@ export default function ChartExportMenu({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full mt-1.5 w-48 bg-white dark:bg-[#18192a] rounded-2xl border border-black/[0.08] dark:border-white/10 shadow-apple-lg p-1.5 z-50 text-xs animate-scaleIn">
+          <div className="absolute right-0 top-full mt-1.5 w-48 bg-white dark:bg-surface2 rounded-2xl border border-black/[0.08] dark:border-white/10 shadow-apple-lg p-1.5 z-50 text-xs animate-scaleIn">
             <div className="px-2.5 py-1 text-[10px] uppercase font-bold text-[#86868b] tracking-wider border-b border-black/[0.04] dark:border-white/[0.06] mb-1">
               Opciones de Descarga
             </div>
@@ -106,7 +106,7 @@ export default function ChartExportMenu({
               onClick={handleDownloadPng}
               className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-[#5833c7]/10 dark:hover:bg-[#5833c7]/20 text-[#1d1d1f] dark:text-white font-medium text-left transition"
             >
-              <Image className="w-3.5 h-3.5 text-[#5833c7] dark:text-purple-300" />
+              <Image className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#c4b5fd]" />
               <span>Descargar Gráfica (PNG)</span>
             </button>
 
@@ -127,9 +127,9 @@ export default function ChartExportMenu({
               <button
                 type="button"
                 onClick={handleDownloadCsv}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-blue-500/10 text-[#1d1d1f] dark:text-white font-medium text-left transition"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-[#5833c7]/10 text-[#1d1d1f] dark:text-white font-medium text-left transition"
               >
-                <Download className="w-3.5 h-3.5 text-[#0071e3] dark:text-sky-400" />
+                <Download className="w-3.5 h-3.5 text-[#0071e3] dark:text-[#a78bfa]" />
                 <span>Descargar Datos (CSV)</span>
               </button>
             )}

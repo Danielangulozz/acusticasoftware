@@ -577,10 +577,10 @@ export default function RoomVisualizerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-2 md:p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
-      <div className="bg-white dark:bg-[#0e101d] rounded-none sm:rounded-2xl md:rounded-3xl border-0 sm:border border-black/[0.08] dark:border-white/[0.1] shadow-2xl w-full sm:w-[96vw] max-w-7xl h-full sm:h-[92vh] max-h-none sm:max-h-[820px] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-canvas rounded-none sm:rounded-2xl md:rounded-3xl border-0 sm:border border-black/[0.08] dark:border-white/[0.1] shadow-2xl w-full sm:w-[96vw] max-w-7xl h-full sm:h-[92vh] max-h-none sm:max-h-[820px] flex flex-col overflow-hidden">
         
         {/* Header Modal */}
-        <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between gap-2 shrink-0 bg-white/90 dark:bg-[#121424]/90 backdrop-blur-md">
+        <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between gap-2 shrink-0 bg-white/90 dark:bg-surface/90 backdrop-blur-md">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold shrink-0">
               <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -594,7 +594,7 @@ export default function RoomVisualizerModal({
                   H={H.toFixed(1)}m · V={(geometry?.volume || 0).toFixed(1)}m³
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-[#86868b] dark:text-slate-400 truncate hidden sm:block">
+              <p className="text-[11px] sm:text-xs text-[#86868b] dark:text-[#b0b3b8] truncate hidden sm:block">
                 Órbita fluida a 60 FPS, inspección de materiales, áreas acústicas y cotas ISO 3382
               </p>
             </div>
@@ -607,7 +607,7 @@ export default function RoomVisualizerModal({
               className={`px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition ${
                 showInspector
                   ? 'bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] border-[#5833c7]/30'
-                  : 'bg-white dark:bg-[#181a2e] text-[#86868b] border-black/[0.08] dark:border-white/[0.08] hover:text-[#1d1d1f]'
+                  : 'bg-white dark:bg-surface2 text-[#86868b] border-black/[0.08] dark:border-white/[0.08] hover:text-[#1d1d1f]'
               }`}
               title={showInspector ? "Ocultar panel de inspector lateral" : "Ver inspector de superficies"}
             >
@@ -629,10 +629,10 @@ export default function RoomVisualizerModal({
         </div>
 
         {/* Barra de Herramientas Superior */}
-        <div className="px-3 sm:px-5 py-2 bg-[#fbfbfd] dark:bg-[#141628] border-b border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between gap-2 text-xs shrink-0 overflow-x-auto no-scrollbar touch-scroll-x">
+        <div className="px-3 sm:px-5 py-2 bg-[#fbfbfd] dark:bg-surface border-b border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between gap-2 text-xs shrink-0 overflow-x-auto no-scrollbar touch-scroll-x">
           {/* Vistas Canónicas */}
-          <div className="flex items-center gap-1 bg-white dark:bg-[#1c1e34] p-1 rounded-xl border border-black/[0.06] dark:border-white/[0.08]">
-            <span className="px-2 text-[10px] font-bold text-[#86868b] dark:text-slate-400 uppercase">Cámara:</span>
+          <div className="flex items-center gap-1 bg-white dark:bg-surface2 p-1 rounded-xl border border-black/[0.06] dark:border-white/[0.08]">
+            <span className="px-2 text-[10px] font-bold text-[#86868b] dark:text-[#b0b3b8] uppercase">Cámara:</span>
             {['3d', 'top', 'front', 'side'].map((preset) => (
               <button
                 key={preset}
@@ -640,7 +640,7 @@ export default function RoomVisualizerModal({
                 className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition capitalize ${
                   viewPreset === preset
                     ? 'bg-[#5833c7] text-white shadow-2xs'
-                    : 'text-[#86868b] dark:text-slate-300 hover:text-[#1d1d1f]'
+                    : 'text-[#86868b] dark:text-[#ccced2] hover:text-[#1d1d1f]'
                 }`}
               >
                 {preset === 'top' ? 'Planta' : preset === 'front' ? 'Frente' : preset === 'side' ? 'Perfil' : '3D'}
@@ -649,8 +649,8 @@ export default function RoomVisualizerModal({
           </div>
 
           {/* Selector de Techo */}
-          <div className="flex items-center gap-1 bg-white dark:bg-[#1c1e34] p-1 rounded-xl border border-black/[0.06] dark:border-white/[0.08]">
-            <span className="px-2 text-[10px] font-bold text-[#86868b] dark:text-slate-400 uppercase">Techo:</span>
+          <div className="flex items-center gap-1 bg-white dark:bg-surface2 p-1 rounded-xl border border-black/[0.06] dark:border-white/[0.08]">
+            <span className="px-2 text-[10px] font-bold text-[#86868b] dark:text-[#b0b3b8] uppercase">Techo:</span>
             {[
               { id: 'translucent', label: 'Translúcido' },
               { id: 'wireframe', label: 'Alámbrico' },
@@ -663,7 +663,7 @@ export default function RoomVisualizerModal({
                 className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
                   ceilingMode === m.id
                     ? 'bg-[#5833c7] text-white'
-                    : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f]'
+                    : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f]'
                 }`}
               >
                 {m.label}
@@ -678,7 +678,7 @@ export default function RoomVisualizerModal({
               className={`px-2.5 py-1 rounded-xl border font-semibold flex items-center gap-1.5 transition ${
                 showGrid3D
                   ? 'bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] border-[#5833c7]/30'
-                  : 'bg-white dark:bg-[#1c1e34] text-[#86868b] border-black/[0.06] dark:border-white/[0.08]'
+                  : 'bg-white dark:bg-surface2 text-[#86868b] border-black/[0.06] dark:border-white/[0.08]'
               }`}
             >
               <Grid3X3 className="w-3.5 h-3.5" />
@@ -690,7 +690,7 @@ export default function RoomVisualizerModal({
               className={`px-2.5 py-1 rounded-xl border font-semibold flex items-center gap-1.5 transition ${
                 showRays
                   ? 'bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] border-[#5833c7]/30'
-                  : 'bg-white dark:bg-[#1c1e34] text-[#86868b] border-black/[0.06] dark:border-white/[0.08]'
+                  : 'bg-white dark:bg-surface2 text-[#86868b] border-black/[0.06] dark:border-white/[0.08]'
               }`}
             >
               <Ruler className="w-3.5 h-3.5" />
@@ -702,7 +702,7 @@ export default function RoomVisualizerModal({
               className={`px-2.5 py-1 rounded-xl border font-semibold flex items-center gap-1.5 transition ${
                 showDc
                   ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-                  : 'bg-white dark:bg-[#1c1e34] text-[#86868b] border-black/[0.06] dark:border-white/[0.08]'
+                  : 'bg-white dark:bg-surface2 text-[#86868b] border-black/[0.06] dark:border-white/[0.08]'
               }`}
             >
               <Radio className="w-3.5 h-3.5" />
@@ -715,7 +715,7 @@ export default function RoomVisualizerModal({
               className={`p-1.5 rounded-xl border transition ${
                 autoRotate
                   ? 'bg-[#5833c7]/15 text-[#5833c7] border-[#5833c7]/30'
-                  : 'bg-white dark:bg-[#1c1e34] text-[#86868b] border-black/[0.06] dark:border-white/[0.08]'
+                  : 'bg-white dark:bg-surface2 text-[#86868b] border-black/[0.06] dark:border-white/[0.08]'
               }`}
               title="Auto-rotación fluida"
             >
@@ -726,19 +726,19 @@ export default function RoomVisualizerModal({
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() => setZoom(z => Math.min(3.5, z + 0.2))}
-                className="p-1.5 rounded-lg bg-white dark:bg-[#1c1e34] text-[#86868b] hover:text-[#1d1d1f]"
+                className="p-1.5 rounded-lg bg-white dark:bg-surface2 text-[#86868b] hover:text-[#1d1d1f]"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setZoom(z => Math.max(0.4, z - 0.2))}
-                className="p-1.5 rounded-lg bg-white dark:bg-[#1c1e34] text-[#86868b] hover:text-[#1d1d1f]"
+                className="p-1.5 rounded-lg bg-white dark:bg-surface2 text-[#86868b] hover:text-[#1d1d1f]"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={resetCamera}
-                className="p-1.5 rounded-lg bg-white dark:bg-[#1c1e34] text-[#86868b] hover:text-[#1d1d1f]"
+                className="p-1.5 rounded-lg bg-white dark:bg-surface2 text-[#86868b] hover:text-[#1d1d1f]"
                 title="Restablecer ángulo"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -753,7 +753,7 @@ export default function RoomVisualizerModal({
           {/* Viewport SVG 3D Ampliado Principal (HERO) */}
           <div
             ref={containerRef}
-            className="flex-1 h-full min-w-0 relative bg-white dark:bg-[#0a0c16] select-none overflow-hidden flex items-center justify-center touch-none"
+            className="flex-1 h-full min-w-0 relative bg-white dark:bg-canvas select-none overflow-hidden flex items-center justify-center touch-none"
             style={{ cursor: isDraggingRef.current ? 'grabbing' : 'grab', touchAction: 'none' }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -777,7 +777,7 @@ export default function RoomVisualizerModal({
                 </linearGradient>
               </defs>
 
-              <rect width={SVG_W} height={SVG_H} fill="url(#modalGlowBg)" className="dark:fill-[#0a0c16]" />
+              <rect width={SVG_W} height={SVG_H} fill="url(#modalGlowBg)" className="dark:fill-canvas" />
 
               {/* Grilla 3D proyectada en el piso */}
               {grid3DLines.map((l, i) => (
@@ -928,7 +928,7 @@ export default function RoomVisualizerModal({
             {/* Tarjeta HUD flotante interactiva en el viewport 3D del Modal */}
             {activeFaceInfo && (selectedFaceId || hoveredFace || isHoveringCard) && (
               <div
-                className="absolute bottom-4 left-4 z-20 w-72 sm:w-80 bg-white/95 dark:bg-[#121424]/95 backdrop-blur-md rounded-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-2xl p-3 transition-all animate-fadeIn select-text"
+                className="absolute bottom-4 left-4 z-20 w-72 sm:w-80 bg-white/95 dark:bg-surface/95 backdrop-blur-md rounded-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-2xl p-3 transition-all animate-fadeIn select-text"
                 onMouseEnter={() => {
                   if (hoverTimeoutRef.current) {
                     clearTimeout(hoverTimeoutRef.current);
@@ -959,7 +959,7 @@ export default function RoomVisualizerModal({
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-[#86868b] dark:text-slate-400 font-mono block truncate">
+                      <span className="text-[10px] text-[#86868b] dark:text-[#b0b3b8] font-mono block truncate">
                         {activeFaceInfo.dims} · {activeFaceInfo.area} m²
                       </span>
                     </div>
@@ -982,7 +982,7 @@ export default function RoomVisualizerModal({
 
                 {onChangeMaterials && (
                   <div className="mt-2 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] font-semibold text-[#86868b] dark:text-slate-400">
+                    <div className="flex items-center justify-between text-[10px] font-semibold text-[#86868b] dark:text-[#b0b3b8]">
                       <span className="flex items-center gap-1 text-[#5833c7] dark:text-[#8767f9]">
                         <Sparkles className="w-3 h-3" />
                         Cambiar material acústico:
@@ -994,7 +994,7 @@ export default function RoomVisualizerModal({
                         setSelectedFaceId(activeFaceInfo.id);
                         handleSelectMaterial(activeFaceInfo.id, e.target.value);
                       }}
-                      className="w-full text-xs font-semibold bg-slate-50 dark:bg-[#1a1c30] text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5833c7] transition cursor-pointer shadow-2xs"
+                      className="w-full text-xs font-semibold bg-slate-50 dark:bg-surface2 text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5833c7] transition cursor-pointer shadow-2xs"
                     >
                       {Object.entries(groupedMaterials).map(([category, mats]) => (
                         <optgroup key={category} label={category}>
@@ -1031,7 +1031,7 @@ export default function RoomVisualizerModal({
 
           {/* Panel Lateral: Inspector de Superficies y Características (Colapsable / Slide-over en móviles) */}
           {showInspector && (
-            <div className="absolute inset-y-0 right-0 z-30 w-72 sm:relative sm:inset-auto sm:w-72 lg:w-80 shrink-0 h-full border-l border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#111322] flex flex-col min-h-0 overflow-hidden shadow-2xl sm:shadow-none transition-all">
+            <div className="absolute inset-y-0 right-0 z-30 w-72 sm:relative sm:inset-auto sm:w-72 lg:w-80 shrink-0 h-full border-l border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-surface flex flex-col min-h-0 overflow-hidden shadow-2xl sm:shadow-none transition-all">
               
               <div className="p-3 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
@@ -1074,7 +1074,7 @@ export default function RoomVisualizerModal({
                           ? 'bg-[#5833c7]/15 dark:bg-[#8767f9]/20 border-[#f59e0b] shadow-xs'
                           : isHovered
                           ? 'bg-[#5833c7]/10 dark:bg-[#8767f9]/10 border-[#5833c7]/40'
-                          : 'bg-white dark:bg-[#181a2e] border-black/[0.06] dark:border-white/[0.06] hover:border-[#5833c7]/30'
+                          : 'bg-white dark:bg-surface2 border-black/[0.06] dark:border-white/[0.06] hover:border-[#5833c7]/30'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -1092,11 +1092,11 @@ export default function RoomVisualizerModal({
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[10.5px] text-[#86868b] dark:text-slate-400">
+                      <div className="flex items-center justify-between text-[10.5px] text-[#86868b] dark:text-[#b0b3b8]">
                         <span className="truncate max-w-[140px]" title={matInfo?.name || 'Material'}>
                           {matInfo?.name || 'Personalizado'}
                         </span>
-                        <span className="font-mono font-semibold text-[#1d1d1f] dark:text-slate-200">
+                        <span className="font-mono font-semibold text-[#1d1d1f] dark:text-[#e4e6eb]">
                           {(face.area || 0).toFixed(1)} m²
                         </span>
                       </div>
@@ -1107,7 +1107,7 @@ export default function RoomVisualizerModal({
 
               {/* Ficha Detallada de la Superficie Activa */}
               {activeFaceInfo && (
-                <div className="p-3 shrink-0 bg-white dark:bg-[#141628] border-t border-black/[0.06] dark:border-white/[0.08] text-xs space-y-2 animate-fadeIn">
+                <div className="p-3 shrink-0 bg-white dark:bg-surface border-t border-black/[0.06] dark:border-white/[0.08] text-xs space-y-2 animate-fadeIn">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-[#1d1d1f] dark:text-white text-[11px] flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeFaceInfo.color }} />
@@ -1121,14 +1121,14 @@ export default function RoomVisualizerModal({
                   {/* Selector interactivo de material en Inspector */}
                   {onChangeMaterials && (
                     <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 flex items-center gap-1">
+                      <label className="text-[10px] font-semibold text-[#86868b] dark:text-[#b0b3b8] flex items-center gap-1">
                         <Sparkles className="w-3 h-3 text-[#5833c7] dark:text-[#8767f9]" />
                         Material acústico:
                       </label>
                       <select
                         value={activeFaceInfo.materialId}
                         onChange={(e) => handleSelectMaterial(activeFaceInfo.id, e.target.value)}
-                        className="w-full text-xs font-semibold bg-slate-50 dark:bg-[#1a1c30] text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5833c7] transition cursor-pointer"
+                        className="w-full text-xs font-semibold bg-slate-50 dark:bg-surface2 text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5833c7] transition cursor-pointer"
                       >
                         {Object.entries(groupedMaterials).map(([category, mats]) => (
                           <optgroup key={category} label={category}>
@@ -1172,7 +1172,7 @@ export default function RoomVisualizerModal({
                           className={`p-1 rounded ${
                             freq === selectedBand
                               ? 'bg-[#5833c7] text-white font-bold'
-                              : 'bg-black/[0.03] dark:bg-white/[0.04] text-[#1d1d1f] dark:text-slate-300'
+                              : 'bg-black/[0.03] dark:bg-white/[0.04] text-[#1d1d1f] dark:text-[#ccced2]'
                           }`}
                         >
                           <div className="text-[8px] text-[#86868b] font-sans">{freq}</div>
@@ -1190,7 +1190,7 @@ export default function RoomVisualizerModal({
         </div>
 
         {/* Footer Modal con Métricas Físicas */}
-        <div className="px-5 py-2.5 shrink-0 bg-[#fbfbfd] dark:bg-[#121424] border-t border-black/[0.06] dark:border-white/[0.08] flex flex-wrap items-center justify-between text-xs text-[#86868b] dark:text-slate-400 font-mono">
+        <div className="px-5 py-2.5 shrink-0 bg-[#fbfbfd] dark:bg-surface border-t border-black/[0.06] dark:border-white/[0.08] flex flex-wrap items-center justify-between text-xs text-[#86868b] dark:text-[#b0b3b8] font-mono">
           <div className="flex items-center gap-4">
             <span>r = <strong className="text-[#1d1d1f] dark:text-white font-bold">{r.toFixed(2)} m</strong></span>
             <span>Dc = <strong className="text-amber-600 font-bold">{Dc.toFixed(2)} m</strong></span>

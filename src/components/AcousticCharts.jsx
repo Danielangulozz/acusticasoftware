@@ -126,7 +126,7 @@ export default function AcousticCharts({
   const CustomRTTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white/95 dark:bg-[#16182a]/95 backdrop-blur-md p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-apple-lg text-xs font-mono text-[#1d1d1f] dark:text-white">
+        <div className="bg-white/95 dark:bg-surface/95 backdrop-blur-md p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-apple-lg text-xs font-mono text-[#1d1d1f] dark:text-white">
           <div className="font-bold text-sm text-[#1d1d1f] dark:text-white mb-1.5 border-b border-black/[0.06] dark:border-white/[0.06] pb-1">
             Banda: {label} Hz
           </div>
@@ -138,7 +138,7 @@ export default function AcousticCharts({
               <span className="font-bold">{entry.value} s</span>
             </div>
           ))}
-          <div className="mt-2 pt-1.5 border-t border-black/[0.06] dark:border-white/[0.06] text-[10px] text-[#86868b] dark:text-slate-400">
+          <div className="mt-2 pt-1.5 border-t border-black/[0.06] dark:border-white/[0.06] text-[10px] text-[#86868b] dark:text-[#b0b3b8]">
             Rango Óptimo: {optimumRT.min}s - {optimumRT.max}s
           </div>
         </div>
@@ -152,7 +152,7 @@ export default function AcousticCharts({
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white/95 dark:bg-[#16182a]/95 backdrop-blur-md p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-apple-lg text-xs font-mono text-[#1d1d1f] dark:text-white">
+        <div className="bg-white/95 dark:bg-surface/95 backdrop-blur-md p-3.5 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] shadow-apple-lg text-xs font-mono text-[#1d1d1f] dark:text-white">
           <div className="font-bold text-sm text-[#1d1d1f] dark:text-white mb-1.5 border-b border-black/[0.06] dark:border-white/[0.06] pb-1">
             Distancia: {data.distance} m
           </div>
@@ -168,7 +168,7 @@ export default function AcousticCharts({
             <span>Lp Reverb (Ir):</span>
             <span className="font-bold">{data.lpReverberant} dB</span>
           </div>
-          <div className="flex justify-between items-center gap-4 text-[#86868b] dark:text-slate-400 mt-1.5 pt-1.5 border-t border-black/[0.06] dark:border-white/[0.06]">
+          <div className="flex justify-between items-center gap-4 text-[#86868b] dark:text-[#b0b3b8] mt-1.5 pt-1.5 border-t border-black/[0.06] dark:border-white/[0.06]">
             <span>Relación DRR:</span>
             <span className="font-bold text-[#1d1d1f] dark:text-white">{data.drr} dB</span>
           </div>
@@ -179,7 +179,7 @@ export default function AcousticCharts({
   };
 
   return (
-    <div className="bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 shadow-apple-sm transition-colors space-y-6">
+    <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado con Pestañas de Gráficas */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-black/[0.06] dark:border-white/10">
@@ -191,20 +191,20 @@ export default function AcousticCharts({
             <h2 className="text-lg font-black text-[#1d1d1f] dark:text-white tracking-tight">
               5. Visualización Gráfica Interactiva
             </h2>
-            <p className="text-xs text-[#86868b] dark:text-slate-400">
+            <p className="text-xs text-[#86868b] dark:text-[#b0b3b8]">
               Curvas de decaimiento temporal (RT₆₀), propagación espacial (Lp vs r) y absorción
             </p>
           </div>
         </div>
 
         {/* Selector de Pestaña Estilo Píldora */}
-        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#0A0C14] p-1.5 rounded-2xl border border-black/[0.04] dark:border-white/10 self-start md:self-auto">
+        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-canvas p-1.5 rounded-2xl border border-black/[0.04] dark:border-white/10 self-start md:self-auto">
           <button
             onClick={() => setActiveChartTab('rt_vs_freq')}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition ${
               activeChartTab === 'rt_vs_freq'
                 ? 'bg-[#5833c7] text-white shadow-sm font-bold'
-                : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
             1. RT₆₀ vs Frecuencia
@@ -214,7 +214,7 @@ export default function AcousticCharts({
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition ${
               activeChartTab === 'lp_vs_dist'
                 ? 'bg-[#5833c7] text-white shadow-sm font-bold'
-                : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
             2. Lp vs Distancia (Dc)
@@ -224,7 +224,7 @@ export default function AcousticCharts({
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition ${
               activeChartTab === 'abs_breakdown'
                 ? 'bg-[#5833c7] text-white shadow-sm font-bold'
-                : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
             3. Aporte por Superficie
@@ -242,7 +242,7 @@ export default function AcousticCharts({
               <strong className="text-[#ff9500]">Millington-Sette</strong>
             </div>
             <div className="flex items-center gap-3">
-              <div className="text-xs text-[#86868b] dark:text-slate-400 font-mono flex items-center gap-1.5">
+              <div className="text-xs text-[#86868b] dark:text-[#b0b3b8] font-mono flex items-center gap-1.5">
                 <span>Rango óptimo</span>
                 <span className="w-3 h-3 bg-emerald-500/15 dark:bg-emerald-500/25 border border-emerald-500/30 rounded"></span>
               </div>
@@ -470,7 +470,7 @@ export default function AcousticCharts({
                   contentStyle={{ 
                     borderRadius: '1rem', 
                     border: '1px solid rgba(255,255,255,0.1)',
-                    backgroundColor: '#141622',
+                    backgroundColor: '#242526',
                     color: '#fff',
                     boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
                   }}

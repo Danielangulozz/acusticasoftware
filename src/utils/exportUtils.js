@@ -24,7 +24,7 @@ export async function downloadElementAsPng(elementOrId, filename = 'grafica_pozo
     }
 
     const isDark = document.documentElement.classList.contains('dark') || node.classList.contains('dark');
-    const defaultBg = isDark ? '#0c0d18' : '#ffffff';
+    const defaultBg = isDark ? '#18191a' : '#ffffff';
 
     const dataUrl = await toPng(node, {
       cacheBust: true,

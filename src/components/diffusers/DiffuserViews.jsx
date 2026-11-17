@@ -4,7 +4,7 @@ import { surfaceElements } from '../../utils/diffuserCalculations';
 /** Paleta según el tema de la suite (atributos SVG explícitos para que el SVG exportado conserve el color). */
 export function diffuserPalette(isDark) {
   return isDark
-    ? { purple: '#8767f9', amber: '#f2b84b', fin: '#d9d9e3', back: '#2b2b38', bg: '#121322', grid: 'rgba(255,255,255,0.08)', axis: 'rgba(255,255,255,0.25)', text: 'rgba(255,255,255,0.6)', flat: 'rgba(255,255,255,0.55)' }
+    ? { purple: '#8767f9', amber: '#f2b84b', fin: '#d9d9e3', back: '#2b2b38', bg: '#242526', grid: 'rgba(255,255,255,0.08)', axis: 'rgba(255,255,255,0.25)', text: 'rgba(255,255,255,0.6)', flat: 'rgba(255,255,255,0.55)' }
     : { purple: '#5833c7', amber: '#d4890f', fin: '#3a3a48', back: '#c9c9d3', bg: '#fbfbfd', grid: 'rgba(0,0,0,0.08)', axis: 'rgba(0,0,0,0.25)', text: 'rgba(0,0,0,0.55)', flat: 'rgba(0,0,0,0.45)' };
 }
 

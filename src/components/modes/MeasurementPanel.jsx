@@ -767,13 +767,13 @@ export default function MeasurementPanel({
   }, [selectedPoint, modalBands, allBands]);
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
 
       {/* Encabezado con Selector de Malla: Teórica (19 Pts) vs Experimental (7 Pts) */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3] dark:text-sky-400">
+            <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#8767f9]/20 text-[#0071e3] dark:text-[#a78bfa]">
               <MapPin className="w-5 h-5" />
             </span>
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
@@ -786,18 +786,18 @@ export default function MeasurementPanel({
               {gridMode === 'experimental' ? 'Sub-malla: 7 Puntos Reales' : 'Malla Completa: 19 Puntos'}
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1">
             Alterna entre la cuadrícula teórica completa del polígono y la sub-malla experimental de 7 puntos medida in situ.
           </p>
         </div>
 
         {/* SELECTOR SEGMENTADO: Malla Teórica vs Sub-malla Experimental */}
-        <div className="flex items-center p-1 bg-[#f5f5f7] dark:bg-[#18192a] rounded-2xl border border-black/[0.06] dark:border-white/[0.06] shrink-0">
+        <div className="flex items-center p-1 bg-[#f5f5f7] dark:bg-surface2 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] shrink-0">
           <button
             type="button"
             onClick={handleSetTheoreticalGrid}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${gridMode === 'theoretical'
-                ? 'bg-white dark:bg-[#25263a] text-[#5833c7] dark:text-purple-300 shadow-2xs'
+                ? 'bg-white dark:bg-[#3a3b3c] text-[#5833c7] dark:text-[#c4b5fd] shadow-2xs'
                 : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
               }`}
           >
@@ -817,7 +817,7 @@ export default function MeasurementPanel({
       </div>
 
       {/* Barra de Acciones y Controles Rápidos */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
         <div className="flex items-center gap-2 flex-wrap">
           <input
             type="file"
@@ -850,7 +850,7 @@ export default function MeasurementPanel({
           {/* Botón Eliminar Puntos Sin Datos */}
           <button
             onClick={handleRemoveUnmeasuredPoints}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] hover:bg-amber-50 dark:hover:bg-amber-950/30 text-xs font-semibold text-[#86868b] hover:text-amber-700 dark:hover:text-amber-300 border border-black/[0.05] dark:border-white/[0.08] transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-xs font-semibold text-[#86868b] hover:text-amber-700 dark:hover:text-amber-300 border border-black/[0.05] dark:border-white/[0.08] transition-all"
             title="Eliminar puntos que no tengan datos medidos para dejar limpia la sub-malla"
           >
             <Trash2 className="w-3.5 h-3.5 text-amber-500" />
@@ -860,17 +860,17 @@ export default function MeasurementPanel({
           {/* Botón Datos de Muestra */}
           <button
             onClick={handleLoadSampleData}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#5833c7]/15 to-[#0071e3]/15 hover:from-[#5833c7]/25 hover:to-[#0071e3]/25 text-xs font-semibold text-[#5833c7] dark:text-purple-300 border border-[#5833c7]/30 transition-all shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#5833c7]/15 to-[#0071e3]/15 hover:from-[#5833c7]/25 hover:to-[#0071e3]/25 text-xs font-semibold text-[#5833c7] dark:text-[#c4b5fd] border border-[#5833c7]/30 transition-all shadow-xs"
             title="Carga una simulación de onda estacionaria para ver el mapa de calor inmediatamente"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#5833c7] dark:text-purple-400" />
+            <Sparkles className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#a78bfa]" />
             <span>Datos Muestra</span>
           </button>
 
           {/* Botón Plantilla CSV */}
           <button
             onClick={handleDownloadTemplate}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#1c1d2d] hover:bg-[#f5f5f7] text-xs font-semibold text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.08] transition-all shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-surface2 hover:bg-[#f5f5f7] text-xs font-semibold text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.08] transition-all shadow-2xs"
             title="Descargar plantilla CSV con todos los puntos y bandas"
           >
             <Download className="w-3.5 h-3.5 text-[#5833c7]" />
@@ -894,7 +894,7 @@ export default function MeasurementPanel({
             onClick={() => setIsAddMode(!isAddMode)}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${isAddMode
                 ? 'bg-[#5833c7] text-white border-[#5833c7] ring-2 ring-[#5833c7]/30 shadow-xs'
-                : 'bg-white dark:bg-[#1c1d2d] text-[#1d1d1f] dark:text-white border-black/[0.08] dark:border-white/[0.08] hover:bg-[#f5f5f7]'
+                : 'bg-white dark:bg-surface2 text-[#1d1d1f] dark:text-white border-black/[0.08] dark:border-white/[0.08] hover:bg-[#f5f5f7]'
               }`}
             title="Haz clic en cualquier punto del plano 2D para colocar un micrófono"
           >
@@ -906,7 +906,7 @@ export default function MeasurementPanel({
           <button
             onClick={() => setIsSourceLocked(!isSourceLocked)}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${isSourceLocked
-                ? 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] border-black/[0.05] dark:border-white/[0.08]'
+                ? 'bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] border-black/[0.05] dark:border-white/[0.08]'
                 : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/50 shadow-2xs'
               }`}
             title={isSourceLocked ? 'Fuente fijada (clic para desbloquear y moverla)' : 'Fuente móvil (clic para fijarla y evitar que se mueva por error)'}
@@ -919,7 +919,7 @@ export default function MeasurementPanel({
           {gridData.points.length > 0 && (
             <button
               onClick={handleClearAllPoints}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-[#1c1d2d] hover:bg-rose-50 text-xs font-semibold text-[#86868b] hover:text-rose-600 border border-black/[0.08] transition-all"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-surface2 hover:bg-rose-50 text-xs font-semibold text-[#86868b] hover:text-rose-600 border border-black/[0.08] transition-all"
               title="Vaciar todos los puntos para comenzar de cero"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -930,14 +930,14 @@ export default function MeasurementPanel({
       </div>
 
       {/* TARJETA COLAPSABLE: PROTOCOLO DE LABORATORIO EN 11 PASOS SEGÚN GUÍA */}
-      <div className="bg-[#fbfbfd] dark:bg-[#18192a] rounded-2xl border border-black/[0.06] dark:border-white/[0.06] overflow-hidden">
+      <div className="bg-[#fbfbfd] dark:bg-surface2 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] overflow-hidden">
         <button
           type="button"
           onClick={() => setShowProtocolGuide(!showProtocolGuide)}
           className="w-full p-3.5 flex items-center justify-between text-left hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
         >
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3] dark:text-sky-400">
+            <span className="p-1.5 rounded-lg bg-[#0071e3]/10 dark:bg-[#8767f9]/20 text-[#0071e3] dark:text-[#a78bfa]">
               <ClipboardList className="w-4 h-4" />
             </span>
             <div>
@@ -959,49 +959,49 @@ export default function MeasurementPanel({
 
         {showProtocolGuide && (
           <div className="p-4 pt-1 border-t border-black/[0.04] dark:border-white/[0.04] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#5833c7] uppercase">Paso 1: Recinto &bull; Condiciones</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Dimensiones {Lx}m × {Ly}m × {Lz}m. Registrar temperatura ambiental (T = 20°C, c = 343 m/s).</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Dimensiones {Lx}m × {Ly}m × {Lz}m. Registrar temperatura ambiental (T = 20°C, c = 343 m/s).</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#5833c7] uppercase">Paso 2: Cuadrícula 1.5m</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Trazar cuadrícula uniforme con paso regular de 1.5 m ubicando puntos en intersecciones.</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Trazar cuadrícula uniforme con paso regular de 1.5 m ubicando puntos en intersecciones.</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#5833c7] uppercase">Paso 3: Separación a Paredes</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Distancia mínima de seguridad a todas las paredes ≥ 0.7 m para evitar efectos de proximidad reactiva.</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Distancia mínima de seguridad a todas las paredes ≥ 0.7 m para evitar efectos de proximidad reactiva.</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#5833c7] uppercase">Paso 4: 4 Esquinas Críticas</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Añadir puntos E1, E2, E3, E4 en las 4 esquinas a 0.7m (zona de antinodo máximo de presión para todos los modos axiales).</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Añadir puntos E1, E2, E3, E4 en las 4 esquinas a 0.7m (zona de antinodo máximo de presión para todos los modos axiales).</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#0071e3] uppercase">Paso 5: Fuente S₀ (Centro)</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Fuente dodecaedro omnidireccional en el centro geométrico ({Lx / 2}m, {Ly / 2}m) a h = 1.5 m emitiendo Ruido Rosa.</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Fuente dodecaedro omnidireccional en el centro geométrico ({Lx / 2}m, {Ly / 2}m) a h = 1.5 m emitiendo Ruido Rosa.</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#0071e3] uppercase">Paso 6: Sonómetro &bull; Posición</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Micrófono en cada intersección a h = 1.5 m con inclinación fija de 45° respecto al plano horizontal.</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Micrófono en cada intersección a h = 1.5 m con inclinación fija de 45° respecto al plano horizontal.</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#0071e3] uppercase">Paso 7: Ajustes del Equipo</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Ponderación frecuencial Z (Lineal/Plana, sin atenuar graves), constante temporal Slow, integración de 10 s.</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Ponderación frecuencial Z (Lineal/Plana, sin atenuar graves), constante temporal Slow, integración de 10 s.</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#10b981] uppercase">Paso 8: Bandas de 1/3 Octava</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Medir y registrar los niveles de presión sonora SPL (dB) en bandas normalizadas de 20 Hz a 200 Hz.</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Medir y registrar los niveles de presión sonora SPL (dB) en bandas normalizadas de 20 Hz a 200 Hz.</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#10b981] uppercase">Paso 9: Captura &bull; Carga REW</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Ingresar los datos en la matriz inferior o subir archivos exportados desde Room EQ Wizard (REW).</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Ingresar los datos en la matriz inferior o subir archivos exportados desde Room EQ Wizard (REW).</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1">
               <span className="text-[10px] font-bold text-[#f59e0b] uppercase">Paso 10: Salida Gráfica 1 (Planta)</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Generar mapa de presiones continuo 2D por interpolación espacial IDW en colores térmicos para la banda elegida.</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Generar mapa de presiones continuo 2D por interpolación espacial IDW en colores térmicos para la banda elegida.</p>
             </div>
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04] space-y-1 md:col-span-2">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] space-y-1 md:col-span-2">
               <span className="text-[10px] font-bold text-[#f59e0b] uppercase">Paso 11: Salida Gráfica 2 (SPL vs Frecuencia)</span>
-              <p className="text-[#1d1d1f] dark:text-slate-300">Trazar curva de SPL (dB) vs Frecuencia (20 Hz - 200 Hz) para cada punto identificando los picos de resonancia modal.</p>
+              <p className="text-[#1d1d1f] dark:text-[#ccced2]">Trazar curva de SPL (dB) vs Frecuencia (20 Hz - 200 Hz) para cada punto identificando los picos de resonancia modal.</p>
             </div>
           </div>
         )}
@@ -1024,7 +1024,7 @@ export default function MeasurementPanel({
               <select
                 value={selectedBand}
                 onChange={(e) => setSelectedBand(Number(e.target.value))}
-                className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.08] dark:border-white/[0.08] text-xs font-bold text-[#1d1d1f] dark:text-white"
+                className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-surface2 border border-black/[0.08] dark:border-white/[0.08] text-xs font-bold text-[#1d1d1f] dark:text-white"
               >
                 {allBands.map(b => (
                   <option key={b} value={b}>{b} Hz</option>
@@ -1051,9 +1051,9 @@ export default function MeasurementPanel({
             </div>
           )}
 
-          <div className="w-full flex items-center justify-center p-3 sm:p-4 bg-[#fbfbfd] dark:bg-[#0c0d18] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] shadow-inner min-h-[280px] sm:min-h-[340px]">
+          <div className="w-full flex items-center justify-center p-3 sm:p-4 bg-[#fbfbfd] dark:bg-canvas rounded-2xl border border-black/[0.08] dark:border-white/[0.08] shadow-inner min-h-[280px] sm:min-h-[340px]">
             <div
-              className="relative overflow-hidden rounded-xl border border-black/[0.12] dark:border-white/[0.12] shadow-sm bg-white dark:bg-[#121424]"
+              className="relative overflow-hidden rounded-xl border border-black/[0.12] dark:border-white/[0.12] shadow-sm bg-white dark:bg-surface"
               style={{
                 aspectRatio: `${vbW} / ${vbH}`,
                 width: '100%',
@@ -1321,7 +1321,7 @@ export default function MeasurementPanel({
         </div>
 
         {/* Panel Lateral: Detalle del Elemento Seleccionado (1 columna) */}
-        <div className="bg-[#fbfbfd] dark:bg-[#18192a] p-4 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] space-y-4">
+        <div className="bg-[#fbfbfd] dark:bg-surface2 p-4 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] space-y-4">
           {selectedPointId === 'source' ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
@@ -1355,7 +1355,7 @@ export default function MeasurementPanel({
               <button
                 onClick={() => setIsSourceLocked(!isSourceLocked)}
                 className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition-all ${isSourceLocked
-                    ? 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] border-black/[0.08] dark:border-white/[0.08] hover:border-emerald-500 hover:text-emerald-600'
+                    ? 'bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] border-black/[0.08] dark:border-white/[0.08] hover:border-emerald-500 hover:text-emerald-600'
                     : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/50 shadow-xs hover:bg-emerald-100'
                   }`}
               >
@@ -1375,7 +1375,7 @@ export default function MeasurementPanel({
                     disabled={isSourceLocked}
                     value={gridData.source?.x ?? Number(((minX + maxX) / 2).toFixed(2))}
                     onChange={(e) => handleUpdateSourceProperty('x', e.target.value)}
-                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#ef4444] focus:outline-none focus:border-[#ef4444] disabled:opacity-60"
+                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#ef4444] focus:outline-none focus:border-[#ef4444] disabled:opacity-60"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -1388,7 +1388,7 @@ export default function MeasurementPanel({
                     disabled={isSourceLocked}
                     value={gridData.source?.y ?? Number(((minY + maxY) / 2).toFixed(2))}
                     onChange={(e) => handleUpdateSourceProperty('y', e.target.value)}
-                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#ef4444] focus:outline-none focus:border-[#ef4444] disabled:opacity-60"
+                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#ef4444] focus:outline-none focus:border-[#ef4444] disabled:opacity-60"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -1401,7 +1401,7 @@ export default function MeasurementPanel({
                     disabled={isSourceLocked}
                     value={gridData.source?.z ?? 1.2}
                     onChange={(e) => handleUpdateSourceProperty('z', e.target.value)}
-                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#ef4444] focus:outline-none focus:border-[#ef4444] disabled:opacity-60"
+                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#ef4444] focus:outline-none focus:border-[#ef4444] disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -1410,7 +1410,7 @@ export default function MeasurementPanel({
               <button
                 onClick={handleCenterSource}
                 disabled={isSourceLocked}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#f5f5f7] hover:bg-[#e8e8ed] dark:bg-[#1c1d2d] dark:hover:bg-[#25263a] text-xs font-semibold text-[#1d1d1f] dark:text-white border border-black/[0.05] dark:border-white/[0.08] transition-all disabled:opacity-40"
+                className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#f5f5f7] hover:bg-[#e8e8ed] dark:bg-surface2 dark:hover:bg-[#3a3b3c] text-xs font-semibold text-[#1d1d1f] dark:text-white border border-black/[0.05] dark:border-white/[0.08] transition-all disabled:opacity-40"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Centrar Fuente en la Sala</span>
@@ -1471,7 +1471,7 @@ export default function MeasurementPanel({
                     max={maxX}
                     value={selectedPoint.x}
                     onChange={(e) => handleUpdatePointProperty(selectedPoint.id, 'x', e.target.value)}
-                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#5833c7]"
+                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#5833c7]"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -1483,7 +1483,7 @@ export default function MeasurementPanel({
                     max={maxY}
                     value={selectedPoint.y}
                     onChange={(e) => handleUpdatePointProperty(selectedPoint.id, 'y', e.target.value)}
-                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#5833c7]"
+                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#5833c7]"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -1495,7 +1495,7 @@ export default function MeasurementPanel({
                     max={Lz}
                     value={selectedPoint.z}
                     onChange={(e) => handleUpdatePointProperty(selectedPoint.id, 'z', e.target.value)}
-                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#5833c7]"
+                    className="w-20 px-2 py-1 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-right font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:border-[#5833c7]"
                   />
                 </div>
 
@@ -1530,18 +1530,18 @@ export default function MeasurementPanel({
                     <div
                       key={b}
                       className={`flex items-center justify-between px-2 py-1 rounded-lg border text-xs font-mono transition-colors ${b === selectedBand
-                          ? 'bg-[#0071e3]/10 dark:bg-[#0071e3]/20 border-[#0071e3]/40'
-                          : 'bg-white dark:bg-[#25263a] border-black/[0.04] dark:border-white/[0.05]'
+                          ? 'bg-[#0071e3]/10 dark:bg-[#8767f9]/20 border-[#0071e3]/40'
+                          : 'bg-white dark:bg-[#3a3b3c] border-black/[0.04] dark:border-white/[0.05]'
                         }`}
                     >
-                      <span className={b === selectedBand ? 'text-[#0071e3] dark:text-sky-400 font-bold' : 'text-[#86868b]'}>{b} Hz:</span>
+                      <span className={b === selectedBand ? 'text-[#0071e3] dark:text-[#a78bfa] font-bold' : 'text-[#86868b]'}>{b} Hz:</span>
                       <input
                         type="number"
                         step="0.5"
                         value={selectedPoint.spl[b] ?? ''}
                         placeholder="—"
                         onChange={(e) => handleSplChange(selectedPoint.id, b, e.target.value)}
-                        className="w-14 text-right bg-transparent font-bold text-[#0071e3] dark:text-sky-400 focus:outline-none"
+                        className="w-14 text-right bg-transparent font-bold text-[#0071e3] dark:text-[#a78bfa] focus:outline-none"
                       />
                     </div>
                   ))}
@@ -1550,7 +1550,7 @@ export default function MeasurementPanel({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#0071e3]/10 hover:bg-[#0071e3]/20 dark:bg-[#0071e3]/20 dark:hover:bg-[#0071e3]/30 text-xs font-semibold text-[#0071e3] dark:text-sky-300 border border-[#0071e3]/20 transition-all shadow-2xs"
+                    className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#0071e3]/10 hover:bg-[#0071e3]/20 dark:bg-[#8767f9]/20 dark:hover:bg-[#8767f9]/30 text-xs font-semibold text-[#0071e3] dark:text-sky-300 border border-[#0071e3]/20 transition-all shadow-2xs"
                     title={`Importar archivo .txt exportado de REW directamente en ${selectedPoint.label}`}
                   >
                     <Upload className="w-3.5 h-3.5" />
@@ -1568,17 +1568,17 @@ export default function MeasurementPanel({
       <div className="pt-4 border-t border-black/[0.06] dark:border-white/[0.06] space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400 flex items-center gap-1.5">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-[#b0b3b8] flex items-center gap-1.5">
               <Table className="w-3.5 h-3.5" />
               <span>Matriz de Puntos y Valores de Presión Sonora (SPL dB)</span>
             </h4>
             {/* Selector de Rango de Bandas Visible en Tabla */}
-            <div className="inline-flex items-center p-0.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.06] dark:border-white/[0.06] text-[11px]">
+            <div className="inline-flex items-center p-0.5 rounded-lg bg-[#f5f5f7] dark:bg-surface2 border border-black/[0.06] dark:border-white/[0.06] text-[11px]">
               <button
                 type="button"
                 onClick={() => setTableBandRange('modal')}
                 className={`px-2 py-0.5 rounded-md font-semibold transition-all ${tableBandRange === 'modal'
-                    ? 'bg-white dark:bg-[#25263a] text-[#0071e3] dark:text-sky-400 shadow-2xs font-bold'
+                    ? 'bg-white dark:bg-[#3a3b3c] text-[#0071e3] dark:text-[#a78bfa] shadow-2xs font-bold'
                     : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
                   }`}
               >
@@ -1588,7 +1588,7 @@ export default function MeasurementPanel({
                 type="button"
                 onClick={() => setTableBandRange('all')}
                 className={`px-2 py-0.5 rounded-md font-semibold transition-all ${tableBandRange === 'all'
-                    ? 'bg-white dark:bg-[#25263a] text-[#0071e3] dark:text-sky-400 shadow-2xs font-bold'
+                    ? 'bg-white dark:bg-[#3a3b3c] text-[#0071e3] dark:text-[#a78bfa] shadow-2xs font-bold'
                     : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
                   }`}
               >
@@ -1625,7 +1625,7 @@ export default function MeasurementPanel({
 
         <div className="overflow-x-auto max-h-64 overflow-y-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
           <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[#86868b] dark:text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-black/[0.06] dark:border-white/[0.06] z-10">
+            <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider font-semibold sticky top-0 border-b border-black/[0.06] dark:border-white/[0.06] z-10">
               <tr>
                 <th className="py-2.5 px-3">Punto</th>
                 <th className="py-2.5 px-3">X (m)</th>
@@ -1635,7 +1635,7 @@ export default function MeasurementPanel({
                   <th
                     key={b}
                     className={`py-2.5 px-3 text-center whitespace-nowrap cursor-pointer transition-colors ${b === selectedBand
-                        ? 'text-[#0071e3] dark:text-sky-400 font-bold bg-[#0071e3]/10 dark:bg-[#0071e3]/20'
+                        ? 'text-[#0071e3] dark:text-[#a78bfa] font-bold bg-[#0071e3]/10 dark:bg-[#8767f9]/20'
                         : 'hover:text-[#1d1d1f] dark:hover:text-white'
                       }`}
                     onClick={() => setSelectedBand(b)}
@@ -1662,7 +1662,7 @@ export default function MeasurementPanel({
                     onClick={() => setSelectedPointId(p.id)}
                     className={`cursor-pointer transition-colors ${p.id === selectedPointId
                         ? 'bg-[#5833c7]/15 dark:bg-[#5833c7]/25 font-bold'
-                        : 'hover:bg-[#fbfbfd] dark:hover:bg-[#18192a]'
+                        : 'hover:bg-[#fbfbfd] dark:hover:bg-surface2'
                       }`}
                   >
                     <td className="py-1 px-3">
@@ -1717,7 +1717,7 @@ export default function MeasurementPanel({
                     {displayTableBands.map(b => (
                       <td
                         key={b}
-                        className={`py-1 px-2 text-center transition-colors ${b === selectedBand ? 'bg-[#0071e3]/5 dark:bg-[#0071e3]/10 font-bold' : ''
+                        className={`py-1 px-2 text-center transition-colors ${b === selectedBand ? 'bg-[#0071e3]/5 dark:bg-[#8767f9]/10 font-bold' : ''
                           }`}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -1727,7 +1727,7 @@ export default function MeasurementPanel({
                           value={p.spl[b] ?? ''}
                           placeholder="—"
                           onChange={(e) => handleSplChange(p.id, b, e.target.value)}
-                          className={`w-12 text-center bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#5833c7] focus:outline-none font-medium ${b === selectedBand ? 'text-[#0071e3] dark:text-sky-400 font-bold' : ''
+                          className={`w-12 text-center bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#5833c7] focus:outline-none font-medium ${b === selectedBand ? 'text-[#0071e3] dark:text-[#a78bfa] font-bold' : ''
                             }`}
                         />
                       </td>
@@ -1754,7 +1754,7 @@ export default function MeasurementPanel({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400">
+              <span className="p-1.5 rounded-lg bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa]">
                 <BarChart2 className="w-4 h-4" />
               </span>
               <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
@@ -1784,7 +1784,7 @@ export default function MeasurementPanel({
         </div>
 
         {pointSpectrum.hasData ? (
-          <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] space-y-3">
+          <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] space-y-3">
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={pointSpectrum.chartData} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
@@ -1808,7 +1808,7 @@ export default function MeasurementPanel({
                       if (active && payload && payload.length) {
                         const d = payload[0].payload;
                         return (
-                          <div className="bg-white/95 dark:bg-[#18192a]/95 backdrop-blur-md p-2.5 rounded-xl border border-black/[0.08] dark:border-white/[0.08] shadow-lg text-xs font-mono">
+                          <div className="bg-white/95 dark:bg-surface2/95 backdrop-blur-md p-2.5 rounded-xl border border-black/[0.08] dark:border-white/[0.08] shadow-lg text-xs font-mono">
                             <div className="font-bold text-[#1d1d1f] dark:text-white">{d.freq} Hz</div>
                             <div className="text-[#0071e3] font-bold text-sm">{d.spl} dB SPL</div>
                           </div>
@@ -1860,7 +1860,7 @@ export default function MeasurementPanel({
             )}
           </div>
         ) : (
-          <div className="p-8 text-center rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] text-xs text-[#86868b] space-y-2">
+          <div className="p-8 text-center rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] text-xs text-[#86868b] space-y-2">
             <p className="font-semibold">No hay mediciones registradas en el punto {selectedPoint?.label || 'seleccionado'}.</p>
             <p className="text-[11px]">Pulsa &ldquo;Datos Muestra&rdquo; arriba o importa un archivo de texto de REW para graficar el espectro continuo de presión sonora.</p>
           </div>

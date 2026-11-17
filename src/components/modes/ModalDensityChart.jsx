@@ -63,20 +63,20 @@ export default function ModalDensityChart({
   }, [dimensions.Lx, dimensions.Ly, dimensions.Lz, volume, surface, perimeter, c, fMax]);
 
   return (
-    <div id="modal-density-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div id="modal-density-card" className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400">
+            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa]">
               <TrendingUp className="w-5 h-5" />
             </span>
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
               Densidad Modal Acumulada N(f) y dN/df (Ley de Weyl)
             </h3>
           </div>
-          <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1">
             Comparación asintótica entre el conteo discreto exacto de modos y la fórmula continua de Weyl para volumen V={volume.toFixed(1)} m³, S={surface.toFixed(1)} m².
           </p>
         </div>
@@ -93,7 +93,7 @@ export default function ModalDensityChart({
 
       {/* Gráfica N(f) vs Real */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-semibold text-[#86868b] dark:text-slate-400 px-1">
+        <div className="flex items-center justify-between text-xs font-semibold text-[#86868b] dark:text-[#b0b3b8] px-1">
           <span>N(f) — Número Acumulado de Modos Propios</span>
           <span className="text-[#ef4444] font-mono">Corte Schroeder: {schroederFreq} Hz</span>
         </div>
@@ -117,7 +117,7 @@ export default function ModalDensityChart({
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-white/95 dark:bg-[#18192a]/95 backdrop-blur-md p-3 rounded-2xl shadow-xl border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono">
+                      <div className="bg-white/95 dark:bg-surface2/95 backdrop-blur-md p-3 rounded-2xl shadow-xl border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono">
                         <div className="font-bold text-[#1d1d1f] dark:text-white mb-1.5 pb-1 border-b border-black/[0.06] dark:border-white/[0.06]">
                           f = {label} Hz
                         </div>
@@ -126,7 +126,7 @@ export default function ModalDensityChart({
                             <span>N real discreto:</span>
                             <span className="font-bold">{payload[0]?.value}</span>
                           </div>
-                          <div className="text-[#5833c7] dark:text-purple-400 flex justify-between gap-4">
+                          <div className="text-[#5833c7] dark:text-[#a78bfa] flex justify-between gap-4">
                             <span>N(f) Weyl teórico:</span>
                             <span className="font-bold">{payload[1]?.value}</span>
                           </div>
@@ -173,7 +173,7 @@ export default function ModalDensityChart({
 
       {/* Gráfica dN/df (Densidad por Hertz) */}
       <div className="space-y-2 pt-4 border-t border-black/[0.06] dark:border-white/[0.06]">
-        <div className="flex items-center justify-between text-xs font-semibold text-[#86868b] dark:text-slate-400 px-1">
+        <div className="flex items-center justify-between text-xs font-semibold text-[#86868b] dark:text-[#b0b3b8] px-1">
           <span>dN/df — Tasa de Densidad Modal Instantánea (modos por Hertz)</span>
           <span className="text-xs text-[#86868b] font-mono">Crecimiento cuadrático ~ 4πVf²/c³</span>
         </div>
@@ -197,7 +197,7 @@ export default function ModalDensityChart({
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-white/95 dark:bg-[#18192a]/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono">
+                      <div className="bg-white/95 dark:bg-surface2/95 backdrop-blur-md p-2.5 rounded-xl shadow-lg border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono">
                         <span className="font-bold text-[#1d1d1f] dark:text-white">f = {label} Hz</span>: {payload[0]?.value} modos/Hz
                       </div>
                     );
@@ -225,7 +225,7 @@ export default function ModalDensityChart({
       </div>
 
       {/* Nota Explicativa */}
-      <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] text-xs leading-relaxed text-[#86868b] dark:text-slate-400 flex items-start gap-3">
+      <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] text-xs leading-relaxed text-[#86868b] dark:text-[#b0b3b8] flex items-start gap-3">
         <Info className="w-4 h-4 text-[#0071e3] shrink-0 mt-0.5" />
         <div>
           <strong className="text-[#1d1d1f] dark:text-white">Significado Físico:</strong> A frecuencias muy bajas (por debajo de ~60 Hz), la densidad modal es menor a 0.1 modos/Hz, lo que produce una respuesta altamente selectiva con picos aislados y cancelaciones profundas. Al alcanzar la <strong className="text-[#ef4444]">Frecuencia de Schroeder ({schroederFreq} Hz)</strong>, la densidad modal y el solapamiento entre resonancias son suficientes para que el campo sonoro se comporte de forma difusa y estadística (acústica geométrica).

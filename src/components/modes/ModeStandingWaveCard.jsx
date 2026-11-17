@@ -168,7 +168,7 @@ export default function ModeStandingWaveCard({
   }, [wavePoints, L]);
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 shadow-apple-sm transition-all space-y-4">
+    <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 shadow-apple-sm transition-all space-y-4">
       
       {/* Cabecera del Inspector Gráfico */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/[0.06] dark:border-white/[0.06]">
@@ -178,14 +178,14 @@ export default function ModeStandingWaveCard({
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#5833c7]/10 text-[#5833c7] dark:text-purple-300 font-mono">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#5833c7]/10 text-[#5833c7] dark:text-[#c4b5fd] font-mono">
                 {currentMode.type ? currentMode.type.toUpperCase() : 'MODO PROPIO'}
               </span>
               <h3 className="text-lg font-black text-[#1d1d1f] dark:text-white">
-                Modo ({nx}, {ny}, {nz}) &bull; <span className="text-[#5833c7] dark:text-purple-400 font-mono">{f.toFixed(2)} Hz</span>
+                Modo ({nx}, {ny}, {nz}) &bull; <span className="text-[#5833c7] dark:text-[#a78bfa] font-mono">{f.toFixed(2)} Hz</span>
               </h3>
             </div>
-            <p className="text-xs text-[#86868b] dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-[#86868b] dark:text-[#b0b3b8] mt-0.5">
               Onda estacionaria resonante entre paredes rígidas opuestas &bull; Eje {dominantAxis} ({L.toFixed(2)} m)
             </p>
           </div>
@@ -199,7 +199,7 @@ export default function ModeStandingWaveCard({
               onClick={() => setViewMetric('pressure_displacement')}
               className={`px-3 py-1 rounded-lg font-bold transition-all ${
                 viewMetric === 'pressure_displacement'
-                  ? 'bg-white dark:bg-[#1f2038] text-[#5833c7] dark:text-white shadow-xs'
+                  ? 'bg-white dark:bg-[#3a3b3c] text-[#5833c7] dark:text-white shadow-xs'
                   : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
             >
@@ -210,7 +210,7 @@ export default function ModeStandingWaveCard({
               onClick={() => setViewMetric('isobars_2d')}
               className={`px-3 py-1 rounded-lg font-bold transition-all ${
                 viewMetric === 'isobars_2d'
-                  ? 'bg-white dark:bg-[#1f2038] text-[#5833c7] dark:text-white shadow-xs'
+                  ? 'bg-white dark:bg-[#3a3b3c] text-[#5833c7] dark:text-white shadow-xs'
                   : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
             >
@@ -221,7 +221,7 @@ export default function ModeStandingWaveCard({
           <button
             type="button"
             onClick={onOpen3DView}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#5833c7]/10 hover:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-300 text-xs font-bold transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#5833c7]/10 hover:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#c4b5fd] text-xs font-bold transition-all"
             title="Abrir representación de superficie continua 3D (MATLAB)"
           >
             <Eye className="w-3.5 h-3.5" />
@@ -242,21 +242,21 @@ export default function ModeStandingWaveCard({
 
       {/* Chips de Parámetros Físicos de la Onda */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-        <div className="p-2.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+        <div className="p-2.5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
           <span className="text-[10px] text-[#86868b] block font-mono">Longitud de Onda (λ)</span>
           <span className="text-sm font-black font-mono text-[#1d1d1f] dark:text-white">{lambda} m</span>
         </div>
-        <div className="p-2.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+        <div className="p-2.5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
           <span className="text-[10px] text-[#86868b] block font-mono">Distancia N-N (λ / 2)</span>
-          <span className="text-sm font-black font-mono text-[#0071e3] dark:text-sky-400">{halfLambda} m</span>
+          <span className="text-sm font-black font-mono text-[#0071e3] dark:text-[#a78bfa]">{halfLambda} m</span>
         </div>
-        <div className="p-2.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+        <div className="p-2.5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
           <span className="text-[10px] text-[#86868b] block font-mono">Pared a Nodo (λ / 4)</span>
           <span className="text-sm font-black font-mono text-[#10b981] dark:text-emerald-400">{quarterLambda} m</span>
         </div>
-        <div className="p-2.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+        <div className="p-2.5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
           <span className="text-[10px] text-[#86868b] block font-mono">Vientres (V) / Nodos (N)</span>
-          <span className="text-sm font-black font-mono text-[#5833c7] dark:text-purple-300">
+          <span className="text-sm font-black font-mono text-[#5833c7] dark:text-[#c4b5fd]">
             {nodesAndAntinodes.antinodes.length} V &bull; {nodesAndAntinodes.nodes.length} N
           </span>
         </div>
@@ -265,13 +265,13 @@ export default function ModeStandingWaveCard({
       {/* ÁREA DE GRÁFICA INTERACTIVA */}
       {viewMetric === 'pressure_displacement' ? (
         /* GRÁFICA 1D DE ONDA ESTACIONARIA (IDÉNTICA A DIAPOSITIVA 1 Y 3) */
-        <div id="mode-standing-wave-card" className="bg-[#fbfbfd] dark:bg-[#0c0d18] p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] relative overflow-hidden">
+        <div id="mode-standing-wave-card" className="bg-[#fbfbfd] dark:bg-canvas p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] relative overflow-hidden">
           
           {/* Leyenda superior */}
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono mb-2">
             <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5 font-bold text-[#5833c7] dark:text-purple-400">
-                <span className="w-3 h-0.5 bg-[#5833c7] dark:bg-purple-400 rounded-full inline-block"></span>
+              <span className="flex items-center gap-1.5 font-bold text-[#5833c7] dark:text-[#a78bfa]">
+                <span className="w-3 h-0.5 bg-[#5833c7] dark:bg-[#a78bfa] rounded-full inline-block"></span>
                 Presión Acústica p(x) [V = Máx en paredes]
               </span>
               <span className="flex items-center gap-1.5 font-bold text-[#10b981] dark:text-emerald-400">
@@ -389,7 +389,7 @@ export default function ModeStandingWaveCard({
         </div>
       ) : (
         /* VISTA 2D DE ISÓBARAS (IDÉNTICA A DIAPOSITIVA 1 Y 5: CAMPO SONORO RECINTO) */
-        <div className="bg-[#fbfbfd] dark:bg-[#0c0d18] p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] space-y-3">
+        <div className="bg-[#fbfbfd] dark:bg-canvas p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] space-y-3">
           <div className="flex items-center justify-between text-xs font-mono">
             <span className="font-bold text-[#1d1d1f] dark:text-white">
               Campo Sonoro 2D &bull; Recinto ({nx}, {ny}, 0) &bull; Distribución de Isóbaras
@@ -450,7 +450,7 @@ export default function ModeStandingWaveCard({
           className="w-full flex items-center justify-between text-left group"
         >
           <div className="flex items-center gap-2.5">
-            <span className="p-1.5 rounded-xl bg-[#5833c7]/15 text-[#5833c7] dark:text-purple-300">
+            <span className="p-1.5 rounded-xl bg-[#5833c7]/15 text-[#5833c7] dark:text-[#c4b5fd]">
               <Sparkles className="w-4 h-4" />
             </span>
             <div>
@@ -460,7 +460,7 @@ export default function ModeStandingWaveCard({
                   SALA ACTUAL: {roomPolygon?.vertices?.length || 12} PAREDES ({geometry.floorArea || 51.3} m²)
                 </span>
               </div>
-              <p className="text-[11px] text-[#86868b] dark:text-slate-400">
+              <p className="text-[11px] text-[#86868b] dark:text-[#b0b3b8]">
                 Haz clic para ver la fundamentación teórica que debes explicar en tu entrega académica.
               </p>
             </div>
@@ -472,7 +472,7 @@ export default function ModeStandingWaveCard({
         </button>
 
         {showIrregularInfo && (
-          <div className="mt-3.5 pt-3.5 border-t border-[#5833c7]/15 text-xs text-[#1d1d1f] dark:text-slate-200 space-y-3 animate-fadeIn">
+          <div className="mt-3.5 pt-3.5 border-t border-[#5833c7]/15 text-xs text-[#1d1d1f] dark:text-[#e4e6eb] space-y-3 animate-fadeIn">
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
@@ -484,29 +484,29 @@ export default function ModeStandingWaveCard({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="p-3 rounded-xl bg-white dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] space-y-1">
-                <span className="font-bold text-[#5833c7] dark:text-purple-300 block text-[11px]">
+              <div className="p-3 rounded-xl bg-white dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] space-y-1">
+                <span className="font-bold text-[#5833c7] dark:text-[#c4b5fd] block text-[11px]">
                   Ventaja Acústica Real
                 </span>
-                <p className="text-[11px] text-[#86868b] dark:text-slate-400 leading-relaxed">
+                <p className="text-[11px] text-[#86868b] dark:text-[#b0b3b8] leading-relaxed">
                   ¡Tener una sala irregular es <strong>acústicamente excelente</strong>! Al no haber paredes paralelas opuestas, se eliminan los ecos flotantes (<em>flutter echoes</em>) y se mitigan las resonancias degeneradas agudas.
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-white dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] space-y-1">
-                <span className="font-bold text-[#0071e3] dark:text-sky-400 block text-[11px]">
+              <div className="p-3 rounded-xl bg-white dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] space-y-1">
+                <span className="font-bold text-[#0071e3] dark:text-[#a78bfa] block text-[11px]">
                   Modos Verticales Z (100% Válidos)
                 </span>
-                <p className="text-[11px] text-[#86868b] dark:text-slate-400 leading-relaxed">
+                <p className="text-[11px] text-[#86868b] dark:text-[#b0b3b8] leading-relaxed">
                   Dado que el piso y el techo de tu sala <strong>sí son horizontales y paralelos</strong> (a H = {dimensions.Lz || 3.0} m), los modos axiales <code>(0, 0, 1) = 57.2 Hz</code>, <code>(0, 0, 2) = 114.3 Hz</code>, etc., <strong>son 100% exactos y válidos experimentalmente</strong>.
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-white dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] space-y-1">
+              <div className="p-3 rounded-xl bg-white dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] space-y-1">
                 <span className="font-bold text-[#10b981] dark:text-emerald-400 block text-[11px]">
                   Método de Área Equivalente
                 </span>
-                <p className="text-[11px] text-[#86868b] dark:text-slate-400 leading-relaxed">
+                <p className="text-[11px] text-[#86868b] dark:text-[#b0b3b8] leading-relaxed">
                   POZOLE modela tu sala conservando el volumen exacto (V = {geometry.volume || 153.8} m³) mediante dimensiones equivalentes (<code>Lx = {dimensions.Lx}m, Ly = {dimensions.Ly}m</code>). Esto predice con exactitud la <strong>Frecuencia de Schroeder</strong> y la <strong>Ley de Weyl</strong>.
                 </p>
               </div>

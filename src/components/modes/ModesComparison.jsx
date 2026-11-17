@@ -263,7 +263,7 @@ export default function ModesComparison({
   };
 
   return (
-    <div id="modes-comparison-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div id="modes-comparison-card" className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
@@ -276,7 +276,7 @@ export default function ModesComparison({
               Pestaña 8: Comparativa Modal (Teórico vs Exp vs REW vs FEM)
             </h3>
           </div>
-          <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1">
             Contraste de las 4 fuentes exigidas por la rúbrica: analítico (POZOLE), experimental (In Situ), acústica de software (REW) y simulación numérica (FEM COMSOL).
           </p>
         </div>
@@ -323,7 +323,7 @@ export default function ModesComparison({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Fuente 1: Experimental In Situ */}
-        <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] space-y-2">
+        <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-[#1d1d1f] dark:text-white">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#0071e3]"></span>
@@ -336,7 +336,7 @@ export default function ModesComparison({
             value={expText}
             onChange={(e) => setExpText(e.target.value)}
             placeholder="Pega frecuencias medidas in situ (ej. 56.8, 80.4, 113.8)..."
-            className="w-full p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
+            className="w-full p-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
           />
           <input
             type="file"
@@ -348,7 +348,7 @@ export default function ModesComparison({
           <button
             type="button"
             onClick={() => fileInputExpRef.current?.click()}
-            className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-[11px] font-semibold text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
+            className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-[11px] font-semibold text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
           >
             <Upload className="w-3 h-3 text-[#0071e3]" />
             <span>Subir Archivo (.txt / .csv)</span>
@@ -356,7 +356,7 @@ export default function ModesComparison({
         </div>
 
         {/* Fuente 2: REW Room Sim */}
-        <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] space-y-2">
+        <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-[#1d1d1f] dark:text-white">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span>
@@ -369,7 +369,7 @@ export default function ModesComparison({
             value={rewText}
             onChange={(e) => setRewText(e.target.value)}
             placeholder="Pega frecuencias de REW (Room Sim / RTA)..."
-            className="w-full p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#10b981]"
+            className="w-full p-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#10b981]"
           />
           <input
             type="file"
@@ -381,7 +381,7 @@ export default function ModesComparison({
           <button
             type="button"
             onClick={() => fileInputRewRef.current?.click()}
-            className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-[11px] font-semibold text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
+            className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-[11px] font-semibold text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
           >
             <Upload className="w-3 h-3 text-[#10b981]" />
             <span>Subir Archivo REW (.txt)</span>
@@ -389,7 +389,7 @@ export default function ModesComparison({
         </div>
 
         {/* Fuente 3: Simulación FEM COMSOL */}
-        <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] space-y-2">
+        <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-[#1d1d1f] dark:text-white">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"></span>
@@ -402,7 +402,7 @@ export default function ModesComparison({
             value={femText}
             onChange={(e) => setFemText(e.target.value)}
             placeholder="Pega autofrecuencias de COMSOL FEM..."
-            className="w-full p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f59e0b]"
+            className="w-full p-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f59e0b]"
           />
           <input
             type="file"
@@ -414,7 +414,7 @@ export default function ModesComparison({
           <button
             type="button"
             onClick={() => fileInputFemRef.current?.click()}
-            className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] text-[11px] font-semibold text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
+            className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] text-[11px] font-semibold text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
           >
             <Upload className="w-3 h-3 text-[#f59e0b]" />
             <span>Subir Archivo FEM (.txt)</span>
@@ -422,7 +422,7 @@ export default function ModesComparison({
         </div>
 
         {/* Tarjeta de Tolerancia y Error Promedio */}
-        <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] flex flex-col justify-between space-y-3">
+        <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] flex flex-col justify-between space-y-3">
           <div>
             <div className="flex items-center justify-between text-xs font-semibold text-[#86868b] mb-1">
               <span>Tolerancia de Match:</span>
@@ -435,20 +435,20 @@ export default function ModesComparison({
               step="0.1"
               value={tolerance}
               onChange={(e) => setTolerance(parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#5833c7]"
+              className="w-full h-1.5 bg-gray-200 dark:bg-[#3a3b3c] rounded-lg appearance-none cursor-pointer accent-[#5833c7]"
             />
           </div>
 
           <div className="grid grid-cols-3 gap-1 pt-2 border-t border-black/[0.06] dark:border-white/[0.06] text-center font-mono">
-            <div className="p-1 rounded-lg bg-white dark:bg-[#25263a]">
+            <div className="p-1 rounded-lg bg-white dark:bg-[#3a3b3c]">
               <span className="text-[9px] text-[#86868b] block">Exp Match</span>
               <strong className="text-xs text-[#0071e3]">{matchedExpCount}/{totalAnalyzed}</strong>
             </div>
-            <div className="p-1 rounded-lg bg-white dark:bg-[#25263a]">
+            <div className="p-1 rounded-lg bg-white dark:bg-[#3a3b3c]">
               <span className="text-[9px] text-[#86868b] block">REW Match</span>
               <strong className="text-xs text-[#10b981]">{matchedRewCount}/{totalAnalyzed}</strong>
             </div>
-            <div className="p-1 rounded-lg bg-white dark:bg-[#25263a]">
+            <div className="p-1 rounded-lg bg-white dark:bg-[#3a3b3c]">
               <span className="text-[9px] text-[#86868b] block">FEM Match</span>
               <strong className="text-xs text-[#f59e0b]">{matchedFemCount}/{totalAnalyzed}</strong>
             </div>
@@ -458,11 +458,11 @@ export default function ModesComparison({
       </div>
 
       {/* GRÁFICA SUPERPUESTA DE ESPECTRO (ESTILO DIAPOSITIVA 29) */}
-      <div className="space-y-3 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+      <div className="space-y-3 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400">
+              <span className="p-1.5 rounded-lg bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa]">
                 <BarChart2 className="w-4 h-4" />
               </span>
               <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
@@ -495,7 +495,7 @@ export default function ModesComparison({
                   if (active && payload && payload.length) {
                     const d = payload[0].payload;
                     return (
-                      <div className="bg-white/95 dark:bg-[#18192a]/95 backdrop-blur-md p-2.5 rounded-xl border border-black/[0.08] dark:border-white/[0.08] shadow-lg text-xs font-mono">
+                      <div className="bg-white/95 dark:bg-surface2/95 backdrop-blur-md p-2.5 rounded-xl border border-black/[0.08] dark:border-white/[0.08] shadow-lg text-xs font-mono">
                         <div className="font-bold text-[#1d1d1f] dark:text-white">{d.freq} Hz</div>
                         <div className="text-[#0071e3]">SPL Medido: <strong>{d.splExp} dB</strong></div>
                         <div className="text-[#10b981]">SPL REW Sim: <strong>{d.splRew} dB</strong></div>
@@ -559,7 +559,7 @@ export default function ModesComparison({
       {/* TABLA COMPARATIVA MAESTRA (4 FUENTES DE DATOS + ERRORES) */}
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400 flex items-center gap-1.5">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-[#b0b3b8] flex items-center gap-1.5">
             <GitCompare className="w-3.5 h-3.5" />
             <span>Tabla Maestra de Autofrecuencias y Desviaciones</span>
           </h4>
@@ -574,7 +574,7 @@ export default function ModesComparison({
 
         <div className="overflow-x-auto max-h-80 overflow-y-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
           <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[#86868b] dark:text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-black/[0.06] dark:border-white/[0.06] z-10">
+            <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider font-semibold sticky top-0 border-b border-black/[0.06] dark:border-white/[0.06] z-10">
               <tr>
                 <th className="py-2.5 px-3">#</th>
                 <th className="py-2.5 px-3">Modo</th>
@@ -590,7 +590,7 @@ export default function ModesComparison({
             </thead>
             <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
               {comparisonRows.map((r, idx) => (
-                <tr key={r.id} className="hover:bg-[#fbfbfd] dark:hover:bg-[#18192a] transition-colors">
+                <tr key={r.id} className="hover:bg-[#fbfbfd] dark:hover:bg-surface2 transition-colors">
                   <td className="py-2 px-3 text-[#86868b]">{idx + 1}</td>
                   <td className="py-2 px-3 font-bold text-[#1d1d1f] dark:text-white">
                     ({r.mode.nx}, {r.mode.ny}, {r.mode.nz})
@@ -598,7 +598,7 @@ export default function ModesComparison({
                   <td className="py-2 px-3 font-sans font-medium" style={{ color: r.mode.color }}>
                     {r.mode.label}
                   </td>
-                  <td className="py-2 px-3 font-bold text-[#5833c7] dark:text-purple-400">
+                  <td className="py-2 px-3 font-bold text-[#5833c7] dark:text-[#a78bfa]">
                     {r.fTheo.toFixed(2)} Hz
                   </td>
                   {/* Experimental */}

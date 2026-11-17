@@ -86,7 +86,7 @@ export default function ModesHistogram({
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white/95 dark:bg-[#18192a]/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-black/[0.08] dark:border-white/[0.08] text-xs">
+        <div className="bg-white/95 dark:bg-surface2/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-black/[0.08] dark:border-white/[0.08] text-xs">
           <div className="font-bold text-[#1d1d1f] dark:text-white border-b border-black/[0.06] dark:border-white/[0.06] pb-1.5 mb-2 flex items-center justify-between gap-4">
             <span className="text-sm font-mono">{label} Hz (1/3 oct)</span>
             <span className="text-[10px] text-[#86868b] font-mono">
@@ -95,7 +95,7 @@ export default function ModesHistogram({
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-4">
-              <span className="flex items-center gap-1.5 text-[#5833c7] dark:text-purple-400 font-medium">
+              <span className="flex items-center gap-1.5 text-[#5833c7] dark:text-[#a78bfa] font-medium">
                 <span className="w-2.5 h-2.5 rounded-sm bg-[#5833c7]"></span>
                 Axiales:
               </span>
@@ -117,7 +117,7 @@ export default function ModesHistogram({
             </div>
             <div className="pt-1.5 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between font-bold">
               <span className="text-[#1d1d1f] dark:text-white">Total Banda:</span>
-              <span className="font-mono text-base text-[#0071e3] dark:text-sky-400">{data.count}</span>
+              <span className="font-mono text-base text-[#0071e3] dark:text-[#a78bfa]">{data.count}</span>
             </div>
             <div className="flex items-center justify-between text-[11px] text-[#86868b]">
               <span>Acumulados hasta banda:</span>
@@ -131,26 +131,26 @@ export default function ModesHistogram({
   };
 
   return (
-    <div id="modes-histogram-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div id="modes-histogram-card" className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3] dark:text-sky-400">
+            <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#8767f9]/20 text-[#0071e3] dark:text-[#a78bfa]">
               <BarChart3 className="w-5 h-5" />
             </span>
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
               Histograma de Modos por Bandas de 1/3 de Octava
             </h3>
           </div>
-          <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1">
             Distribución modal normalizada ISO 266 con segregación por tipo de onda y corte de Schroeder (fs = {schroederFreq} Hz).
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="flex items-center gap-2 text-xs text-[#86868b] dark:text-slate-300 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-xs text-[#86868b] dark:text-[#ccced2] cursor-pointer select-none">
             <input
               type="checkbox"
               checked={onlyActiveBands}
@@ -240,13 +240,13 @@ export default function ModesHistogram({
 
       {/* Tabla Sincronizada de Frecuencias y Repeticiones */}
       <div className="pt-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400 mb-3 flex items-center gap-1.5">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-[#86868b] dark:text-[#b0b3b8] mb-3 flex items-center gap-1.5">
           <Layers className="w-3.5 h-3.5" />
           <span>Tabla de Frecuencias, Repeticiones y Acumulado</span>
         </h4>
         <div className="overflow-x-auto max-h-64 overflow-y-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
           <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[#86868b] dark:text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-black/[0.06] dark:border-white/[0.06]">
+            <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider font-semibold sticky top-0 border-b border-black/[0.06] dark:border-white/[0.06]">
               <tr>
                 <th className="py-2.5 px-3">Banda fc (Hz)</th>
                 <th className="py-2.5 px-3">Intervalo [fLow - fHigh]</th>
@@ -263,7 +263,7 @@ export default function ModesHistogram({
                 return (
                   <tr
                     key={b.fc}
-                    className={`hover:bg-[#fbfbfd] dark:hover:bg-[#18192a] transition-colors ${
+                    className={`hover:bg-[#fbfbfd] dark:hover:bg-surface2 transition-colors ${
                       b.count > 0 ? '' : 'opacity-40'
                     }`}
                   >
@@ -289,7 +289,7 @@ export default function ModesHistogram({
                         {b.count}
                       </span>
                     </td>
-                    <td className="py-2 px-3 text-center font-bold text-[#0071e3] dark:text-sky-400">
+                    <td className="py-2 px-3 text-center font-bold text-[#0071e3] dark:text-[#a78bfa]">
                       {b.cumulative}
                     </td>
                   </tr>

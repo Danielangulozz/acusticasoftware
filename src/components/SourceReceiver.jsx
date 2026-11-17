@@ -284,7 +284,7 @@ export default function SourceReceiver({
   const lpDirect = soundFieldData[selectedBand]?.directIntensityLevel ?? 0;
 
   return (
-    <div className="bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 shadow-apple-sm transition-all space-y-6">
+    <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 shadow-apple-sm transition-all space-y-6">
 
       {/* 1. Encabezado Bento Limpio */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-black/[0.06] dark:border-white/10">
@@ -296,7 +296,7 @@ export default function SourceReceiver({
             <h2 className="text-lg font-black text-[#1d1d1f] dark:text-white tracking-tight">
               3. Fuente y Receptor
             </h2>
-            <p className="text-xs text-[#86868b] dark:text-slate-400">
+            <p className="text-xs text-[#86868b] dark:text-[#b0b3b8]">
               Potencia acústica Lw, directividad Q, geometría 3D y evaluación del campo sonoro
             </p>
           </div>
@@ -367,7 +367,7 @@ export default function SourceReceiver({
 
       {/* 2. Presets Normalizados (Pills compactas) */}
       <div>
-        <div className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400 mb-2">
+        <div className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-[#b0b3b8] mb-2">
           Presets de Colocación Normalizada
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -376,14 +376,14 @@ export default function SourceReceiver({
             className={`p-3.5 rounded-2xl border text-left transition ${
               sourceReceiver.isoPreset === 'iso3382' || (isFullIsoCompliant && sourceReceiver.directivity === 1)
                 ? 'bg-[#5833c7] text-white border-[#5833c7] shadow-md shadow-[#5833c7]/20'
-                : 'bg-[#fbfbfd] dark:bg-[#0A0C14] border-black/[0.06] dark:border-white/10 hover:border-black/[0.15]'
+                : 'bg-[#fbfbfd] dark:bg-canvas border-black/[0.06] dark:border-white/10 hover:border-black/[0.15]'
             }`}
           >
             <div className="flex items-center gap-2">
               <Building className="w-4 h-4" />
               <span className="text-xs font-bold">🏛️ ISO 3382 Auditorio</span>
             </div>
-            <div className={`text-[10px] mt-1 font-mono ${sourceReceiver.isoPreset === 'iso3382' ? 'text-white/80' : 'text-[#86868b] dark:text-slate-400'}`}>
+            <div className={`text-[10px] mt-1 font-mono ${sourceReceiver.isoPreset === 'iso3382' ? 'text-white/80' : 'text-[#86868b] dark:text-[#b0b3b8]'}`}>
               hs = 1.5m &bull; hr = 1.2m &bull; r ≥ 2.0m &bull; Q = 1
             </div>
           </button>
@@ -393,14 +393,14 @@ export default function SourceReceiver({
             className={`p-3.5 rounded-2xl border text-left transition ${
               sourceReceiver.isoPreset === 'control_room'
                 ? 'bg-[#5833c7] text-white border-[#5833c7] shadow-md shadow-[#5833c7]/20'
-                : 'bg-[#fbfbfd] dark:bg-[#0A0C14] border-black/[0.06] dark:border-white/10 hover:border-black/[0.15]'
+                : 'bg-[#fbfbfd] dark:bg-canvas border-black/[0.06] dark:border-white/10 hover:border-black/[0.15]'
             }`}
           >
             <div className="flex items-center gap-2">
               <Headphones className="w-4 h-4" />
               <span className="text-xs font-bold">🎙️ Estudio / Control Room</span>
             </div>
-            <div className={`text-[10px] mt-1 font-mono ${sourceReceiver.isoPreset === 'control_room' ? 'text-white/80' : 'text-[#86868b] dark:text-slate-400'}`}>
+            <div className={`text-[10px] mt-1 font-mono ${sourceReceiver.isoPreset === 'control_room' ? 'text-white/80' : 'text-[#86868b] dark:text-[#b0b3b8]'}`}>
               Sweet Spot en Dc ({Dc.toFixed(2)}m) &bull; Q = 2
             </div>
           </button>
@@ -410,14 +410,14 @@ export default function SourceReceiver({
             className={`p-3.5 rounded-2xl border text-left transition ${
               sourceReceiver.isoPreset === 'iso3741' || sourceReceiver.directivity === 8
                 ? 'bg-[#5833c7] text-white border-[#5833c7] shadow-md shadow-[#5833c7]/20'
-                : 'bg-[#fbfbfd] dark:bg-[#0A0C14] border-black/[0.06] dark:border-white/10 hover:border-black/[0.15]'
+                : 'bg-[#fbfbfd] dark:bg-canvas border-black/[0.06] dark:border-white/10 hover:border-black/[0.15]'
             }`}
           >
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               <span className="text-xs font-bold">🧪 ISO 3741 Reverberante</span>
             </div>
-            <div className={`text-[10px] mt-1 font-mono ${sourceReceiver.isoPreset === 'iso3741' ? 'text-white/80' : 'text-[#86868b] dark:text-slate-400'}`}>
+            <div className={`text-[10px] mt-1 font-mono ${sourceReceiver.isoPreset === 'iso3741' ? 'text-white/80' : 'text-[#86868b] dark:text-[#b0b3b8]'}`}>
               Fuente en rincón (Q = 8) &bull; r ≥ 2·Dc
             </div>
           </button>
@@ -428,21 +428,21 @@ export default function SourceReceiver({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Columna 1: Fuente Sonora */}
-        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-5 sm:p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 space-y-4">
+        <div className="bg-[#fbfbfd] dark:bg-canvas p-5 sm:p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-black/[0.04] dark:border-white/[0.06]">
             <div className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-2">
               <Radio className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa]" />
               <span>Fuente Sonora</span>
             </div>
-            <span className="text-[10px] font-mono text-[#86868b] dark:text-slate-400">
+            <span className="text-[10px] font-mono text-[#86868b] dark:text-[#b0b3b8]">
               W₀ = 10⁻¹² W
             </span>
           </div>
 
           {/* Potencia Acústica Lw / Watts */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white dark:bg-[#141622] p-3 rounded-xl border border-black/[0.06] dark:border-white/10">
-              <label className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 block mb-1">
+            <div className="bg-white dark:bg-surface p-3 rounded-xl border border-black/[0.06] dark:border-white/10">
+              <label className="text-[10px] font-semibold text-[#86868b] dark:text-[#b0b3b8] block mb-1">
                 Nivel Potencia (Lw)
               </label>
               <div className="flex items-center gap-1.5">
@@ -459,8 +459,8 @@ export default function SourceReceiver({
               </div>
             </div>
 
-            <div className="bg-white dark:bg-[#141622] p-3 rounded-xl border border-black/[0.06] dark:border-white/10">
-              <label className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 block mb-1">
+            <div className="bg-white dark:bg-surface p-3 rounded-xl border border-black/[0.06] dark:border-white/10">
+              <label className="text-[10px] font-semibold text-[#86868b] dark:text-[#b0b3b8] block mb-1">
                 Potencia Acústica
               </label>
               <div className="flex items-center gap-1.5">
@@ -481,7 +481,7 @@ export default function SourceReceiver({
           {/* Factor de Directividad Q */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-[#b0b3b8]">
                 Directividad (Q)
               </span>
               <span className="text-xs font-mono font-bold text-[#5833c7] dark:text-[#a78bfa]">
@@ -499,11 +499,11 @@ export default function SourceReceiver({
                     className={`p-2.5 rounded-xl border text-center transition ${
                       isSelected
                         ? 'bg-[#5833c7] text-white border-[#5833c7] font-bold shadow-xs'
-                        : 'bg-white dark:bg-[#141622] border-black/[0.06] dark:border-white/10 text-[#86868b] dark:text-slate-300 hover:border-black/[0.15]'
+                        : 'bg-white dark:bg-surface border-black/[0.06] dark:border-white/10 text-[#86868b] dark:text-[#ccced2] hover:border-black/[0.15]'
                     }`}
                   >
                     <div className="text-xs font-mono font-bold">Q = {preset.value}</div>
-                    <div className={`text-[9px] mt-0.5 truncate ${isSelected ? 'text-white/80' : 'text-[#86868b] dark:text-slate-400'}`}>
+                    <div className={`text-[9px] mt-0.5 truncate ${isSelected ? 'text-white/80' : 'text-[#86868b] dark:text-[#b0b3b8]'}`}>
                       {preset.value === 1 && 'Libre (4π)'}
                       {preset.value === 2 && 'Pared (2π)'}
                       {preset.value === 4 && 'Arista (π)'}
@@ -516,7 +516,7 @@ export default function SourceReceiver({
           </div>
 
           {/* Coordenadas 3D de la Fuente */}
-          <div className="bg-white dark:bg-[#141622] p-3.5 rounded-xl border border-black/[0.06] dark:border-white/10 space-y-2">
+          <div className="bg-white dark:bg-surface p-3.5 rounded-xl border border-black/[0.06] dark:border-white/10 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
                 <Move className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#a78bfa]" />
@@ -537,7 +537,7 @@ export default function SourceReceiver({
                   step="0.1"
                   value={sourcePos.x}
                   onChange={(e) => handleUpdateSourceCoords('x', e.target.value)}
-                  className="w-full bg-[#fbfbfd] dark:bg-[#0A0C14] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
+                  className="w-full bg-[#fbfbfd] dark:bg-canvas text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
                 />
               </div>
               <div>
@@ -547,7 +547,7 @@ export default function SourceReceiver({
                   step="0.1"
                   value={sourcePos.y}
                   onChange={(e) => handleUpdateSourceCoords('y', e.target.value)}
-                  className="w-full bg-[#fbfbfd] dark:bg-[#0A0C14] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
+                  className="w-full bg-[#fbfbfd] dark:bg-canvas text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
                 />
               </div>
               <div>
@@ -559,7 +559,7 @@ export default function SourceReceiver({
                   max={H}
                   value={sourcePos.z}
                   onChange={(e) => handleUpdateSourceCoords('z', e.target.value)}
-                  className="w-full bg-[#fbfbfd] dark:bg-[#0A0C14] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
+                  className="w-full bg-[#fbfbfd] dark:bg-canvas text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
                 />
               </div>
             </div>
@@ -567,7 +567,7 @@ export default function SourceReceiver({
         </div>
 
         {/* Columna 2: Receptor Acústico */}
-        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-5 sm:p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 space-y-4">
+        <div className="bg-[#fbfbfd] dark:bg-canvas p-5 sm:p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-black/[0.04] dark:border-white/[0.06]">
             <div className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-2">
               <Ruler className="w-4 h-4 text-[#10b981]" />
@@ -581,9 +581,9 @@ export default function SourceReceiver({
           </div>
 
           {/* Slider de Distancia r */}
-          <div className="bg-white dark:bg-[#141622] p-3.5 rounded-xl border border-black/[0.06] dark:border-white/10 space-y-2">
+          <div className="bg-white dark:bg-surface p-3.5 rounded-xl border border-black/[0.06] dark:border-white/10 space-y-2">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-semibold text-[#86868b] dark:text-slate-400">
+              <label className="text-xs font-semibold text-[#86868b] dark:text-[#b0b3b8]">
                 Distancia Directa (r)
               </label>
               <div className="flex items-center gap-1">
@@ -594,7 +594,7 @@ export default function SourceReceiver({
                   step="0.1"
                   value={r}
                   onChange={(e) => handleDistanceSliderChange(e.target.value)}
-                  className="w-16 bg-[#fbfbfd] dark:bg-[#0A0C14] font-mono text-right text-sm font-bold text-[#1d1d1f] dark:text-white px-2 py-0.5 rounded border border-black/[0.08] dark:border-white/10 focus:outline-none focus:border-[#5833c7]"
+                  className="w-16 bg-[#fbfbfd] dark:bg-canvas font-mono text-right text-sm font-bold text-[#1d1d1f] dark:text-white px-2 py-0.5 rounded border border-black/[0.08] dark:border-white/10 focus:outline-none focus:border-[#5833c7]"
                 />
                 <span className="text-xs font-mono font-bold text-[#86868b]">m</span>
               </div>
@@ -610,14 +610,14 @@ export default function SourceReceiver({
               className="w-full accent-[#5833c7] cursor-pointer"
             />
 
-            <div className="flex justify-between items-center text-[10px] font-mono text-[#86868b] dark:text-slate-400 pt-1 border-t border-black/[0.04] dark:border-white/[0.06]">
+            <div className="flex justify-between items-center text-[10px] font-mono text-[#86868b] dark:text-[#b0b3b8] pt-1 border-t border-black/[0.04] dark:border-white/[0.06]">
               <span>Distancia Crítica (Dc):</span>
               <span className="text-[#10b981] font-bold">{Dc.toFixed(2)} m</span>
             </div>
           </div>
 
           {/* Coordenadas 3D del Receptor */}
-          <div className="bg-white dark:bg-[#141622] p-3.5 rounded-xl border border-black/[0.06] dark:border-white/10 space-y-2">
+          <div className="bg-white dark:bg-surface p-3.5 rounded-xl border border-black/[0.06] dark:border-white/10 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
                 <Move className="w-3.5 h-3.5 text-[#10b981]" />
@@ -638,7 +638,7 @@ export default function SourceReceiver({
                   step="0.1"
                   value={receiverPos.x}
                   onChange={(e) => handleUpdateReceiverCoords('x', e.target.value)}
-                  className="w-full bg-[#fbfbfd] dark:bg-[#0A0C14] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
+                  className="w-full bg-[#fbfbfd] dark:bg-canvas text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
                 />
               </div>
               <div>
@@ -648,7 +648,7 @@ export default function SourceReceiver({
                   step="0.1"
                   value={receiverPos.y}
                   onChange={(e) => handleUpdateReceiverCoords('y', e.target.value)}
-                  className="w-full bg-[#fbfbfd] dark:bg-[#0A0C14] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
+                  className="w-full bg-[#fbfbfd] dark:bg-canvas text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
                 />
               </div>
               <div>
@@ -660,7 +660,7 @@ export default function SourceReceiver({
                   max={H}
                   value={receiverPos.z}
                   onChange={(e) => handleUpdateReceiverCoords('z', e.target.value)}
-                  className="w-full bg-[#fbfbfd] dark:bg-[#0A0C14] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
+                  className="w-full bg-[#fbfbfd] dark:bg-canvas text-xs font-mono font-bold text-[#1d1d1f] dark:text-white p-1.5 rounded border border-black/[0.08] dark:border-white/10 text-center focus:outline-none focus:border-[#5833c7]"
                 />
               </div>
             </div>
@@ -668,18 +668,18 @@ export default function SourceReceiver({
 
           {/* Opciones Ambientales Compactas */}
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="bg-white dark:bg-[#141622] p-2.5 rounded-xl border border-black/[0.06] dark:border-white/10 flex items-center justify-between">
-              <span className="text-[10px] text-[#86868b] dark:text-slate-400 font-semibold">Vel. Sonido</span>
+            <div className="bg-white dark:bg-surface p-2.5 rounded-xl border border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+              <span className="text-[10px] text-[#86868b] dark:text-[#b0b3b8] font-semibold">Vel. Sonido</span>
               <span className="font-mono font-bold text-[#1d1d1f] dark:text-white">{SPEED_OF_SOUND} m/s</span>
             </div>
 
-            <div className="bg-white dark:bg-[#141622] p-2.5 rounded-xl border border-black/[0.06] dark:border-white/10 flex items-center justify-between">
-              <span className="text-[10px] text-[#86868b] dark:text-slate-400 font-semibold">Absorción Aire (4mV)</span>
+            <div className="bg-white dark:bg-surface p-2.5 rounded-xl border border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+              <span className="text-[10px] text-[#86868b] dark:text-[#b0b3b8] font-semibold">Absorción Aire (4mV)</span>
               <button
                 type="button"
                 onClick={() => setIncludeAirAbsorption(!includeAirAbsorption)}
                 className={`w-8 h-[18px] shrink-0 rounded-full transition-colors relative ${
-                  includeAirAbsorption ? 'bg-[#5833c7]' : 'bg-slate-300 dark:bg-slate-700'
+                  includeAirAbsorption ? 'bg-[#5833c7]' : 'bg-slate-300 dark:bg-[#3a3b3c]'
                 }`}
               >
                 <span
@@ -696,23 +696,23 @@ export default function SourceReceiver({
 
       {/* 4. Mini Telemetría Bento de 4 KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/10 text-center">
-          <div className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">Distancia r</div>
+        <div className="bg-[#fbfbfd] dark:bg-canvas p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/10 text-center">
+          <div className="text-[10px] font-semibold text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider">Distancia r</div>
           <div className="text-xl font-black font-mono text-[#1d1d1f] dark:text-white mt-0.5">{r.toFixed(2)} m</div>
         </div>
 
-        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/10 text-center">
-          <div className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">Distancia Crítica</div>
+        <div className="bg-[#fbfbfd] dark:bg-canvas p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/10 text-center">
+          <div className="text-[10px] font-semibold text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider">Distancia Crítica</div>
           <div className="text-xl font-black font-mono text-[#10b981] mt-0.5">{Dc.toFixed(2)} m</div>
         </div>
 
-        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/10 text-center">
-          <div className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">Nivel Directo (Lp,dir)</div>
+        <div className="bg-[#fbfbfd] dark:bg-canvas p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/10 text-center">
+          <div className="text-[10px] font-semibold text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider">Nivel Directo (Lp,dir)</div>
           <div className="text-xl font-black font-mono text-[#5833c7] dark:text-[#a78bfa] mt-0.5">{lpDirect.toFixed(1)} dB</div>
         </div>
 
-        <div className="bg-[#fbfbfd] dark:bg-[#0A0C14] p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/10 text-center">
-          <div className="text-[10px] font-semibold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">Régimen Acústico</div>
+        <div className="bg-[#fbfbfd] dark:bg-canvas p-3.5 rounded-2xl border border-black/[0.06] dark:border-white/10 text-center">
+          <div className="text-[10px] font-semibold text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider">Régimen Acústico</div>
           <div className="text-xs font-black font-mono mt-1 text-[#f59e0b]">
             {isDirectDominant ? 'Claridad Directa' : 'Campo Difuso'}
           </div>
@@ -724,7 +724,7 @@ export default function SourceReceiver({
         <button
           type="button"
           onClick={() => setShow3DVisualizer(!show3DVisualizer)}
-          className="w-full flex items-center justify-between p-3 rounded-2xl bg-[#fbfbfd] dark:bg-[#0A0C14] hover:bg-slate-100 dark:hover:bg-[#141622] border border-black/[0.06] dark:border-white/10 text-xs font-bold text-[#1d1d1f] dark:text-white transition"
+          className="w-full flex items-center justify-between p-3 rounded-2xl bg-[#fbfbfd] dark:bg-canvas hover:bg-slate-100 dark:hover:bg-surface border border-black/[0.06] dark:border-white/10 text-xs font-bold text-[#1d1d1f] dark:text-white transition"
         >
           <span className="flex items-center gap-2">
             <Eye className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa]" />

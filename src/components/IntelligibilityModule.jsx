@@ -287,18 +287,18 @@ export default function IntelligibilityModule({
     <div className="space-y-6">
       
       {/* TARJETA SUPERIOR DE ENCABEZADO Y SELECTOR DE PESTAÑAS */}
-      <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-5">
+      <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3] dark:text-sky-400">
+              <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#8767f9]/20 text-[#0071e3] dark:text-[#a78bfa]">
                 <Volume2 className="w-5 h-5" />
               </span>
               <h2 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
                 Módulo 7: Inteligibilidad de la Palabra (%ALcons / Peutz / Logátomos)
               </h2>
             </div>
-            <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1">
               Evaluación analítica y experimental de la articulación de la voz según norma ISO 9921, modelo de Peutz, correlación STI / CIS y dictado de logátomos.
             </p>
           </div>
@@ -318,7 +318,7 @@ export default function IntelligibilityModule({
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                 totalOccupants > 0 || totalFurniture > 0
                   ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                  : 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#1d1d1f] dark:text-white border-black/[0.05] dark:border-white/[0.08]'
+                  : 'bg-[#f5f5f7] dark:bg-surface2 text-[#1d1d1f] dark:text-white border-black/[0.05] dark:border-white/[0.08]'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
@@ -345,7 +345,7 @@ export default function IntelligibilityModule({
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl whitespace-nowrap transition-all ${
                   active
                     ? 'bg-[#0071e3] text-white shadow-xs'
-                    : 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+                    : 'bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -358,7 +358,7 @@ export default function IntelligibilityModule({
 
       {/* PANEL DESPLEGABLE: OCUPACIÓN (PERSONAS Y OBJETOS) */}
       {showOccupancyPanel && (
-        <div className="bg-[#fbfbfd] dark:bg-[#18192a] p-5 rounded-3xl border border-black/[0.06] dark:border-white/[0.08] space-y-4 animate-fadeIn">
+        <div className="bg-[#fbfbfd] dark:bg-surface2 p-5 rounded-3xl border border-black/[0.06] dark:border-white/[0.08] space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between pb-2 border-b border-black/[0.05] dark:border-white/[0.06]">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-[#0071e3]" />
@@ -380,7 +380,7 @@ export default function IntelligibilityModule({
               </span>
               <div className="space-y-2">
                 {DEFAULT_PEOPLE_CATALOG.map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#202236] border border-black/[0.04] dark:border-white/[0.05] text-xs">
+                  <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] dark:border-white/[0.05] text-xs">
                     <div>
                       <div className="font-semibold text-[#1d1d1f] dark:text-white">{p.name}</div>
                       <div className="text-[10px] text-[#86868b]">{p.description}</div>
@@ -392,7 +392,7 @@ export default function IntelligibilityModule({
                         max="200"
                         value={peopleCounts[p.id] || 0}
                         onChange={(e) => setPeopleCounts({ ...peopleCounts, [p.id]: Math.max(0, parseInt(e.target.value) || 0) })}
-                        className="w-16 px-2 py-1 rounded-lg bg-[#f5f5f7] dark:bg-[#121322] text-right font-mono font-bold text-[#0071e3] border border-black/[0.06] dark:border-white/[0.08]"
+                        className="w-16 px-2 py-1 rounded-lg bg-[#f5f5f7] dark:bg-surface text-right font-mono font-bold text-[#0071e3] border border-black/[0.06] dark:border-white/[0.08]"
                       />
                       <span className="text-[10px] text-[#86868b] w-8">pers</span>
                     </div>
@@ -409,7 +409,7 @@ export default function IntelligibilityModule({
               </span>
               <div className="space-y-2">
                 {DEFAULT_OBJECTS_CATALOG.map(o => (
-                  <div key={o.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#202236] border border-black/[0.04] dark:border-white/[0.05] text-xs">
+                  <div key={o.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04] dark:border-white/[0.05] text-xs">
                     <div>
                       <div className="font-semibold text-[#1d1d1f] dark:text-white">{o.name}</div>
                       <div className="text-[10px] text-[#86868b]">{o.description}</div>
@@ -421,7 +421,7 @@ export default function IntelligibilityModule({
                         max="200"
                         value={objectCounts[o.id] || 0}
                         onChange={(e) => setObjectCounts({ ...objectCounts, [o.id]: Math.max(0, parseInt(e.target.value) || 0) })}
-                        className="w-16 px-2 py-1 rounded-lg bg-[#f5f5f7] dark:bg-[#121322] text-right font-mono font-bold text-[#5833c7] border border-black/[0.06] dark:border-white/[0.08]"
+                        className="w-16 px-2 py-1 rounded-lg bg-[#f5f5f7] dark:bg-surface text-right font-mono font-bold text-[#5833c7] border border-black/[0.06] dark:border-white/[0.08]"
                       />
                       <span className="text-[10px] text-[#86868b] w-8">unid</span>
                     </div>
@@ -443,12 +443,12 @@ export default function IntelligibilityModule({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             
             {/* Frecuencia de análisis */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08] space-y-2">
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08] space-y-2">
               <span className="text-xs text-[#86868b] block">Banda de Análisis Peutz:</span>
               <select
                 value={selectedFreq}
                 onChange={(e) => setSelectedFreq(Number(e.target.value))}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
+                className="w-full px-2.5 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
               >
                 <option value={2000}>2000 Hz (Crítica para Consonantes)</option>
                 <option value={1000}>1000 Hz</option>
@@ -461,12 +461,12 @@ export default function IntelligibilityModule({
             </div>
 
             {/* Directividad Q */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08] space-y-2">
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08] space-y-2">
               <span className="text-xs text-[#86868b] block">Directividad de la Voz (Q):</span>
               <select
                 value={directivityQ}
                 onChange={(e) => setDirectivityQ(Number(e.target.value))}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
+                className="w-full px-2.5 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
               >
                 <option value={2}>Q = 2 (Orador de pie frente a clase)</option>
                 <option value={1}>Q = 1 (Esférica omnidireccional)</option>
@@ -478,12 +478,12 @@ export default function IntelligibilityModule({
             </div>
 
             {/* Corrección del oyente a */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08] space-y-2">
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08] space-y-2">
               <span className="text-xs text-[#86868b] block">Factor de Corrección (a):</span>
               <select
                 value={listenerFactorA}
                 onChange={(e) => setListenerFactorA(Number(e.target.value))}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
+                className="w-full px-2.5 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
               >
                 <option value={1.5}>a = 1.5% (Oyente atento / entrenado)</option>
                 <option value={2.0}>a = 2.0% (Población general promedio)</option>
@@ -495,7 +495,7 @@ export default function IntelligibilityModule({
             </div>
 
             {/* Slider de Distancia del Oyente */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08] space-y-2">
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08] space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#86868b]">Distancia del Oyente (d):</span>
                 <span className="font-mono font-bold text-[#0071e3]">{evalDistance} m</span>
@@ -519,31 +519,31 @@ export default function IntelligibilityModule({
           {/* Tarjetas Resumen de Métricas Clave Peutz */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 font-mono">
             
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-[11px] text-[#86868b] block">Constante Sala R</span>
               <span className="text-lg font-bold text-[#1d1d1f] dark:text-white">{R_untreated.toFixed(2)}</span>
               <span className="text-[10px] text-[#86868b] block">m² Sabine</span>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-[11px] text-[#86868b] block">RT60 ({selectedFreq}Hz)</span>
               <span className="text-lg font-bold text-[#ef4444]">{RT60_untreated}</span>
               <span className="text-[10px] text-[#86868b] block">segundos</span>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-[11px] text-[#86868b] block">Distancia Crítica Dc</span>
               <span className="text-lg font-bold text-[#0071e3]">{Dc_untreated.toFixed(2)}</span>
               <span className="text-[10px] text-[#86868b] block">metros</span>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-[11px] text-[#86868b] block">Distancia Límite D_lim</span>
               <span className="text-lg font-bold text-[#5833c7]">{DLim_untreated.toFixed(2)}</span>
               <span className="text-[10px] text-[#86868b] block">3.16 · Dc</span>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-[11px] text-[#86868b] block">%ALcons ({evalDistance}m)</span>
               <span className={`text-lg font-bold`} style={{ color: rating_untreated.color }}>
                 {result_untreated.alcons}%
@@ -553,7 +553,7 @@ export default function IntelligibilityModule({
               </span>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-[11px] text-[#86868b] block">STI / CIS</span>
               <span className="text-lg font-bold text-[#1d1d1f] dark:text-white">
                 {sti_untreated.toFixed(2)}
@@ -566,7 +566,7 @@ export default function IntelligibilityModule({
           </div>
 
           {/* Gráfica Recharts: %ALcons vs Distancia con Zonas ISO 9921 */}
-          <div id="peutz-curve-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
+          <div id="peutz-curve-card" className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h4 className="text-sm font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-2">
@@ -620,7 +620,7 @@ export default function IntelligibilityModule({
                       if (active && payload && payload.length) {
                         const d = payload[0].payload;
                         return (
-                          <div className="bg-white/95 dark:bg-[#18192a]/95 backdrop-blur-md p-3 rounded-2xl border border-black/[0.08] dark:border-white/[0.08] shadow-lg text-xs font-mono space-y-1">
+                          <div className="bg-white/95 dark:bg-surface2/95 backdrop-blur-md p-3 rounded-2xl border border-black/[0.08] dark:border-white/[0.08] shadow-lg text-xs font-mono space-y-1">
                             <div className="font-bold text-[#1d1d1f] dark:text-white">Distancia: {d.distance} m</div>
                             <div className="text-[#0071e3] font-bold">%ALcons: {d.alconsUntreated}%</div>
                             <div className="text-[#5833c7]">STI: {d.stiUntreated} ({getIntelligibilityRating(d.alconsUntreated).rating})</div>
@@ -645,7 +645,7 @@ export default function IntelligibilityModule({
             </div>
 
             {/* Lectura del resultado (las fórmulas están en la ficha técnica) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-[#fbfbfd] dark:bg-[#18192a] p-3.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-[#fbfbfd] dark:bg-surface2 p-3.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
               <div>
                 <span className="font-bold text-[#1d1d1f] dark:text-white block">Cerca de quien habla (hasta {DLim_untreated} m)</span>
                 <span className="text-[#86868b]">La pérdida de consonantes crece a medida que el oyente se aleja.</span>
@@ -677,7 +677,7 @@ export default function IntelligibilityModule({
         <div className="space-y-6 animate-fadeIn">
           
           {/* Panel de Configuración del Acondicionamiento Acústico */}
-          <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-5">
+          <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/[0.06] dark:border-white/[0.06]">
               <div className="flex items-center gap-2">
                 <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -714,7 +714,7 @@ export default function IntelligibilityModule({
                 <select
                   value={treatmentType}
                   onChange={(e) => setTreatmentType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
+                  className="w-full px-3 py-2 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
                 >
                   <option value="ceiling_acoustic">Cielo raso acústico de fibra mineral (reemplazo de techo)</option>
                   <option value="wall_panels">Paneles acústicos fonoabsorbentes en paredes</option>
@@ -731,7 +731,7 @@ export default function IntelligibilityModule({
                   max={roomSurface}
                   value={treatmentArea}
                   onChange={(e) => setTreatmentArea(Math.max(0.5, parseFloat(e.target.value) || 1))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
+                  className="w-full px-3 py-2 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
                 />
               </div>
 
@@ -744,7 +744,7 @@ export default function IntelligibilityModule({
                   max="1.0"
                   value={treatmentAlpha2000}
                   onChange={(e) => setTreatmentAlpha2000(Math.min(1.0, Math.max(0.05, parseFloat(e.target.value) || 0.95)))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
+                  className="w-full px-3 py-2 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-bold text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/[0.08]"
                 />
               </div>
             </div>
@@ -754,7 +754,7 @@ export default function IntelligibilityModule({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* ESTADO ACTUAL: SIN ACONDICIONAR */}
-            <div className="bg-[#fbfbfd] dark:bg-[#18192a] p-5 rounded-3xl border border-rose-500/20 space-y-4">
+            <div className="bg-[#fbfbfd] dark:bg-surface2 p-5 rounded-3xl border border-rose-500/20 space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-rose-500/10">
                 <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                   ESTADO 1: SIN ACONDICIONAR
@@ -763,25 +763,25 @@ export default function IntelligibilityModule({
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
+                <div className="p-3 rounded-2xl bg-white dark:bg-surface border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">RT60 (2000 Hz)</span>
                   <span className="text-xl font-bold text-rose-600">{RT60_untreated} s</span>
                   <span className="text-[10px] text-rose-600 block">Excesivo (demasiada reverberación)</span>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
+                <div className="p-3 rounded-2xl bg-white dark:bg-surface border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">Distancia Crítica Dc</span>
                   <span className="text-xl font-bold text-[#1d1d1f] dark:text-white">{Dc_untreated.toFixed(2)} m</span>
                   <span className="text-[10px] text-[#86868b] block">R = {R_untreated.toFixed(2)} m²</span>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
+                <div className="p-3 rounded-2xl bg-white dark:bg-surface border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">%ALcons a 3.0 m</span>
                   <span className="text-xl font-bold text-rose-600">{result_untreated.alcons}%</span>
                   <span className="text-[10px] font-sans font-bold text-rose-600">{rating_untreated.rating}</span>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
+                <div className="p-3 rounded-2xl bg-white dark:bg-surface border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">STI a 3.0 m</span>
                   <span className="text-xl font-bold text-[#1d1d1f] dark:text-white">{sti_untreated.toFixed(2)}</span>
                   <span className="text-[10px] text-[#86868b] block">Comprensión deficiente</span>
@@ -794,7 +794,7 @@ export default function IntelligibilityModule({
             </div>
 
             {/* ESTADO ACONDICIONADO */}
-            <div className="bg-[#fbfbfd] dark:bg-[#18192a] p-5 rounded-3xl border border-emerald-500/20 space-y-4">
+            <div className="bg-[#fbfbfd] dark:bg-surface2 p-5 rounded-3xl border border-emerald-500/20 space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-emerald-500/10">
                 <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   ESTADO 2: CON ACONDICIONAMIENTO
@@ -803,25 +803,25 @@ export default function IntelligibilityModule({
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
+                <div className="p-3 rounded-2xl bg-white dark:bg-surface border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">RT60 Tratado</span>
                   <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{RT60_treated} s</span>
                   <span className="text-[10px] text-emerald-600 block">Óptimo DIN 18041</span>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
+                <div className="p-3 rounded-2xl bg-white dark:bg-surface border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">Distancia Crítica Dc</span>
                   <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{Dc_treated.toFixed(2)} m</span>
                   <span className="text-[10px] text-[#86868b] block">R = {R_treated.toFixed(2)} m²</span>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
+                <div className="p-3 rounded-2xl bg-white dark:bg-surface border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">%ALcons a 3.0 m</span>
                   <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{result_treated.alcons}%</span>
                   <span className="text-[10px] font-sans font-bold text-emerald-600">{rating_treated.rating}</span>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#121322] border border-black/[0.04] dark:border-white/[0.05]">
+                <div className="p-3 rounded-2xl bg-white dark:bg-surface border border-black/[0.04] dark:border-white/[0.05]">
                   <span className="text-[#86868b] block">STI Tratado</span>
                   <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{sti_treated.toFixed(2)}</span>
                   <span className="text-[10px] text-emerald-600 block">Claridad total de palabra</span>
@@ -836,7 +836,7 @@ export default function IntelligibilityModule({
           </div>
 
           {/* Gráfica Superpuesta: Curvas de Comparación */}
-          <div id="peutz-comparison-chart-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
+          <div id="peutz-comparison-chart-card" className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h4 className="text-sm font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-2">
@@ -892,7 +892,7 @@ export default function IntelligibilityModule({
                       if (active && payload && payload.length) {
                         const d = payload[0].payload;
                         return (
-                          <div className="bg-white/95 dark:bg-[#18192a]/95 backdrop-blur-md p-3 rounded-2xl border border-black/[0.08] dark:border-white/[0.08] shadow-lg text-xs font-mono space-y-1">
+                          <div className="bg-white/95 dark:bg-surface2/95 backdrop-blur-md p-3 rounded-2xl border border-black/[0.08] dark:border-white/[0.08] shadow-lg text-xs font-mono space-y-1">
                             <div className="font-bold text-[#1d1d1f] dark:text-white">Distancia: {d.distance} m</div>
                             <div className="text-rose-500 font-bold">Sin tratar: {d.alconsUntreated}% (STI: {d.stiUntreated})</div>
                             <div className="text-emerald-500 font-bold">Con tratamiento: {d.alconsTreated}% (STI: {d.stiTreated})</div>
@@ -921,9 +921,9 @@ export default function IntelligibilityModule({
         <div className="space-y-6 animate-fadeIn">
           
           {/* Tarjeta de Protocolo Experimental ISO 9921 */}
-          <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
+          <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
-              <span className="p-2 rounded-xl bg-[#5833c7]/10 text-[#5833c7] dark:text-purple-400">
+              <span className="p-2 rounded-xl bg-[#5833c7]/10 text-[#5833c7] dark:text-[#a78bfa]">
                 <BookOpen className="w-5 h-5" />
               </span>
               <div>
@@ -937,12 +937,12 @@ export default function IntelligibilityModule({
             </div>
 
             {/* Flashcard / Dictado Interactivo */}
-            <div className="p-6 rounded-3xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] flex flex-col items-center justify-center space-y-4 text-center">
+            <div className="p-6 rounded-3xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] flex flex-col items-center justify-center space-y-4 text-center">
               <span className="text-xs font-mono text-[#86868b] uppercase tracking-widest">
                 Logátomo {currentWordIdx + 1} de {activeLogatomes.length} ({selectedLogatomeList})
               </span>
 
-              <div className="text-5xl font-black font-mono tracking-widest text-[#5833c7] dark:text-purple-400 py-4 px-8 rounded-2xl bg-white dark:bg-[#202236] shadow-sm border border-black/[0.04] dark:border-white/[0.06]">
+              <div className="text-5xl font-black font-mono tracking-widest text-[#5833c7] dark:text-[#a78bfa] py-4 px-8 rounded-2xl bg-white dark:bg-[#3a3b3c] shadow-sm border border-black/[0.04] dark:border-white/[0.06]">
                 {activeLogatomes[currentWordIdx]}
               </div>
 
@@ -950,7 +950,7 @@ export default function IntelligibilityModule({
                 <button
                   onClick={handlePrevWord}
                   disabled={currentWordIdx === 0}
-                  className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] text-xs font-semibold disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-semibold disabled:opacity-40"
                 >
                   Anterior
                 </button>
@@ -965,7 +965,7 @@ export default function IntelligibilityModule({
 
                 <button
                   onClick={handleNextWord}
-                  className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1d2d] text-xs font-semibold"
+                  className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-semibold"
                 >
                   Siguiente
                 </button>
@@ -1006,7 +1006,7 @@ export default function IntelligibilityModule({
               </div>
 
               {/* Formulario de Entrada */}
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05] text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05] text-xs">
                 <div>
                   <span className="text-[#86868b] block mb-1">Distancia (m):</span>
                   <input
@@ -1016,7 +1016,7 @@ export default function IntelligibilityModule({
                     max="15"
                     value={newExpDist}
                     onChange={(e) => setNewExpDist(parseFloat(e.target.value) || 1)}
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#202236] border border-black/[0.06] dark:border-white/[0.08] font-bold"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.06] dark:border-white/[0.08] font-bold"
                   />
                 </div>
 
@@ -1028,7 +1028,7 @@ export default function IntelligibilityModule({
                     max="100"
                     value={newExpTotal}
                     onChange={(e) => setNewExpTotal(parseInt(e.target.value) || 50)}
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#202236] border border-black/[0.06] dark:border-white/[0.08] font-bold"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.06] dark:border-white/[0.08] font-bold"
                   />
                 </div>
 
@@ -1040,7 +1040,7 @@ export default function IntelligibilityModule({
                     max={newExpTotal}
                     value={newExpCorrect}
                     onChange={(e) => setNewExpCorrect(parseInt(e.target.value) || 0)}
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#202236] border border-black/[0.06] dark:border-white/[0.08] font-bold text-emerald-600"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.06] dark:border-white/[0.08] font-bold text-emerald-600"
                   />
                 </div>
 
@@ -1051,7 +1051,7 @@ export default function IntelligibilityModule({
                     placeholder="Ej. Fila 2 centro"
                     value={newExpNotes}
                     onChange={(e) => setNewExpNotes(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#202236] border border-black/[0.06] dark:border-white/[0.08]"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#3a3b3c] border border-black/[0.06] dark:border-white/[0.08]"
                   />
                 </div>
 
@@ -1068,7 +1068,7 @@ export default function IntelligibilityModule({
               {/* Tabla de Puntos Medidos */}
               <div id="logatomes-table-card" className="overflow-x-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
                 <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b]">
+                  <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[#86868b]">
                     <tr>
                       <th className="py-2 px-3 font-semibold">Distancia</th>
                       <th className="py-2 px-3 font-semibold">Total Palabras</th>
@@ -1127,25 +1127,25 @@ export default function IntelligibilityModule({
           
           {/* Tarjetas Estadísticas de Error */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 font-mono">
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-4 rounded-3xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-xs text-[#86868b] block">Puntos Medidos</span>
               <span className="text-2xl font-bold text-[#1d1d1f] dark:text-white">{validationResults.count}</span>
               <span className="text-[10px] text-[#86868b] block">Receptores en sala</span>
             </div>
 
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-4 rounded-3xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-xs text-[#86868b] block">Error Cuadrático RMSE</span>
               <span className="text-2xl font-bold text-[#0071e3]">{validationResults.rmse}%</span>
               <span className="text-[10px] text-[#86868b] block">Root Mean Square Error</span>
             </div>
 
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-4 rounded-3xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-xs text-[#86868b] block">Error Medio Absoluto (MAE)</span>
               <span className="text-2xl font-bold text-[#5833c7]">{validationResults.meanAbsError}%</span>
               <span className="text-[10px] text-[#86868b] block">Desviación promedio</span>
             </div>
 
-            <div className="p-4 rounded-3xl bg-white dark:bg-[#121322] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="p-4 rounded-3xl bg-white dark:bg-surface border border-black/[0.06] dark:border-white/[0.08]">
               <span className="text-xs text-[#86868b] block">Correlación con Meseta</span>
               <span className="text-2xl font-bold text-emerald-600">R² ≈ 0.96</span>
               <span className="text-[10px] text-[#86868b] block">Excelente ajuste a Peutz</span>
@@ -1153,7 +1153,7 @@ export default function IntelligibilityModule({
           </div>
 
           {/* Gráfica de Validación: Puntos Experimentales sobre Curvas Analíticas */}
-          <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
+          <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h4 className="text-sm font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-2">
@@ -1203,14 +1203,14 @@ export default function IntelligibilityModule({
           </div>
 
           {/* Tabla Maestra de Discrepancias y Error */}
-          <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
+          <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
               Tabla Comparativa de Discrepancias: Experimental vs Analítico
             </h4>
 
             <div className="overflow-x-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
               <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b]">
+                <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[#86868b]">
                   <tr>
                     <th className="py-2.5 px-3">Distancia</th>
                     <th className="py-2.5 px-3 text-rose-500 font-bold">%ALcons Exp (Logátomos)</th>
@@ -1243,7 +1243,7 @@ export default function IntelligibilityModule({
               </table>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05] text-xs text-[#86868b] space-y-1.5 leading-relaxed">
+            <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05] text-xs text-[#86868b] space-y-1.5 leading-relaxed">
               <span className="font-bold text-[#1d1d1f] dark:text-white block">
                 Conclusiones Físicas de la Comparación Experimental vs Analítica:
               </span>
@@ -1265,7 +1265,7 @@ export default function IntelligibilityModule({
       {activeSubtab === 'usb_example' && (
         <div className="space-y-6 animate-fadeIn">
           
-          <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-5">
+          <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
               <div className="flex items-center gap-2">
                 <span className="p-2 rounded-xl bg-[#0071e3]/10 text-[#0071e3]">
@@ -1292,19 +1292,19 @@ export default function IntelligibilityModule({
 
             {/* Geometría de la diapositiva */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
-              <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05]">
+              <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05]">
                 <span className="text-[#86868b] block">Dimensiones</span>
                 <span className="text-base font-bold text-[#1d1d1f] dark:text-white">3m × 4m × 2.5m</span>
               </div>
-              <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05]">
+              <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05]">
                 <span className="text-[#86868b] block">Volumen (V)</span>
                 <span className="text-base font-bold text-[#0071e3]">30.0 m³</span>
               </div>
-              <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05]">
+              <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05]">
                 <span className="text-[#86868b] block">Superficie Total (Stot)</span>
                 <span className="text-base font-bold text-[#5833c7]">59.0 m²</span>
               </div>
-              <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05]">
+              <div className="p-3 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05]">
                 <span className="text-[#86868b] block">Directividad (Q)</span>
                 <span className="text-base font-bold text-emerald-600">Q = 2 (Orador)</span>
               </div>
@@ -1318,7 +1318,7 @@ export default function IntelligibilityModule({
 
               <div className="overflow-x-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
                 <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b]">
+                  <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[#86868b]">
                     <tr>
                       <th className="py-2 px-3">Superficie</th>
                       <th className="py-2 px-3">MATERIAL DE CONSTRUCCIÓN</th>
@@ -1348,7 +1348,7 @@ export default function IntelligibilityModule({
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-[#f5f5f7] dark:bg-[#1c1d2d] font-bold border-t border-black/[0.08] dark:border-white/[0.08]">
+                  <tfoot className="bg-[#f5f5f7] dark:bg-surface2 font-bold border-t border-black/[0.08] dark:border-white/[0.08]">
                     <tr>
                       <td colSpan={2} className="py-2 px-3">Área de Absorción Sabine A_tot (m²S):</td>
                       <td className="py-2 px-3">59.00 m²</td>
@@ -1390,19 +1390,19 @@ export default function IntelligibilityModule({
 
             {/* Resultados de Inteligibilidad y Tiempo de Reverberación */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
-              <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05] space-y-1">
+              <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05] space-y-1">
                 <span className="text-[#86868b] block">RT60 Sabine (2000 Hz):</span>
                 <span className="text-xl font-bold text-rose-500">3.14 s</span>
                 <span className="text-[11px] text-[#86868b] block">RT = (0.161 · 30) / 1.54 = 3.136 s</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05] space-y-1">
+              <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05] space-y-1">
                 <span className="text-[#86868b] block">Distancia Crítica (Dc):</span>
                 <span className="text-xl font-bold text-[#0071e3]">0.25 m</span>
                 <span className="text-[11px] text-[#86868b] block">Dc = 0.141 · √(2 · 1.58) = 0.25 m</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.04] dark:border-white/[0.05] space-y-1">
+              <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.04] dark:border-white/[0.05] space-y-1">
                 <span className="text-[#86868b] block">Distancia Límite (D_lim):</span>
                 <span className="text-xl font-bold text-[#5833c7]">0.79 m</span>
                 <span className="text-[11px] text-[#86868b] block">D_lim = 3.16 · 0.25 = 0.79 m</span>

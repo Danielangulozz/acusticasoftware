@@ -31,7 +31,7 @@ export default function DiffuserRender({ design }) {
   useEffect(() => setView(home), [home]);
 
   if (!settled.validWidth) {
-    return <p className="p-6 text-sm text-center text-[#86868b] dark:text-slate-400">Ajusta la banda de frecuencias: con estos valores el ancho de ranura no es fabricable.</p>;
+    return <p className="p-6 text-sm text-center text-[#86868b] dark:text-[#b0b3b8]">Ajusta la banda de frecuencias: con estos valores el ancho de ranura no es fabricable.</p>;
   }
 
   const download = async () => {
@@ -55,13 +55,13 @@ export default function DiffuserRender({ design }) {
     <div className="space-y-2">
       <RenderViewport ref={viewport} spec={spec} view={view} onViewChange={setView} previewMax={860} previewSamples={64} />
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1">
-        <div className="inline-flex p-1 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] text-xs font-semibold">
+        <div className="inline-flex p-1 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-semibold">
           {WOODS.map(([id, label]) => (
             <button
               key={id}
               type="button"
               onClick={() => setWood(id)}
-              className={`px-2.5 py-1 rounded-lg transition ${wood === id ? 'bg-white dark:bg-[#2a2c44] text-[#1d1d1f] dark:text-white shadow-sm' : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'}`}
+              className={`px-2.5 py-1 rounded-lg transition ${wood === id ? 'bg-white dark:bg-[#3a3b3c] text-[#1d1d1f] dark:text-white shadow-sm' : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'}`}
             >
               {label}
             </button>
@@ -71,7 +71,7 @@ export default function DiffuserRender({ design }) {
           <button
             type="button"
             onClick={() => setView(home)}
-            className="inline-flex items-center gap-1.5 text-xs rounded-xl border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-slate-200 px-3 py-1.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
+            className="inline-flex items-center gap-1.5 text-xs rounded-xl border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-[#e4e6eb] px-3 py-1.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
           >
             <RotateCcw className="w-3.5 h-3.5" /> Vista inicial
           </button>

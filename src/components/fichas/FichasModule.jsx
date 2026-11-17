@@ -8,9 +8,9 @@ import { FICHAS, GROUPS, buildContext, runCheck } from './fichasData';
  * cuándo es válida, de dónde sale y una comprobación en vivo con la sala abierta.
  */
 
-const CARD = 'bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm transition-colors';
+const CARD = 'bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm transition-colors';
 const TITLE = 'text-[#1d1d1f] dark:text-white';
-const MUTED = 'text-[#86868b] dark:text-slate-400';
+const MUTED = 'text-[#86868b] dark:text-[#b0b3b8]';
 const LABEL = `text-[10px] font-bold uppercase tracking-wider ${MUTED}`;
 
 const fmt = (v, d = 2) => (Number.isFinite(v) ? Number(v).toFixed(d) : '—');
@@ -90,7 +90,7 @@ export default function FichasModule({ onNavigate, ...data }) {
                     type="button"
                     onClick={() => select(x.id)}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 transition ${
-                      on ? 'bg-[#5833c7] text-white' : 'text-[#1d1d1f] dark:text-slate-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                      on ? 'bg-[#5833c7] text-white' : 'text-[#1d1d1f] dark:text-[#ccced2] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
                     }`}
                   >
                     <span className="leading-snug">{x.title}</span>
@@ -114,7 +114,7 @@ export default function FichasModule({ onNavigate, ...data }) {
               <p className={`text-sm leading-relaxed ${MUTED}`}>{ficha.what}</p>
             </header>
 
-            <section className="rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.06] dark:border-white/[0.08] px-5 py-4 space-y-2">
+            <section className="rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.06] dark:border-white/[0.08] px-5 py-4 space-y-2">
               <div className={LABEL}>Fórmula</div>
               <div className={`space-y-1 ${TITLE}`}>
                 {ficha.formulas.map((tex) => (
@@ -187,7 +187,7 @@ export default function FichasModule({ onNavigate, ...data }) {
                 </span>
               </div>
 
-              <div className={`rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.06] dark:border-white/[0.08] px-5 py-3 ${TITLE}`}>
+              <div className={`rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.06] dark:border-white/[0.08] px-5 py-3 ${TITLE}`}>
                 {check.steps.map((tex) => (
                   <Tex key={tex}>{tex}</Tex>
                 ))}
@@ -215,7 +215,7 @@ export default function FichasModule({ onNavigate, ...data }) {
               type="button"
               disabled={index === 0}
               onClick={() => select(FICHAS[index - 1].id)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] disabled:opacity-40 transition"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-[#e4e6eb] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] disabled:opacity-40 transition"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Anterior
             </button>

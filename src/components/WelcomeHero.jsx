@@ -27,7 +27,6 @@ const LABS = [
     id: 'modes',
     icon: Waves,
     badge: 'Bajas Frecuencias',
-    tone: 'bg-[#5833c7]/10 dark:bg-[#5833c7]/25 text-[#5833c7] dark:text-[#a78bfa]',
     title: 'Laboratorio de Modos Propios (Graves)',
     text: 'Descubre dónde retumban o se cancelan los bajos en cuartos pequeños, evalúa el criterio de Bonello y optimiza las proporciones con el diagrama de Bolt.',
     cta: 'Abrir análisis modal',
@@ -37,7 +36,6 @@ const LABS = [
     id: 'intelligibility',
     icon: MessageSquare,
     badge: 'Claridad de Palabra',
-    tone: 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
     title: 'Laboratorio de Inteligibilidad (%ALcons y STI)',
     text: 'Verifica si en un salón de clases, auditorio o templo se entienden claramente las consonantes, añade personas y compara antes vs. después del tratamiento.',
     cta: 'Evaluar claridad de voz',
@@ -48,7 +46,6 @@ const LABS = [
     id: 'diffusers',
     icon: Grid3x3,
     badge: 'Fabricación a Medida',
-    tone: 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',
     title: 'Laboratorio de Difusores (QRD / PRD / MLS)',
     text: 'Calcula las ranuras y profundidades de tu difusor acústico según la banda de frecuencia, visualiza su respuesta polar y descarga la lista de corte.',
     cta: 'Diseñar un difusor',
@@ -58,7 +55,6 @@ const LABS = [
     id: 'renders',
     icon: ImageIcon,
     badge: 'Nuevo',
-    tone: 'bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400',
     title: 'Estudio de renders',
     text: 'Crea tus propias imágenes 3D: elige la sala o el tratamiento, cambia medidas, colores, luz y cámara, y descárgalas en alta calidad.',
     cta: 'Crear un render',
@@ -97,12 +93,9 @@ export default function WelcomeHero({
           ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* 1. TARJETA IZQUIERDA: Cómo empezar paso a paso */}
-        <div className="lg:col-span-6 bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 flex flex-col justify-between shadow-apple-sm transition-colors space-y-6">
+        <div className="lg:col-span-6 bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/10 p-6 sm:p-8 flex flex-col justify-between shadow-apple-sm transition-colors space-y-6">
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#5833c7]/10 dark:bg-[#5833c7]/20 border border-[#5833c7]/30 text-[#5833c7] dark:text-[#a78bfa] text-xs font-bold font-mono">
-              <span className="w-2 h-2 rounded-full bg-[#5833c7] dark:bg-[#a78bfa] animate-pulse" />
-              <span>Empieza aquí · Simulador acústico</span>
-            </div>
+            <div className="text-[13px] font-semibold text-[#5833c7] dark:text-[#a78bfa]">Empieza aquí · Simulador acústico</div>
 
             <div>
               <div className="flex items-center gap-3">
@@ -118,7 +111,7 @@ export default function WelcomeHero({
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-300 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#ccced2] leading-relaxed">
               Sigue el orden de los <strong>3 pasos principales</strong> para evaluar tu espacio, o carga una sala de ejemplo con un clic para explorar los resultados al instante.
             </p>
 
@@ -127,7 +120,7 @@ export default function WelcomeHero({
               <button
                 type="button"
                 onClick={() => goTo('geometry')}
-                className="w-full text-left p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#0A0C14] hover:bg-[#5833c7]/[0.06] dark:hover:bg-[#5833c7]/15 border border-black/[0.06] dark:border-white/10 hover:border-[#5833c7]/40 transition flex items-center justify-between gap-3 group cursor-pointer"
+                className="w-full text-left p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-canvas hover:bg-[#5833c7]/[0.06] dark:hover:bg-[#5833c7]/15 border border-black/[0.06] dark:border-white/10 hover:border-[#5833c7]/40 transition flex items-center justify-between gap-3 group cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="w-7 h-7 rounded-lg bg-[#5833c7] text-white font-mono text-xs font-bold flex items-center justify-center shrink-0">
@@ -137,7 +130,7 @@ export default function WelcomeHero({
                     <div className="text-xs sm:text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#a78bfa] transition">
                       Define la Geometría de tu Sala
                     </div>
-                    <div className="text-[11px] text-[#86868b] dark:text-slate-400 truncate">
+                    <div className="text-[11px] text-[#86868b] dark:text-[#b0b3b8] truncate">
                       Dibuja las paredes en 2D o elige una forma (rectangular, en L, trapecio)
                     </div>
                   </div>
@@ -148,7 +141,7 @@ export default function WelcomeHero({
               <button
                 type="button"
                 onClick={() => goTo('materials')}
-                className="w-full text-left p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#0A0C14] hover:bg-[#5833c7]/[0.06] dark:hover:bg-[#5833c7]/15 border border-black/[0.06] dark:border-white/10 hover:border-[#5833c7]/40 transition flex items-center justify-between gap-3 group cursor-pointer"
+                className="w-full text-left p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-canvas hover:bg-[#5833c7]/[0.06] dark:hover:bg-[#5833c7]/15 border border-black/[0.06] dark:border-white/10 hover:border-[#5833c7]/40 transition flex items-center justify-between gap-3 group cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="w-7 h-7 rounded-lg bg-[#5833c7]/15 text-[#5833c7] dark:text-[#a78bfa] font-mono text-xs font-bold flex items-center justify-center shrink-0">
@@ -158,7 +151,7 @@ export default function WelcomeHero({
                     <div className="text-xs sm:text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#a78bfa] transition">
                       Elige los Materiales y la Fuente Sonora
                     </div>
-                    <div className="text-[11px] text-[#86868b] dark:text-slate-400 truncate">
+                    <div className="text-[11px] text-[#86868b] dark:text-[#b0b3b8] truncate">
                       Indica de qué son el piso, techo y muros, y dónde se ubica el oyente
                     </div>
                   </div>
@@ -169,7 +162,7 @@ export default function WelcomeHero({
               <button
                 type="button"
                 onClick={() => goTo('results')}
-                className="w-full text-left p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#0A0C14] hover:bg-[#5833c7]/[0.06] dark:hover:bg-[#5833c7]/15 border border-black/[0.06] dark:border-white/10 hover:border-[#5833c7]/40 transition flex items-center justify-between gap-3 group cursor-pointer"
+                className="w-full text-left p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-canvas hover:bg-[#5833c7]/[0.06] dark:hover:bg-[#5833c7]/15 border border-black/[0.06] dark:border-white/10 hover:border-[#5833c7]/40 transition flex items-center justify-between gap-3 group cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="w-7 h-7 rounded-lg bg-[#5833c7]/15 text-[#5833c7] dark:text-[#a78bfa] font-mono text-xs font-bold flex items-center justify-center shrink-0">
@@ -179,7 +172,7 @@ export default function WelcomeHero({
                     <div className="text-xs sm:text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#a78bfa] transition">
                       Revisa el Diagnóstico y Genera tu Informe
                     </div>
-                    <div className="text-[11px] text-[#86868b] dark:text-slate-400 truncate">
+                    <div className="text-[11px] text-[#86868b] dark:text-[#b0b3b8] truncate">
                       Comprueba si la reverberación (RT60) es la adecuada y descarga el reporte en PDF
                     </div>
                   </div>
@@ -203,7 +196,7 @@ export default function WelcomeHero({
               <button
                 type="button"
                 onClick={handleEnter}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-[#1d1d1f] dark:text-white font-bold text-xs sm:text-sm border border-black/[0.08] dark:border-white/10 transition cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#e8e8ed] dark:hover:bg-[#3a3b3c] text-[#1d1d1f] dark:text-white font-bold text-xs sm:text-sm border border-black/[0.08] dark:border-white/10 transition cursor-pointer"
               >
                 <LayoutDashboard className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa]" />
                 <span>Ver Panel General</span>
@@ -213,11 +206,11 @@ export default function WelcomeHero({
             {/* Créditos compactos del equipo */}
             <div className="flex items-center gap-2.5 py-2 px-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06]">
               <div className="flex -space-x-1.5 shrink-0">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#5833c7] text-white text-[9px] font-black ring-2 ring-white dark:ring-[#141622]">DA</span>
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#10b981] text-white text-[9px] font-black ring-2 ring-white dark:ring-[#141622]">JG</span>
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#f59e0b] text-white text-[9px] font-black ring-2 ring-white dark:ring-[#141622]">BG</span>
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#5833c7] text-white text-[9px] font-black ring-2 ring-white dark:ring-surface">DA</span>
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#10b981] text-white text-[9px] font-black ring-2 ring-white dark:ring-surface">JG</span>
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#f59e0b] text-white text-[9px] font-black ring-2 ring-white dark:ring-surface">BG</span>
               </div>
-              <p className="text-[11px] text-[#86868b] dark:text-slate-400 truncate">
+              <p className="text-[11px] text-[#86868b] dark:text-[#b0b3b8] truncate">
                 Equipo <strong className="text-[#1d1d1f] dark:text-white">Acústica de Recintos 2026</strong> · Daniel A., Jeronimo G., Brandon G.
               </p>
             </div>
@@ -225,14 +218,14 @@ export default function WelcomeHero({
         </div>
 
         {/* 2. TARJETA DERECHA: Visualizador 3D + Salas de Ejemplo */}
-        <div className="lg:col-span-6 bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 p-5 sm:p-6 flex flex-col justify-between shadow-apple-sm transition-colors space-y-4">
+        <div className="lg:col-span-6 bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/10 p-5 sm:p-6 flex flex-col justify-between shadow-apple-sm transition-colors space-y-4">
           {/* Header del visor 3D */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-black/[0.06] dark:border-white/10">
             <div>
               <h3 className="text-xs font-bold tracking-wider uppercase text-[#1d1d1f] dark:text-white">
                 Vista 3D de la Sala Activa
               </h3>
-              <p className="text-[11px] text-[#86868b] dark:text-slate-400">
+              <p className="text-[11px] text-[#86868b] dark:text-[#b0b3b8]">
                 Gira con el clic izquierdo · Haz zoom con la rueda del mouse
               </p>
             </div>
@@ -261,7 +254,7 @@ export default function WelcomeHero({
           {/* Selector Rápido de Salas de Ejemplo */}
           {onLoadPreset && (
             <div className="pt-2 space-y-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#86868b] dark:text-slate-400 uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider">
                 <FolderOpen className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#a78bfa]" />
                 <span>¿Prefieres probar con una sala ya configurada? Haz clic en un ejemplo:</span>
               </div>
@@ -279,11 +272,11 @@ export default function WelcomeHero({
                       className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
                         isSelected
                           ? 'border-[#5833c7] bg-[#5833c7]/10 dark:bg-[#5833c7]/20'
-                          : 'border-black/[0.06] dark:border-white/10 bg-[#fbfbfd] dark:bg-[#0A0C14] hover:border-[#5833c7]/50'
+                          : 'border-black/[0.06] dark:border-white/10 bg-[#fbfbfd] dark:bg-canvas hover:border-[#5833c7]/50'
                       }`}
                     >
                       <div className="text-xs font-bold text-[#1d1d1f] dark:text-white truncate">{p.label}</div>
-                      <div className="text-[10px] font-mono text-[#86868b] dark:text-slate-400 truncate mt-0.5">{p.sub}</div>
+                      <div className="text-[10px] font-mono text-[#86868b] dark:text-[#b0b3b8] truncate mt-0.5">{p.sub}</div>
                     </button>
                   );
                 })}
@@ -305,7 +298,7 @@ export default function WelcomeHero({
               key={lab.id}
               type="button"
               onClick={() => goTo(lab.id)}
-              className="text-left bg-white dark:bg-[#141622] rounded-3xl border border-black/[0.08] dark:border-white/10 hover:border-[#5833c7]/50 shadow-apple-sm hover:shadow-apple transition group cursor-pointer flex flex-col overflow-hidden"
+              className="text-left bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/10 hover:border-[#5833c7]/50 shadow-apple-sm hover:shadow-apple transition group cursor-pointer flex flex-col overflow-hidden"
             >
               {/* Render conceptual generado por tools/render-lab */}
               <div className="relative h-40 w-full bg-gradient-to-b from-black/[0.015] to-black/[0.06] dark:from-white/[0.02] dark:to-white/[0.07]">
@@ -316,21 +309,21 @@ export default function WelcomeHero({
                   decoding="async"
                   className="absolute inset-0 w-full h-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
                 />
-                <span className={`absolute top-3 right-3 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full backdrop-blur ${lab.tone}`}>
+                <span className="absolute top-3 right-3 text-[11px] font-semibold px-2 py-0.5 rounded-full backdrop-blur bg-white/80 dark:bg-black/40 text-[#56575b] dark:text-[#ccced2]">
                   {lab.badge}
                 </span>
               </div>
               <div className="p-5 flex-1 flex flex-col justify-between gap-3">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${lab.tone}`}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[#5833c7]/10 dark:bg-[#8767f9]/15 text-[#5833c7] dark:text-[#a78bfa]">
                       <Icon className="w-4 h-4" />
                     </div>
                     <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-white group-hover:text-[#5833c7] dark:group-hover:text-[#a78bfa] transition">
                       {lab.title}
                     </h4>
                   </div>
-                  <p className="text-xs text-[#86868b] dark:text-slate-400 leading-relaxed">{lab.text}</p>
+                  <p className="text-xs text-[#86868b] dark:text-[#b0b3b8] leading-relaxed">{lab.text}</p>
                 </div>
                 <span className="text-xs font-semibold text-[#5833c7] dark:text-[#a78bfa] inline-flex items-center gap-1">
                   {lab.cta} <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />

@@ -114,20 +114,20 @@ export default function ModesTable({
   const countOblique = modes.filter(m => m.type === 'oblique').length;
 
   return (
-    <div id="modes-table-container" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors">
+    <div id="modes-table-container" className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors">
       
       {/* Encabezado y Acciones */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400">
+            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa]">
               <Layers className="w-5 h-5" />
             </span>
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
               Catálogo de Modos Propios Calculados
             </h3>
           </div>
-          <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1">
             Total calculados: <strong className="text-[#1d1d1f] dark:text-white font-mono">{modes.length}</strong> modos &bull; Axiales: <strong className="text-[#5833c7] font-mono">{countAxial}</strong> &bull; Tangenciales: <strong className="text-[#10b981] font-mono">{countTangential}</strong> &bull; Oblicuos: <strong className="text-[#f59e0b] font-mono">{countOblique}</strong>
           </p>
         </div>
@@ -180,15 +180,15 @@ export default function ModesTable({
             placeholder="Buscar por índice (1,0,0) o Hz..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.08] dark:border-white/[0.08] text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#5833c7]"
+            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.08] dark:border-white/[0.08] text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#5833c7]"
           />
         </div>
 
         {/* Tipo de Modo */}
-        <div className="flex items-center gap-1 bg-[#fbfbfd] dark:bg-[#18192a] p-1 rounded-xl border border-black/[0.08] dark:border-white/[0.08] text-xs">
+        <div className="flex items-center gap-1 bg-[#fbfbfd] dark:bg-surface2 p-1 rounded-xl border border-black/[0.08] dark:border-white/[0.08] text-xs">
           <button
             onClick={() => { setFilterType('all'); setPage(1); }}
-            className={`flex-1 py-1.5 px-2 rounded-lg font-medium transition-all ${filterType === 'all' ? 'bg-white dark:bg-[#25263a] text-[#1d1d1f] dark:text-white shadow-sm' : 'text-[#86868b]'}`}
+            className={`flex-1 py-1.5 px-2 rounded-lg font-medium transition-all ${filterType === 'all' ? 'bg-white dark:bg-[#3a3b3c] text-[#1d1d1f] dark:text-white shadow-sm' : 'text-[#86868b]'}`}
           >
             Todos
           </button>
@@ -213,7 +213,7 @@ export default function ModesTable({
         </div>
 
         {/* Checkbox sólo bajo Schroeder */}
-        <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.08] dark:border-white/[0.08] text-xs text-[#1d1d1f] dark:text-slate-300 cursor-pointer select-none">
+        <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.08] dark:border-white/[0.08] text-xs text-[#1d1d1f] dark:text-[#ccced2] cursor-pointer select-none">
           <input
             type="checkbox"
             checked={onlyBelowSchroeder}
@@ -224,7 +224,7 @@ export default function ModesTable({
         </label>
 
         {/* Estado y contador */}
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.08] dark:border-white/[0.08] text-xs text-[#86868b]">
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.08] dark:border-white/[0.08] text-xs text-[#86868b]">
           <span>Coincidencias:</span>
           <span className="font-bold text-[#1d1d1f] dark:text-white font-mono">{filteredModes.length}</span>
         </div>
@@ -233,7 +233,7 @@ export default function ModesTable({
       {/* Tabla de Modos */}
       <div className="overflow-x-auto mt-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.06]">
         <table className="w-full text-left text-xs">
-          <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[#86868b] dark:text-slate-400 uppercase tracking-wider font-semibold border-b border-black/[0.06] dark:border-white/[0.06]">
+          <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] dark:text-[#b0b3b8] uppercase tracking-wider font-semibold border-b border-black/[0.06] dark:border-white/[0.06]">
             <tr>
               <th className="py-3 px-3 text-center w-12">#</th>
               <th className="py-3 px-3 cursor-pointer select-none hover:text-[#1d1d1f] dark:hover:text-white" onClick={() => handleSort('indices')}>
@@ -278,7 +278,7 @@ export default function ModesTable({
                     className={`cursor-pointer transition-colors ${
                       isSelected
                         ? 'bg-[#5833c7]/15 dark:bg-[#5833c7]/25 font-bold'
-                        : 'hover:bg-[#fbfbfd] dark:hover:bg-[#18192a]'
+                        : 'hover:bg-[#fbfbfd] dark:hover:bg-surface2'
                     }`}
                   >
                     <td className="py-2.5 px-3 text-center text-[#86868b]">{m.index}</td>
@@ -286,7 +286,7 @@ export default function ModesTable({
                       ({m.nx}, {m.ny}, {m.nz})
                     </td>
                     <td className="py-2.5 px-3 text-sm font-black">
-                      <span className={isUnderSchroeder ? 'text-[#0071e3] dark:text-sky-400' : 'text-[#86868b]'}>
+                      <span className={isUnderSchroeder ? 'text-[#0071e3] dark:text-[#a78bfa]' : 'text-[#86868b]'}>
                         {m.frequency.toFixed(2)} Hz
                       </span>
                     </td>
@@ -317,7 +317,7 @@ export default function ModesTable({
                           className={`p-1.5 rounded-lg transition-all ${
                             isSelected
                               ? 'bg-[#5833c7] text-white shadow-sm'
-                              : 'bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-[#5833c7]/10'
+                              : 'bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-[#5833c7]/10'
                           }`}
                           title="Ver en Visor Espacial 2D"
                         >
@@ -328,7 +328,7 @@ export default function ModesTable({
                             e.stopPropagation();
                             onSelectModeTime(m);
                           }}
-                          className="p-1.5 rounded-lg bg-[#f5f5f7] dark:bg-[#1c1d2d] text-[#86868b] hover:text-[#5833c7] hover:bg-[#5833c7]/10 transition-all"
+                          className="p-1.5 rounded-lg bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] hover:text-[#5833c7] hover:bg-[#5833c7]/10 transition-all"
                           title="Ver en Dominio del Tiempo p(t)"
                         >
                           <Activity className="w-3.5 h-3.5" />
@@ -353,14 +353,14 @@ export default function ModesTable({
             <button
               onClick={() => setPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] disabled:opacity-40 font-medium hover:bg-[#e8e8ed] dark:hover:bg-[#25263a] transition-all"
+              className="px-3 py-1.5 rounded-lg bg-[#f5f5f7] dark:bg-surface2 disabled:opacity-40 font-medium hover:bg-[#e8e8ed] dark:hover:bg-[#3a3b3c] transition-all"
             >
               Anterior
             </button>
             <button
               onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] disabled:opacity-40 font-medium hover:bg-[#e8e8ed] dark:hover:bg-[#25263a] transition-all"
+              className="px-3 py-1.5 rounded-lg bg-[#f5f5f7] dark:bg-surface2 disabled:opacity-40 font-medium hover:bg-[#e8e8ed] dark:hover:bg-[#3a3b3c] transition-all"
             >
               Siguiente
             </button>

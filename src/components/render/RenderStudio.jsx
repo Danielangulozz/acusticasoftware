@@ -77,13 +77,13 @@ import { DIFFUSER_TYPE_LABELS, designFromConfig, loadDiffuserConfig } from '../d
 const STORAGE_KEY = 'pozole_render_studio_v5';
 const HINTS_KEY = 'pozole_render_hints_v1';
 
-const CARD = 'bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm';
+const CARD = 'bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm';
 const TITLE = 'text-[#1d1d1f] dark:text-white';
-const MUTED = 'text-[#6e6e73] dark:text-slate-400';
-const SOFT = 'bg-[#f5f5f7] dark:bg-[#18192a]';
+const MUTED = 'text-[#6e6e73] dark:text-[#b0b3b8]';
+const SOFT = 'bg-[#f5f5f7] dark:bg-surface2';
 const LINE = 'border-black/[0.07] dark:border-white/[0.08]';
-const ACTIVE = 'bg-[#fff] dark:bg-[#2a2c44] shadow-sm text-[#1d1d1f] dark:text-white';
-const IDLE = 'text-[#6e6e73] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white';
+const ACTIVE = 'bg-[#fff] dark:bg-[#3a3b3c] shadow-sm text-[#1d1d1f] dark:text-white';
+const IDLE = 'text-[#6e6e73] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white';
 
 const THEMES = [
   { name: 'POZOLE', primary: '#7464cc', secondary: '#b3a7ec', neutral: '#e9e2d3', accent: '#d9a441', dark: '#3b3b45', wood: 'oak', wall: '#f1eee8', floor: 'planks' },
@@ -571,7 +571,7 @@ export default function RenderStudio({
   }, [layout, opts.mode]);
 
   const flat = opts.mode !== 'room' || opts.environment === 'studio';
-  const previewMatte = flat ? (opts.night || isDarkMode ? '#141526' : '#eeecf3') : null;
+  const previewMatte = flat ? (opts.night || isDarkMode ? '#242526' : '#eeecf3') : null;
   const size = SIZES.find((s) => s.id === opts.size) ?? SIZES[0];
   const aspect = size.w / size.h;
 
@@ -776,7 +776,7 @@ export default function RenderStudio({
                   </div>
                 )}
                 {toast && (
-                  <div className={`absolute left-3 top-3 max-w-[80%] rounded-xl px-3 py-2 text-[12px] font-medium shadow-lg ${toast.tone === 'error' ? 'bg-rose-600 text-white' : 'bg-white/95 text-[#1d1d1f] dark:bg-[#1c1d30]/95 dark:text-white'}`} style={{ marginTop: hintVisible ? 52 : 0 }}>
+                  <div className={`absolute left-3 top-3 max-w-[80%] rounded-xl px-3 py-2 text-[12px] font-medium shadow-lg ${toast.tone === 'error' ? 'bg-rose-600 text-white' : 'bg-white/95 text-[#1d1d1f] dark:bg-surface2/95 dark:text-white'}`} style={{ marginTop: hintVisible ? 52 : 0 }}>
                     {toast.text}
                   </div>
                 )}
@@ -1041,7 +1041,7 @@ function CatalogPanel({ palette, onAdd }) {
       </div>
       <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:thin]">
         {CATALOG_GROUPS.map((g) => (
-          <button key={g.id} type="button" onClick={() => setGroup(g.id)} className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition cursor-pointer ${group === g.id ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#121322]' : `${SOFT} ${IDLE}`}`}>
+          <button key={g.id} type="button" onClick={() => setGroup(g.id)} className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition cursor-pointer ${group === g.id ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-surface' : `${SOFT} ${IDLE}`}`}>
             {g.label}
           </button>
         ))}
@@ -1049,7 +1049,7 @@ function CatalogPanel({ palette, onAdd }) {
       <p className={`text-[11.5px] ${MUTED}`}>{list.length} objetos · un clic lo agrega frente a la cámara. Si tienes una mesa elegida, los objetos pequeños quedan encima.</p>
       <div className="grid grid-cols-2 gap-2">
         {list.map((def) => (
-          <button key={def.id} type="button" onClick={() => onAdd(def.id)} title={def.description || def.subtitle} className={`group text-left rounded-2xl border ${LINE} hover:border-[#5833c7]/60 hover:shadow-sm transition overflow-hidden cursor-pointer bg-[#fbfbfd] dark:bg-[#17192b]`}>
+          <button key={def.id} type="button" onClick={() => onAdd(def.id)} title={def.description || def.subtitle} className={`group text-left rounded-2xl border ${LINE} hover:border-[#5833c7]/60 hover:shadow-sm transition overflow-hidden cursor-pointer bg-[#fbfbfd] dark:bg-surface`}>
             <Thumb key={`${def.id}|${palette.primary}|${palette.wood}`} typeId={def.id} palette={palette} />
             <div className="px-2.5 pb-2 pt-1">
               <div className={`text-[12px] font-semibold leading-tight ${TITLE} line-clamp-2`}>{def.name}</div>
@@ -1191,7 +1191,7 @@ function FinishPicker({ opts, patch, withWalls = false }) {
           <button key={t.name} type="button" onClick={() => patch({ palette: { ...t } })} className={`inline-flex items-center gap-1.5 rounded-full border pl-1.5 pr-2.5 py-1 text-[11.5px] font-medium transition cursor-pointer ${opts.palette.name === t.name ? 'border-[#5833c7] text-[#5833c7] dark:text-[#c4b5fd]' : `${LINE} ${TITLE}`}`}>
             <span className="flex -space-x-1">
               {[t.primary, t.secondary, t.accent].map((c) => (
-                <span key={c} className="w-3 h-3 rounded-full ring-1 ring-white dark:ring-[#121322]" style={{ background: c }} />
+                <span key={c} className="w-3 h-3 rounded-full ring-1 ring-white dark:ring-surface" style={{ background: c }} />
               ))}
             </span>
             {t.name}
@@ -1648,7 +1648,7 @@ function ExportDialog({ tab, setTab, onClose, opts, patch, viewport, paths, flat
     return () => window.removeEventListener('keydown', onKey);
   }, [busy, onClose]);
 
-  const matteFor = () => (flat ? (opts.transparent ? null : opts.night || isDarkMode ? '#141526' : '#f3f1f7') : null);
+  const matteFor = () => (flat ? (opts.transparent ? null : opts.night || isDarkMode ? '#242526' : '#f3f1f7') : null);
 
   const renderImage = async () => {
     setBusy(true);
@@ -1972,7 +1972,7 @@ function Menu({ children, onClose }) {
     };
   }, [onClose]);
   return (
-    <div className={`absolute right-0 mt-2 w-64 z-40 rounded-2xl bg-white dark:bg-[#16182b] border ${LINE} shadow-2xl p-1.5`}>
+    <div className={`absolute right-0 mt-2 w-64 z-40 rounded-2xl bg-white dark:bg-surface border ${LINE} shadow-2xl p-1.5`}>
       {children}
     </div>
   );

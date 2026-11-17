@@ -345,7 +345,7 @@ export default function TimeDomainResponse({
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-black tracking-widest uppercase text-[#5833c7] dark:text-purple-300">
+                <span className="text-[11px] font-black tracking-widest uppercase text-[#5833c7] dark:text-[#c4b5fd]">
                   Respuesta Dinámica Libre &bull; Dominio del Tiempo
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30">
@@ -355,7 +355,7 @@ export default function TimeDomainResponse({
               <h3 className="text-xl sm:text-2xl font-black text-[#1d1d1f] dark:text-white mt-0.5">
                 Presión Acústica Libre de Resonancias p(t)
               </h3>
-              <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1 max-w-3xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1 max-w-3xl leading-relaxed">
                 Evolución transitoria libre de las ondas estacionarias de la sala al cesar la excitación. Cada modo propio decae a una frecuencia natural <strong className="text-[#1d1d1f] dark:text-white">f<sub>n</sub></strong> modulada por su tasa de amortiguamiento exponencial <strong className="text-[#1d1d1f] dark:text-white">&delta; = 3&middot;ln(10) / RT<sub>60</sub></strong> y por la función de forma modal espacial <strong className="text-[#1d1d1f] dark:text-white">&Psi;<sub>n</sub>(x, y, z)</strong> en la posición del receptor.
               </p>
             </div>
@@ -394,7 +394,7 @@ export default function TimeDomainResponse({
           <a href="#fichas/amortiguamiento" className="font-semibold text-[#5833c7] dark:text-[#a78bfa] hover:underline">
             Cómo se calcula el decaimiento de un modo (ficha técnica) →
           </a>
-          <div className="flex items-center gap-4 text-[#86868b] dark:text-slate-400 text-[11px]">
+          <div className="flex items-center gap-4 text-[#86868b] dark:text-[#b0b3b8] text-[11px]">
             <span><strong>&delta;</strong> = {dampingMetrics.delta} s⁻¹</span>
             <span>&bull;</span>
             <span><strong>&tau;</strong> = {dampingMetrics.tauMs} ms</span>
@@ -409,13 +409,13 @@ export default function TimeDomainResponse({
       {/* =========================================================================
           BARRA DE CONTROL Y SELECTOR DE MODOS
           ========================================================================= */}
-      <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 shadow-apple-sm space-y-4">
+      <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 shadow-apple-sm space-y-4">
         
         {/* Fila 1: Selector de Modo / Modo de Superposición */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold text-[#86868b]">Modo de Análisis:</span>
-            <div className="inline-flex p-1 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.06] dark:border-white/[0.06]">
+            <div className="inline-flex p-1 rounded-2xl bg-[#f5f5f7] dark:bg-surface2 border border-black/[0.06] dark:border-white/[0.06]">
               <button
                 onClick={() => setIsSuperposition(false)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -447,7 +447,7 @@ export default function TimeDomainResponse({
               <select
                 value={selectedModeId || ''}
                 onChange={(e) => setSelectedModeId(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white cursor-pointer"
               >
                 {modes.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -476,7 +476,7 @@ export default function TimeDomainResponse({
                   className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold whitespace-nowrap transition-all border ${
                     isSelected
                       ? 'bg-[#5833c7] text-white border-[#5833c7] shadow-sm'
-                      : 'bg-[#f5f5f7] dark:bg-[#18192a] text-[#86868b] border-black/[0.06] dark:border-white/[0.06] hover:text-[#1d1d1f] dark:hover:text-white'
+                      : 'bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] border-black/[0.06] dark:border-white/[0.06] hover:text-[#1d1d1f] dark:hover:text-white'
                   }`}
                 >
                   ({m.nx},{m.ny},{m.nz}) {m.frequency.toFixed(0)}Hz
@@ -496,7 +496,7 @@ export default function TimeDomainResponse({
                 <MapPin className="w-3.5 h-3.5 text-[#5833c7]" />
                 Posición Receptor (x, y, z):
               </span>
-              <span className="font-mono text-[#5833c7] dark:text-purple-300 font-bold">
+              <span className="font-mono text-[#5833c7] dark:text-[#c4b5fd] font-bold">
                 ({pos.x}m, {pos.y}m, {pos.z}m)
               </span>
             </div>
@@ -556,19 +556,19 @@ export default function TimeDomainResponse({
               <span className="text-[10px] text-[#86868b]">Presets:</span>
               <button
                 onClick={() => applyPositionPreset('corner')}
-                className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] hover:bg-[#5833c7]/10 hover:text-[#5833c7] text-[10px] font-bold text-[#86868b] transition-all"
+                className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#5833c7]/10 hover:text-[#5833c7] text-[10px] font-bold text-[#86868b] transition-all"
               >
                 Esquina (Antinodo Máx)
               </button>
               <button
                 onClick={() => applyPositionPreset('center')}
-                className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] hover:bg-[#5833c7]/10 hover:text-[#5833c7] text-[10px] font-bold text-[#86868b] transition-all"
+                className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#5833c7]/10 hover:text-[#5833c7] text-[10px] font-bold text-[#86868b] transition-all"
               >
                 Centro de Sala
               </button>
               <button
                 onClick={() => applyPositionPreset('wallX')}
-                className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-[#18192a] hover:bg-[#5833c7]/10 hover:text-[#5833c7] text-[10px] font-bold text-[#86868b] transition-all"
+                className="px-2 py-0.5 rounded-lg bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#5833c7]/10 hover:text-[#5833c7] text-[10px] font-bold text-[#86868b] transition-all"
               >
                 Pared Frontal
               </button>
@@ -592,7 +592,7 @@ export default function TimeDomainResponse({
                   className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-mono font-bold transition-all border ${
                     durationMs === ms
                       ? 'bg-[#0071e3] text-white border-[#0071e3]'
-                      : 'bg-[#f5f5f7] dark:bg-[#18192a] text-[#86868b] border-black/[0.05] dark:border-white/[0.05] hover:text-[#1d1d1f] dark:hover:text-white'
+                      : 'bg-[#f5f5f7] dark:bg-surface2 text-[#86868b] border-black/[0.05] dark:border-white/[0.05] hover:text-[#1d1d1f] dark:hover:text-white'
                   }`}
                 >
                   {ms >= 1000 ? `${ms / 1000}s` : `${ms}ms`}
@@ -611,7 +611,7 @@ export default function TimeDomainResponse({
           </div>
 
           {/* Controles de síntesis de audio */}
-          <div className="space-y-2 bg-[#fbfbfd] dark:bg-[#18192a] p-3 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] flex flex-col justify-between">
+          <div className="space-y-2 bg-[#fbfbfd] dark:bg-surface2 p-3 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
                 <Volume2 className="w-3.5 h-3.5 text-[#10b981]" />
@@ -664,11 +664,11 @@ export default function TimeDomainResponse({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         
         {/* Frecuencia Modal */}
-        <div className="bg-white dark:bg-[#121322] p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
+        <div className="bg-white dark:bg-surface p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#86868b] mb-1">
             Frecuencia Modal
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-[#5833c7] dark:text-purple-400">
+          <div className="text-xl sm:text-2xl font-black font-mono text-[#5833c7] dark:text-[#a78bfa]">
             {isSuperposition ? 'Múltiple' : `${currentMode?.frequency?.toFixed(1) || 0}`}
             {!isSuperposition && <span className="text-xs font-normal text-[#86868b] ml-0.5">Hz</span>}
           </div>
@@ -680,7 +680,7 @@ export default function TimeDomainResponse({
         </div>
 
         {/* Tasa de Amortiguamiento delta */}
-        <div className="bg-white dark:bg-[#121322] p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
+        <div className="bg-white dark:bg-surface p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#86868b] mb-1">
             Amortiguamiento (&delta;)
           </div>
@@ -694,7 +694,7 @@ export default function TimeDomainResponse({
         </div>
 
         {/* Constante de Relajación tau */}
-        <div className="bg-white dark:bg-[#121322] p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
+        <div className="bg-white dark:bg-surface p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#86868b] mb-1">
             Constante Relajación (&tau;)
           </div>
@@ -708,7 +708,7 @@ export default function TimeDomainResponse({
         </div>
 
         {/* Ancho de Banda modal Delta_f */}
-        <div className="bg-white dark:bg-[#121322] p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
+        <div className="bg-white dark:bg-surface p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#86868b] mb-1">
             Ancho de Banda (&Delta;f)
           </div>
@@ -722,7 +722,7 @@ export default function TimeDomainResponse({
         </div>
 
         {/* Factor de Forma Espacial Psi */}
-        <div className="bg-white dark:bg-[#121322] p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
+        <div className="bg-white dark:bg-surface p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#86868b] mb-1">
             Forma Espacial (&Psi;)
           </div>
@@ -739,7 +739,7 @@ export default function TimeDomainResponse({
         </div>
 
         {/* Factor de Calidad Q o Batimiento */}
-        <div className="bg-white dark:bg-[#121322] p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
+        <div className="bg-white dark:bg-surface p-4 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#86868b] mb-1">
             {isSuperposition && superposedTimeResponse?.beatFreq ? 'Batimiento (Beats)' : 'Factor Calidad (Q)'}
           </div>
@@ -760,7 +760,7 @@ export default function TimeDomainResponse({
       {/* =========================================================================
           GRÁFICA DE ALTA RESOLUCIÓN: PRESIÓN p(t) Y ENVOLVENTES EXPONENCIALES
           ========================================================================= */}
-      <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm">
+      <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm">
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
@@ -869,7 +869,7 @@ export default function TimeDomainResponse({
               La presión decae <strong>60 dB</strong> en exactamente <strong>{effectiveT60.toFixed(2)} segundos</strong>. En t = {dampingMetrics.tauMs} ms, la amplitud cae a 1/e (&asymp; 36.8%).
             </span>
           </div>
-          <div className="font-mono text-[11px] text-[#5833c7] dark:text-purple-300">
+          <div className="font-mono text-[11px] text-[#5833c7] dark:text-[#c4b5fd]">
             {singleTimeResponse?.cyclesInWindow} ciclos en esta ventana de {durationMs} ms
           </div>
         </div>
@@ -882,31 +882,31 @@ export default function TimeDomainResponse({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         
         {/* Tarjeta 1: Función de Onda Espacio-Temporal */}
-        <div className="bg-white dark:bg-[#121322] p-5 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm space-y-3">
+        <div className="bg-white dark:bg-surface p-5 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm space-y-3">
           <h5 className="font-bold text-sm text-[#1d1d1f] dark:text-white flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-[#10b981]" />
             <span>Significado Físico de &Psi;(x, y, z)</span>
           </h5>
-          <p className="text-xs text-[#86868b] dark:text-slate-400 leading-relaxed">
+          <p className="text-xs text-[#86868b] dark:text-[#b0b3b8] leading-relaxed">
             La autofunción espacial <strong className="text-[#1d1d1f] dark:text-white">&Psi;<sub>n</sub>(x, y, z) = cos(n<sub>x</sub>&pi;x / L<sub>x</sub>) &middot; cos(n<sub>y</sub>&pi;y / L<sub>y</sub>) &middot; cos(n<sub>z</sub>&pi;z / L<sub>z</sub>)</strong> determina si el oyente se encuentra en un <span className="text-[#10b981] font-bold">antinodo</span> (|&Psi;| = 1, presión máxima) o en un <span className="text-[#ef4444] font-bold">nodo</span> (&Psi; = 0, silencio / cancelación modal).
           </p>
-          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] text-xs font-mono space-y-1">
-            <div className="text-[#5833c7] dark:text-purple-300 font-bold">En tu posición actual:</div>
+          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-mono space-y-1">
+            <div className="text-[#5833c7] dark:text-[#c4b5fd] font-bold">En tu posición actual:</div>
             <div>&bull; &Psi;(x={pos.x}, y={pos.y}, z={pos.z}) = <strong>{currentPsi.toFixed(4)}</strong></div>
             <div>&bull; Pico local inicial = <strong>{(initialPressure * currentPsi).toFixed(4)} Pa</strong></div>
           </div>
         </div>
 
         {/* Tarjeta 2: Relación entre T60 y Ancho de Banda */}
-        <div className="bg-white dark:bg-[#121322] p-5 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm space-y-3">
+        <div className="bg-white dark:bg-surface p-5 rounded-3xl border border-black/[0.08] dark:border-white/[0.08] shadow-apple-sm space-y-3">
           <h5 className="font-bold text-sm text-[#1d1d1f] dark:text-white flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#0071e3]" />
             <span>Dualidad Tiempo-Frecuencia (Fourier)</span>
           </h5>
-          <p className="text-xs text-[#86868b] dark:text-slate-400 leading-relaxed">
+          <p className="text-xs text-[#86868b] dark:text-[#b0b3b8] leading-relaxed">
             Por el principio de incertidumbre de la transformada de Fourier, un decaimiento temporal lento (sala muy viva, RT₆₀ alto) se traduce en resonancias muy estrechas y agudas en frecuencia (<strong className="text-[#1d1d1f] dark:text-white">&Delta;f &approx; 2.2 / RT₆₀</strong>). Cuanto más absorbente la sala (RT₆₀ bajo), mayor amortiguamiento y modos más anchos que se solapan fácilmente.
           </p>
-          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-[#18192a] text-xs font-mono space-y-1">
+          <div className="p-3 rounded-2xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-mono space-y-1">
             <div>&bull; Factor Q = &pi;&middot;f / &delta; = <strong>{singleTimeResponse?.qualityFactor || 0}</strong></div>
             <div>&bull; Semivida modal t<sub>1/2</sub> = <strong>{dampingMetrics.halfLifeMs} ms</strong></div>
           </div>
@@ -928,7 +928,7 @@ function CustomTimeTooltip({ active, payload, label }) {
   if (!dataPoint) return null;
 
   return (
-    <div className="bg-white/95 dark:bg-[#18192a]/95 backdrop-blur-md p-3.5 rounded-2xl border border-black/[0.1] dark:border-white/[0.1] shadow-xl text-xs space-y-2">
+    <div className="bg-white/95 dark:bg-surface2/95 backdrop-blur-md p-3.5 rounded-2xl border border-black/[0.1] dark:border-white/[0.1] shadow-xl text-xs space-y-2">
       <div className="flex items-center justify-between gap-4 border-b border-black/[0.06] dark:border-white/[0.06] pb-1.5">
         <span className="font-bold text-[#86868b]">Tiempo (t):</span>
         <span className="font-mono font-bold text-[#1d1d1f] dark:text-white">

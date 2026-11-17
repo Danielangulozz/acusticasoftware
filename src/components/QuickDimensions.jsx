@@ -66,7 +66,7 @@ export default function QuickDimensions({ roomPolygon, onChangePolygon, geometry
   };
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 sm:p-6 shadow-apple-sm transition-colors">
+    <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 sm:p-6 shadow-apple-sm transition-colors">
       <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-5">
         <div className="space-y-3 min-w-0">
           <div>
@@ -74,7 +74,7 @@ export default function QuickDimensions({ roomPolygon, onChangePolygon, geometry
               <Ruler className="w-4 h-4 text-[#5833c7] dark:text-[#a78bfa]" />
               Medidas rápidas
             </h3>
-            <p className="text-xs text-[#86868b] dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-[#86868b] dark:text-[#b0b3b8] mt-0.5">
               {simple ? 'Escribe las medidas de tu sala y listo. Si tiene otra forma, dibújala en el editor de abajo.' : 'Tu planta no es un rectángulo: estas son sus medidas máximas. Edítala en el plano de abajo, o cámbiala por un rectángulo.'}
             </p>
           </div>
@@ -82,9 +82,9 @@ export default function QuickDimensions({ roomPolygon, onChangePolygon, geometry
           <div className="flex flex-wrap items-end gap-2.5">
             {FIELDS.map(([key, label], i) => (
               <React.Fragment key={key}>
-                {i > 0 && <span className="pb-2.5 text-[#86868b] dark:text-slate-500 font-mono">×</span>}
+                {i > 0 && <span className="pb-2.5 text-[#86868b] dark:text-[#8a8d91] font-mono">×</span>}
                 <label className="space-y-1">
-                  <span className="block text-[11px] font-semibold text-[#86868b] dark:text-slate-400">{label}</span>
+                  <span className="block text-[11px] font-semibold text-[#86868b] dark:text-[#b0b3b8]">{label}</span>
                   <span className="relative block">
                     <input
                       type="number"
@@ -97,7 +97,7 @@ export default function QuickDimensions({ roomPolygon, onChangePolygon, geometry
                       aria-invalid={!valid(key, Number(draft[key]))}
                       className={`apple-input w-28 pl-3 pr-8 py-2 text-base font-mono font-semibold ${valid(key, Number(draft[key])) ? '' : 'border-rose-400 dark:border-rose-500'}`}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#86868b] dark:text-slate-500 pointer-events-none">m</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#86868b] dark:text-[#8a8d91] pointer-events-none">m</span>
                   </span>
                 </label>
               </React.Fragment>
@@ -121,8 +121,8 @@ export default function QuickDimensions({ roomPolygon, onChangePolygon, geometry
             ['Volumen', `${geometry.volume.toFixed(1)} m³`],
             ['Área de piso', `${(geometry.floorArea ?? 0).toFixed(1)} m²`],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.06] dark:border-white/[0.08] px-4 py-2.5">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-[#86868b] dark:text-slate-400">{label}</div>
+            <div key={label} className="rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.06] dark:border-white/[0.08] px-4 py-2.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#86868b] dark:text-[#b0b3b8]">{label}</div>
               <div className="font-mono text-sm font-bold text-[#1d1d1f] dark:text-white mt-0.5">{value}</div>
             </div>
           ))}

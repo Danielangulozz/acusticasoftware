@@ -115,20 +115,20 @@ export default function BoltProportions({
   };
 
   return (
-    <div className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400">
+            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa]">
               <Ruler className="w-5 h-5" />
             </span>
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
               Criterio de Proporciones Dimensionales de Bolt (1946)
             </h3>
           </div>
-          <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1">
             Optimización de las relaciones de aspecto alto : ancho : largo (1 : p : q) para evitar acumulaciones modales y degeneraciones severas.
           </p>
         </div>
@@ -138,7 +138,7 @@ export default function BoltProportions({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         
         {/* Columna 1: Calculadora de Dimensiones Óptimas */}
-        <div className="space-y-4 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+        <div className="space-y-4 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
           <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-[#5833c7]" />
@@ -157,7 +157,7 @@ export default function BoltProportions({
                 step="5"
                 value={targetVolume}
                 onChange={(e) => setTargetVolume(parseFloat(e.target.value) || 27)}
-                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] font-mono font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5833c7]"
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] font-mono font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5833c7]"
               />
             </div>
 
@@ -166,7 +166,7 @@ export default function BoltProportions({
               <select
                 value={selectedPresetKey}
                 onChange={(e) => setSelectedPresetKey(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.08] dark:border-white/[0.08] font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5833c7]"
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.08] dark:border-white/[0.08] font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5833c7]"
               >
                 {Object.entries(BOLT_PRESETS).map(([key, val]) => (
                   <option key={key} value={key}>{val.name}</option>
@@ -176,21 +176,21 @@ export default function BoltProportions({
           </div>
 
           {/* Tarjeta con dimensiones calculadas */}
-          <div className="p-4 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.06] dark:border-white/[0.06] space-y-3">
-            <div className="text-[11px] font-bold text-[#5833c7] dark:text-purple-400 uppercase tracking-wider">
+          <div className="p-4 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.06] dark:border-white/[0.06] space-y-3">
+            <div className="text-[11px] font-bold text-[#5833c7] dark:text-[#a78bfa] uppercase tracking-wider">
               {suggested.name} &bull; 1 : {suggested.ratios.w} : {suggested.ratios.l}
             </div>
             
             <div className="grid grid-cols-3 gap-2 text-center font-mono">
-              <div className="p-2 rounded-lg bg-[#fbfbfd] dark:bg-[#18192a]">
+              <div className="p-2 rounded-lg bg-[#fbfbfd] dark:bg-surface2">
                 <div className="text-[10px] text-[#86868b] uppercase">Altura H (m)</div>
                 <div className="text-lg font-black text-[#1d1d1f] dark:text-white">{suggested.H} m</div>
               </div>
-              <div className="p-2 rounded-lg bg-[#fbfbfd] dark:bg-[#18192a]">
+              <div className="p-2 rounded-lg bg-[#fbfbfd] dark:bg-surface2">
                 <div className="text-[10px] text-[#86868b] uppercase">Ancho W (m)</div>
                 <div className="text-lg font-black text-[#1d1d1f] dark:text-white">{suggested.W} m</div>
               </div>
-              <div className="p-2 rounded-lg bg-[#fbfbfd] dark:bg-[#18192a]">
+              <div className="p-2 rounded-lg bg-[#fbfbfd] dark:bg-surface2">
                 <div className="text-[10px] text-[#86868b] uppercase">Largo L (m)</div>
                 <div className="text-lg font-black text-[#1d1d1f] dark:text-white">{suggested.L} m</div>
               </div>
@@ -228,7 +228,7 @@ export default function BoltProportions({
               </div>
               <div className="space-y-1 pt-1">
                 {simpleRatios.issues.map((issue, idx) => (
-                  <p key={idx} className="text-[#1d1d1f] dark:text-slate-300">
+                  <p key={idx} className="text-[#1d1d1f] dark:text-[#ccced2]">
                     &bull; {issue.message} <span className="font-mono text-[#86868b]">({issue.details})</span>
                   </p>
                 ))}
@@ -238,7 +238,7 @@ export default function BoltProportions({
         </div>
 
         {/* Columna 2: Diagrama p-q de Bolt (SVG con Auto-escalado Dinámico) */}
-        <div id="bolt-proportions-diagram" className="space-y-3 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+        <div id="bolt-proportions-diagram" className="space-y-3 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
@@ -285,7 +285,7 @@ export default function BoltProportions({
           </div>
 
           {/* Gráfico SVG del Plano p-q */}
-          <div className="relative w-full aspect-[4/3] bg-white dark:bg-[#121322] rounded-xl border border-black/[0.06] dark:border-white/[0.06] p-2 flex items-center justify-center overflow-hidden">
+          <div className="relative w-full aspect-[4/3] bg-white dark:bg-surface rounded-xl border border-black/[0.06] dark:border-white/[0.06] p-2 flex items-center justify-center overflow-hidden">
             <svg
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
               className="w-full h-full select-none"

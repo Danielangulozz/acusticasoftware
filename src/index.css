@@ -74,14 +74,15 @@
   }
 }
 
-/* Modo Oscuro Global */
+/* Modo oscuro global: el mismo grafito de la landing (fondo #18191a, tarjetas #242526,
+   capas internas #303133, texto #e4e6eb y secundario #b0b3b8) */
 .dark {
   color-scheme: dark;
 }
 
 .dark body {
-  background-color: #090a10;
-  color: #f1f2f6;
+  background-color: #18191a;
+  color: #e4e6eb;
 }
 
 /* Scrollbar Minimalista Estilo macOS adaptado a Dark Mode */
@@ -121,9 +122,9 @@
 }
 
 .dark .apple-card {
-  background: #121320;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  background: #242526;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
 
 .apple-glass {
@@ -134,7 +135,7 @@
 }
 
 .dark .apple-glass {
-  background: rgba(18, 19, 32, 0.85);
+  background: rgba(36, 37, 38, 0.88);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -149,9 +150,9 @@
 }
 
 .dark .apple-input {
-  background: #181a28;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f1f2f6;
+  background: #3a3b3c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #e4e6eb;
 }
 
 .apple-input:focus {
@@ -162,31 +163,31 @@
 }
 
 .dark .apple-input:focus {
-  background: #1e2034;
+  background: #3a3b3c;
   border-color: var(--pozole-purple);
   box-shadow: 0 0 0 3px var(--pozole-purple-glow);
 }
 
 /* Seamless Dark Mode Surface & Text Overrides */
 .dark .bg-white {
-  background-color: #121320 !important;
+  background-color: #242526 !important;
 }
 
 .dark .bg-\[\#f5f5f7\] {
-  background-color: #181928 !important;
+  background-color: #303133 !important;
 }
 
 .dark .bg-\[\#fbfbfd\],
 .dark .bg-\[\#fafafa\] {
-  background-color: #151624 !important;
+  background-color: #2b2c2e !important;
 }
 
 .dark .text-\[\#1d1d1f\] {
-  color: #f1f2f6 !important;
+  color: #e4e6eb !important;
 }
 
 .dark .text-\[\#86868b\] {
-  color: #9aa0a6 !important;
+  color: #b0b3b8 !important;
 }
 
 .dark .border-black\/\[0\.08\],
@@ -202,8 +203,8 @@
 }
 
 .dark select option {
-  background-color: #181928;
-  color: #f1f2f6;
+  background-color: #242526;
+  color: #e4e6eb;
 }
 
 /* ==========================================================================
@@ -704,8 +705,8 @@
 }
 .dark .pz-suite-ambient {
   background-image:
-    radial-gradient(60% 460px at 78% 0%, rgba(135, 103, 249, 0.16), transparent 70%),
-    radial-gradient(40% 340px at 12% 0%, rgba(242, 184, 75, 0.05), transparent 70%);
+    radial-gradient(60% 460px at 78% 0%, rgba(128, 100, 248, 0.08), transparent 70%),
+    radial-gradient(40% 340px at 12% 0%, rgba(242, 184, 75, 0.03), transparent 70%);
 }
 
 @keyframes pz-marquee {

@@ -119,11 +119,11 @@ export default function ReportModal({
       {/* Contenedor del Modal */}
       <div 
         id="printable-report-modal"
-        className="bg-white dark:bg-[#121322] border border-black/[0.08] dark:border-white/[0.08] rounded-2xl sm:rounded-3xl shadow-apple-lg w-full max-w-4xl max-h-[92vh] overflow-y-auto print:max-h-none print:border-none print:shadow-none print:bg-white print:text-black print:overflow-visible"
+        className="bg-white dark:bg-surface border border-black/[0.08] dark:border-white/[0.08] rounded-2xl sm:rounded-3xl shadow-apple-lg w-full max-w-4xl max-h-[92vh] overflow-y-auto print:max-h-none print:border-none print:shadow-none print:bg-white print:text-black print:overflow-visible"
       >
         
         {/* Barra Superior de Acciones (Oculta en Impresión) */}
-        <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#121322]/95 backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.08] px-3.5 sm:px-6 py-3 sm:py-4 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 print:hidden">
+        <div className="sticky top-0 z-20 bg-white/95 dark:bg-surface/95 backdrop-blur-md border-b border-black/[0.06] dark:border-white/[0.08] px-3.5 sm:px-6 py-3 sm:py-4 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 print:hidden">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-[#5833c7]/10 dark:bg-[#8767f9]/20 text-[#5833c7] dark:text-[#8767f9] flex items-center justify-center font-bold shrink-0">
               <FileText className="w-4 h-4" />
@@ -132,7 +132,7 @@ export default function ReportModal({
               <h3 className="text-xs sm:text-sm font-bold text-[#1d1d1f] dark:text-white truncate">
                 Informe Técnico de Simulación Acústica
               </h3>
-              <p className="text-[10.5px] sm:text-[11px] text-[#86868b] dark:text-slate-400 truncate">
+              <p className="text-[10.5px] sm:text-[11px] text-[#86868b] dark:text-[#b0b3b8] truncate">
                 Firma oficial: <strong className="text-[#5833c7] dark:text-[#8767f9]">{leader.name} (Líder)</strong>
               </p>
             </div>
@@ -141,7 +141,7 @@ export default function ReportModal({
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={() => setShowMemberEditor(!showMemberEditor)}
-              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] text-xs font-semibold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/[0.08] transition"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#e8e8ed] text-xs font-semibold text-[#1d1d1f] dark:text-[#e4e6eb] border border-black/[0.06] dark:border-white/[0.08] transition"
               title="Configurar los integrantes y el líder firmante"
             >
               <Users className="w-3.5 h-3.5 text-[#5833c7] dark:text-[#8767f9]" />
@@ -158,7 +158,7 @@ export default function ReportModal({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] text-slate-500 hover:text-black transition"
+              className="p-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#e8e8ed] text-slate-500 hover:text-black transition"
             >
               <X className="w-4 h-4" />
             </button>
@@ -167,7 +167,7 @@ export default function ReportModal({
 
         {/* Panel de Configuración de Integrantes (Solo visible en pantalla) */}
         {showMemberEditor && (
-          <div className="bg-[#f5f5f7] dark:bg-[#161726] p-4 border-b border-black/[0.06] dark:border-white/[0.08] print:hidden animate-fadeIn space-y-3">
+          <div className="bg-[#f5f5f7] dark:bg-surface p-4 border-b border-black/[0.06] dark:border-white/[0.08] print:hidden animate-fadeIn space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-[#5833c7]" />
@@ -182,8 +182,8 @@ export default function ReportModal({
                   key={m.id}
                   className={`p-2 rounded-xl border flex items-center justify-between gap-2 transition ${
                     m.isLeader 
-                      ? 'bg-white dark:bg-[#1f2136] border-[#5833c7] dark:border-[#8767f9] shadow-2xs' 
-                      : 'bg-white/70 dark:bg-[#1a1c2e] border-black/[0.06] dark:border-white/[0.06]'
+                      ? 'bg-white dark:bg-[#3a3b3c] border-[#5833c7] dark:border-[#8767f9] shadow-2xs' 
+                      : 'bg-white/70 dark:bg-surface2 border-black/[0.06] dark:border-white/[0.06]'
                   }`}
                 >
                   <button
@@ -234,7 +234,7 @@ export default function ReportModal({
                   value={newMemberName}
                   onChange={(e) => setNewMemberName(e.target.value)}
                   placeholder="Nombre y apellido del nuevo integrante..."
-                  className="flex-1 bg-white dark:bg-[#1a1c2e] px-3 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] text-xs text-[#1d1d1f] dark:text-white outline-none focus:border-[#5833c7]"
+                  className="flex-1 bg-white dark:bg-surface2 px-3 py-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] text-xs text-[#1d1d1f] dark:text-white outline-none focus:border-[#5833c7]"
                 />
                 <button
                   type="submit"
@@ -262,19 +262,19 @@ export default function ReportModal({
               <h1 className="text-xl sm:text-2xl font-black text-[#1d1d1f] dark:text-white mt-1">
                 REPORTE DE CAMPO SONORO Y REVERBERACIÓN
               </h1>
-              <p className="text-xs text-[#86868b] dark:text-slate-400 mt-1">
+              <p className="text-xs text-[#86868b] dark:text-[#b0b3b8] mt-1">
                 Modelos de Sabine • Norris-Eyring • Millington-Sette • Campo Directo y Reverberado
               </p>
             </div>
 
             {/* Datos de los Integrantes y Líder */}
-            <div className="text-left sm:text-right text-xs font-mono text-[#86868b] dark:text-slate-400">
+            <div className="text-left sm:text-right text-xs font-mono text-[#86868b] dark:text-[#b0b3b8]">
               <div>Fecha: <strong className="text-[#1d1d1f] dark:text-white">{new Date().toLocaleDateString('es-ES')}</strong></div>
               <div className="font-bold text-[#5833c7] dark:text-[#8767f9] mt-1">
                 Líder / Encargado: <span className="underline decoration-1">{leader.name}</span>
               </div>
               {coAuthors.length > 0 && (
-                <div className="text-[11px] text-[#1d1d1f] dark:text-slate-300 mt-0.5">
+                <div className="text-[11px] text-[#1d1d1f] dark:text-[#ccced2] mt-0.5">
                   Co-autores: {coAuthors.map(c => c.name).join(', ')}
                 </div>
               )}
@@ -288,26 +288,26 @@ export default function ReportModal({
               1. Características Geométricas de la Sala ({reportSurfaces.length - 2} Paredes Extruidas)
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-                <span className="text-[#86868b] dark:text-slate-400 block mb-0.5">Dimensiones (L × W × H):</span>
+              <div className="bg-[#f5f5f7] dark:bg-surface2 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+                <span className="text-[#86868b] dark:text-[#b0b3b8] block mb-0.5">Dimensiones (L × W × H):</span>
                 <strong className="font-mono text-[#1d1d1f] dark:text-white font-bold">
                   {geometry.length.toFixed(1)}m × {geometry.width.toFixed(1)}m × {geometry.height.toFixed(1)}m
                 </strong>
               </div>
-              <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-                <span className="text-[#86868b] dark:text-slate-400 block mb-0.5">Volumen de Sala (V):</span>
+              <div className="bg-[#f5f5f7] dark:bg-surface2 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+                <span className="text-[#86868b] dark:text-[#b0b3b8] block mb-0.5">Volumen de Sala (V):</span>
                 <strong className="font-mono text-[#5833c7] dark:text-[#8767f9] font-bold">
                   {geometry.volume.toFixed(2)} m³
                 </strong>
               </div>
-              <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-                <span className="text-[#86868b] dark:text-slate-400 block mb-0.5">Superficie Total (S):</span>
+              <div className="bg-[#f5f5f7] dark:bg-surface2 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+                <span className="text-[#86868b] dark:text-[#b0b3b8] block mb-0.5">Superficie Total (S):</span>
                 <strong className="font-mono text-[#1d1d1f] dark:text-white font-bold">
                   {geometry.totalSurfaceArea.toFixed(2)} m²
                 </strong>
               </div>
-              <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-                <span className="text-[#86868b] dark:text-slate-400 block mb-0.5">Recorrido Libre (l):</span>
+              <div className="bg-[#f5f5f7] dark:bg-surface2 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+                <span className="text-[#86868b] dark:text-[#b0b3b8] block mb-0.5">Recorrido Libre (l):</span>
                 <strong className="font-mono text-[#1d1d1f] dark:text-white font-bold">
                   {geometry.meanFreePath.toFixed(2)} m
                 </strong>
@@ -322,7 +322,7 @@ export default function ReportModal({
             </h2>
             <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[10px] uppercase font-mono text-[#86868b] dark:text-slate-400">
+                <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[10px] uppercase font-mono text-[#86868b] dark:text-[#b0b3b8]">
                   <tr>
                     <th className="p-2.5">Superficie</th>
                     <th className="p-2.5 text-right">Área (m²)</th>
@@ -347,10 +347,10 @@ export default function ReportModal({
                         <td className="p-2.5 font-sans font-semibold text-[#1d1d1f] dark:text-white">
                           {surf.name}
                         </td>
-                        <td className="p-2.5 text-right text-[#86868b] dark:text-slate-400">
+                        <td className="p-2.5 text-right text-[#86868b] dark:text-[#b0b3b8]">
                           {area.toFixed(2)}
                         </td>
-                        <td className="p-2.5 font-sans text-[#1d1d1f] dark:text-slate-300 truncate max-w-[140px]">
+                        <td className="p-2.5 font-sans text-[#1d1d1f] dark:text-[#ccced2] truncate max-w-[140px]">
                           {matMeta.name}
                         </td>
                         {OCTAVE_BANDS.map((f) => (
@@ -373,7 +373,7 @@ export default function ReportModal({
             </h2>
             <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
               <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[10px] uppercase text-[#86868b] dark:text-slate-400">
+                <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[10px] uppercase text-[#86868b] dark:text-[#b0b3b8]">
                   <tr>
                     <th className="p-2.5">Banda</th>
                     <th className="p-2.5 text-right">Absorción A</th>
@@ -418,7 +418,7 @@ export default function ReportModal({
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Curvas RT60 */}
-              <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] print:bg-white print:border-black/20">
+              <div className="bg-[#f5f5f7] dark:bg-surface2 p-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] print:bg-white print:border-black/20">
                 <div className="text-[11px] font-bold text-[#1d1d1f] dark:text-white mb-1 flex items-center justify-between">
                   <span>Curvas RT60 vs Frecuencia</span>
                   <span className="text-[10px] text-[#86868b] font-mono">Sabine / Eyring / Millington</span>
@@ -440,14 +440,14 @@ export default function ReportModal({
               </div>
 
               {/* Modelo Espacial 3D */}
-              <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] print:bg-white print:border-black/20 flex flex-col">
+              <div className="bg-[#f5f5f7] dark:bg-surface2 p-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] print:bg-white print:border-black/20 flex flex-col">
                 <div className="text-[11px] font-bold text-[#1d1d1f] dark:text-white mb-1 flex items-center justify-between">
                   <span>Modelo Espacial 3D</span>
                   <span className="text-[10px] text-[#86868b] font-mono">
                     {geometry.length}m × {geometry.width}m × {geometry.height}m
                   </span>
                 </div>
-                <div className="h-52 w-full rounded-xl overflow-hidden bg-white dark:bg-[#0c0d18] border border-black/[0.06] dark:border-white/[0.08] relative print:border-black/20">
+                <div className="h-52 w-full rounded-xl overflow-hidden bg-white dark:bg-canvas border border-black/[0.06] dark:border-white/[0.08] relative print:border-black/20">
                   <RoomVisualizer
                     roomPolygon={roomPolygon || {
                       vertices: [
@@ -478,21 +478,21 @@ export default function ReportModal({
               </h2>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
-                <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04]">
+                <div className="bg-[#f5f5f7] dark:bg-surface2 p-2.5 rounded-xl border border-black/[0.04]">
                   <span className="text-[#86868b] block text-[10px]">Frec. Schroeder (fs):</span>
                   <strong className="text-[#0071e3] text-sm">{modalData.schroederData?.fsApprox} Hz</strong>
                 </div>
-                <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04]">
+                <div className="bg-[#f5f5f7] dark:bg-surface2 p-2.5 rounded-xl border border-black/[0.04]">
                   <span className="text-[#86868b] block text-[10px]">Criterio de Bonello:</span>
                   <strong className={modalData.bonelloResult?.complies ? 'text-[#10b981]' : 'text-[#ef4444]'}>
                     {modalData.bonelloResult?.complies ? 'CUMPLE' : 'NO CUMPLE'}
                   </strong>
                 </div>
-                <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04]">
+                <div className="bg-[#f5f5f7] dark:bg-surface2 p-2.5 rounded-xl border border-black/[0.04]">
                   <span className="text-[#86868b] block text-[10px]">Modos Calculados:</span>
                   <strong className="text-[#1d1d1f] dark:text-white text-sm">{modalData.modes?.length || 0} modos</strong>
                 </div>
-                <div className="bg-[#f5f5f7] dark:bg-[#18192a] p-2.5 rounded-xl border border-black/[0.04]">
+                <div className="bg-[#f5f5f7] dark:bg-surface2 p-2.5 rounded-xl border border-black/[0.04]">
                   <span className="text-[#86868b] block text-[10px]">Degeneraciones:</span>
                   <strong className="text-[#f59e0b] text-sm">{modalData.bonelloResult?.degenerateGroups?.length || 0} grupos</strong>
                 </div>
@@ -501,7 +501,7 @@ export default function ReportModal({
               {/* Tabla de Primeros Modos hasta fs */}
               <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
                 <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[10px] uppercase text-[#86868b]">
+                  <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[10px] uppercase text-[#86868b]">
                     <tr>
                       <th className="p-2 text-center">#</th>
                       <th className="p-2">Índices (nx, ny, nz)</th>
@@ -539,7 +539,7 @@ export default function ReportModal({
                   </div>
                   <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
                     <table className="w-full text-left text-xs font-mono">
-                      <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[10px] uppercase text-[#86868b]">
+                      <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[10px] uppercase text-[#86868b]">
                         <tr>
                           <th className="p-2">Punto</th>
                           <th className="p-2">Posición (X, Y)</th>
@@ -585,7 +585,7 @@ export default function ReportModal({
                   </div>
                   <div className="overflow-x-auto rounded-xl border border-black/[0.06] dark:border-white/[0.06]">
                     <table className="w-full text-left text-xs font-mono">
-                      <thead className="bg-[#f5f5f7] dark:bg-[#18192a] text-[10px] uppercase text-[#86868b]">
+                      <thead className="bg-[#f5f5f7] dark:bg-surface2 text-[10px] uppercase text-[#86868b]">
                         <tr>
                           <th className="p-2">Modo</th>
                           <th className="p-2">Tipo</th>
@@ -637,11 +637,11 @@ export default function ReportModal({
           )}
 
           {/* 5. Diagnóstico y Veredicto */}
-          <div className="bg-[#f5f5f7] dark:bg-[#161726] p-5 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] text-xs print-avoid-break">
+          <div className="bg-[#f5f5f7] dark:bg-surface p-5 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] text-xs print-avoid-break">
             <h3 className="font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider mb-2">
               5. Diagnóstico Integral y Veredicto Acústico
             </h3>
-            <div className="space-y-2 text-[#1d1d1f] dark:text-slate-300">
+            <div className="space-y-2 text-[#1d1d1f] dark:text-[#ccced2]">
               <p>
                 • <strong>Condiciones de Emisión:</strong> Fuente sonora con Lw = {sourceReceiver.lw} dB (Directividad Q = {sourceReceiver.directivity}) a distancia r = {sourceReceiver.distance} m.
               </p>
@@ -692,7 +692,7 @@ export default function ReportModal({
                 <span className="text-[11px] text-[#5833c7] dark:text-[#8767f9] font-semibold block">
                   Líder / Encargado del Proyecto
                 </span>
-                <span className="text-[10px] text-[#86868b] dark:text-slate-400 block font-mono">
+                <span className="text-[10px] text-[#86868b] dark:text-[#b0b3b8] block font-mono">
                   Estudiante de Ingeniería de Sonido
                 </span>
               </div>
@@ -702,7 +702,7 @@ export default function ReportModal({
                 <div className="border-b border-black/[0.3] dark:border-white/[0.3] w-56 mx-auto mb-2 h-10"></div>
                 <strong className="text-[#1d1d1f] dark:text-white block text-xs">Docente / Revisor Técnico</strong>
                 <span className="text-[11px] text-slate-500 block">Cátedra de Acústica de Recintos</span>
-                <span className="text-[10px] text-[#86868b] dark:text-slate-400 block font-mono">
+                <span className="text-[10px] text-[#86868b] dark:text-[#b0b3b8] block font-mono">
                   Evaluación y Aprobación
                 </span>
               </div>
@@ -710,7 +710,7 @@ export default function ReportModal({
 
             {/* Listado de co-autores al pie si los hay */}
             {coAuthors.length > 0 && (
-              <div className="mt-4 text-center text-[10px] text-[#86868b] dark:text-slate-400">
+              <div className="mt-4 text-center text-[10px] text-[#86868b] dark:text-[#b0b3b8]">
                 Co-autores y equipo de trabajo: {coAuthors.map(c => c.name).join(' · ')}
               </div>
             )}

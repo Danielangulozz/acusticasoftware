@@ -538,7 +538,7 @@ export default function App({ initialSection }) {
   }, []);
 
   return (
-    <div className="pz-suite-ambient min-h-screen bg-[#f5f5f7] dark:bg-[#0B0F19] text-[#1d1d1f] dark:text-[#f5f5f7] font-sans antialiased flex flex-col lg:flex-row transition-colors duration-200">
+    <div className="pz-suite-ambient min-h-screen bg-[#f5f5f7] dark:bg-canvas text-[#1d1d1f] dark:text-[#f5f5f7] font-sans antialiased flex flex-col lg:flex-row transition-colors duration-200">
 
       {/* Navegación Lateral (Sidebar) */}
       <Sidebar
@@ -804,7 +804,7 @@ export default function App({ initialSection }) {
           {/* Estudio de renders */}
           {activeSection === 'renders' && (
             <div className="animate-fadeIn">
-              <Suspense fallback={<p className="p-10 text-center text-sm text-[#86868b] dark:text-slate-400">Preparando el estudio de renders…</p>}>
+              <Suspense fallback={<p className="p-10 text-center text-sm text-[#86868b] dark:text-[#b0b3b8]">Preparando el estudio de renders…</p>}>
                 <RenderStudio
                   geometry={geometry}
                   roomPolygon={roomPolygon}
@@ -983,13 +983,13 @@ export default function App({ initialSection }) {
             const prevStep = idx > 0 ? STEP_FLOW[idx - 1] : null;
             const nextStep = idx < STEP_FLOW.length - 1 ? STEP_FLOW[idx + 1] : null;
             return (
-              <div className="bg-white dark:bg-[#141622] rounded-2xl border border-black/[0.08] dark:border-white/10 p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-apple-sm no-print">
+              <div className="bg-white dark:bg-surface rounded-2xl border border-black/[0.08] dark:border-white/10 p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-apple-sm no-print">
                 <div className="flex items-center gap-3">
                   {prevStep ? (
                     <button
                       type="button"
                       onClick={() => setActiveSection(prevStep.id)}
-                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-xs font-bold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/10 transition cursor-pointer shrink-0"
+                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#e8e8ed] dark:hover:bg-[#3a3b3c] text-xs font-bold text-[#1d1d1f] dark:text-[#e4e6eb] border border-black/[0.06] dark:border-white/10 transition cursor-pointer shrink-0"
                     >
                       ← {prevStep.title}
                     </button>
@@ -997,7 +997,7 @@ export default function App({ initialSection }) {
                     <button
                       type="button"
                       onClick={() => setActiveSection('welcome')}
-                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-xs font-bold text-[#1d1d1f] dark:text-slate-200 border border-black/[0.06] dark:border-white/10 transition cursor-pointer shrink-0"
+                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#e8e8ed] dark:hover:bg-[#3a3b3c] text-xs font-bold text-[#1d1d1f] dark:text-[#e4e6eb] border border-black/[0.06] dark:border-white/10 transition cursor-pointer shrink-0"
                     >
                       ← Inicio
                     </button>
@@ -1006,7 +1006,7 @@ export default function App({ initialSection }) {
                     <div className="text-[11px] font-bold text-[#1d1d1f] dark:text-white">
                       {STEP_FLOW[idx].title}
                     </div>
-                    <div className="text-[10px] text-[#86868b] dark:text-slate-400">
+                    <div className="text-[10px] text-[#86868b] dark:text-[#b0b3b8]">
                       {STEP_FLOW[idx].hint}
                     </div>
                   </div>
@@ -1017,7 +1017,7 @@ export default function App({ initialSection }) {
                     <button
                       type="button"
                       onClick={() => setIsReportOpen(true)}
-                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-[#1c1e30] hover:bg-[#e8e8ed] dark:hover:bg-[#25283f] text-xs font-bold text-[#5833c7] dark:text-[#a78bfa] border border-[#5833c7]/25 transition cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-[#f5f5f7] dark:bg-surface2 hover:bg-[#e8e8ed] dark:hover:bg-[#3a3b3c] text-xs font-bold text-[#5833c7] dark:text-[#a78bfa] border border-[#5833c7]/25 transition cursor-pointer"
                     >
                       Ver Informe PDF
                     </button>

@@ -58,9 +58,9 @@ const CLASS_EXAMPLES = {
 
 const PRIMES = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
 
-const CARD = 'bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 sm:p-6 shadow-apple-sm transition-colors min-w-0';
+const CARD = 'bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-5 sm:p-6 shadow-apple-sm transition-colors min-w-0';
 const TITLE = 'text-[#1d1d1f] dark:text-white';
-const MUTED = 'text-[#86868b] dark:text-slate-400';
+const MUTED = 'text-[#86868b] dark:text-[#b0b3b8]';
 const SELECT = 'apple-input w-full px-3 py-2 text-sm';
 
 const fmtCm = (m, dec = 1) => `${(m * 100).toFixed(dec)} cm`;
@@ -160,7 +160,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3]">
+              <span className="p-2 rounded-xl bg-[#0071e3]/10 dark:bg-[#8767f9]/20 text-[#0071e3]">
                 <Grid3x3 className="w-5 h-5" />
               </span>
               <h2 className={`text-xl font-bold ${TITLE}`}>Diseño de Difusores Acústicos</h2>
@@ -178,7 +178,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
             </button>
             <button
               onClick={() => setCfg((c) => ({ ...DEFAULTS, type: c.type }))}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-[#e4e6eb] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all"
             >
               <RotateCcw className="w-3.5 h-3.5" /> Restablecer
             </button>
@@ -197,7 +197,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
                 className={`flex flex-col items-start px-3.5 py-2 rounded-xl whitespace-nowrap transition-all ${
                   active
                     ? 'bg-[#5833c7] text-white shadow-sm'
-                    : 'bg-[#f5f5f7] dark:bg-[#18192a] text-[#1d1d1f] dark:text-slate-300 hover:bg-[#e8e8ed] dark:hover:bg-[#222438]'
+                    : 'bg-[#f5f5f7] dark:bg-surface2 text-[#1d1d1f] dark:text-[#ccced2] hover:bg-[#e8e8ed] dark:hover:bg-[#3a3b3c]'
                 }`}
               >
                 <span>{t.label}</span>
@@ -293,14 +293,14 @@ export default function DiffuserModule({ isDarkMode = false }) {
           <Card
             title="Geometría"
             right={
-              <div className="inline-flex p-1 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] text-xs font-semibold">
+              <div className="inline-flex p-1 rounded-xl bg-[#f5f5f7] dark:bg-surface2 text-xs font-semibold">
                 {[['profile', 'Corte'], ['iso', '3D'], ['render', 'Render']].map(([id, l]) => (
                   <button key={id} onClick={() => setView(id)} className={`px-3 py-1 rounded-lg transition ${view === id ? 'bg-[#5833c7] text-white' : `${MUTED} hover:text-[#1d1d1f] dark:hover:text-white`}`}>{l}</button>
                 ))}
               </div>
             }
           >
-            <div className="rounded-2xl overflow-hidden border border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#121322] p-2">
+            <div className="rounded-2xl overflow-hidden border border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-surface p-2">
               {view === 'profile' && <ProfileView ref={profileRef} design={design} isDark={isDarkMode} />}
               {view === 'iso' && <IsoView design={design} isDark={isDarkMode} />}
               {view === 'render' && (
@@ -348,7 +348,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
                       <ReferenceArea x1={nearestBand(sweep, design.f0)} x2={nearestBand(sweep, design.fUpper ? Math.min(design.fMax, design.fUpper) : design.fMax)} fill={pal.purple} fillOpacity={0.08} />
                     )}
                     <Tooltip
-                      contentStyle={{ background: isDarkMode ? '#18192a' : '#ffffff', border: `1px solid ${gridColor}`, borderRadius: 12, fontSize: 12 }}
+                      contentStyle={{ background: isDarkMode ? '#303133' : '#ffffff', border: `1px solid ${gridColor}`, borderRadius: 12, fontSize: 12 }}
                       labelFormatter={(f) => `${f} Hz`}
                       formatter={(v, name) => [Number(v).toFixed(3), name]}
                     />
@@ -370,7 +370,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
                 <div className={`space-y-3 text-sm ${MUTED} leading-relaxed`}>
                   <p>Proyección de la energía dispersada sobre la semiesfera frontal (u = sin θ cos φ, v = sin θ sin φ) en incidencia normal. El centro es la dirección especular.</p>
                   <p>Un QRD 2D reparte la energía en una cuadrícula de lóbulos en ambos planos; uno 1D solo difunde en el plano perpendicular a las ranuras.</p>
-                  <div className="h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${isDarkMode ? '#121322' : '#f5f5fa'}, ${pal.purple}, ${pal.amber})` }} />
+                  <div className="h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${isDarkMode ? '#242526' : '#f5f5fa'}, ${pal.purple}, ${pal.amber})` }} />
                   <div className="flex justify-between font-mono text-[10px]"><span>−30 dB</span><span>0 dB</span></div>
                 </div>
               </div>
@@ -429,7 +429,7 @@ export default function DiffuserModule({ isDarkMode = false }) {
                     onClick={exportSVG}
                     disabled={view !== 'profile'}
                     title={view !== 'profile' ? 'Cambia a la vista de corte para exportar' : 'Descargar perfil en SVG'}
-                    className="inline-flex items-center gap-1.5 text-xs rounded-xl border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-slate-200 px-3 py-1.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] disabled:opacity-40 transition"
+                    className="inline-flex items-center gap-1.5 text-xs rounded-xl border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-[#e4e6eb] px-3 py-1.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] disabled:opacity-40 transition"
                   >
                     <FileCode2 className="w-3.5 h-3.5" /> SVG
                   </button>
@@ -543,7 +543,7 @@ function Slider({ label, value, min, max, step, unit, onChange, log }) {
 
 function Kpi({ label, value, sub, accent }) {
   return (
-    <div className={`rounded-2xl border p-4 transition-colors ${accent ? 'border-[#5833c7]/30 bg-[#5833c7]/[0.06] dark:bg-[#5833c7]/15' : 'border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#121322] shadow-apple-sm'}`}>
+    <div className={`rounded-2xl border p-4 transition-colors ${accent ? 'border-[#5833c7]/30 bg-[#5833c7]/[0.06] dark:bg-[#5833c7]/15' : 'border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-surface shadow-apple-sm'}`}>
       <div className={`text-[11px] font-medium ${MUTED}`}>{label}</div>
       <div className={`text-xl sm:text-2xl font-bold font-mono mt-1 tracking-tight ${accent ? 'text-[#5833c7] dark:text-[#a78bfa]' : TITLE}`}>{value}</div>
       {sub && <div className={`text-[11px] font-mono ${MUTED} mt-1 truncate`}>{sub}</div>}
@@ -553,7 +553,7 @@ function Kpi({ label, value, sub, accent }) {
 
 function Mini({ label, value, accent }) {
   return (
-    <div className={`rounded-xl border px-2 py-2 ${accent ? 'border-[#5833c7]/30 bg-[#5833c7]/[0.06] dark:bg-[#5833c7]/15' : 'border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#18192a]'}`}>
+    <div className={`rounded-xl border px-2 py-2 ${accent ? 'border-[#5833c7]/30 bg-[#5833c7]/[0.06] dark:bg-[#5833c7]/15' : 'border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-surface2'}`}>
       <div className={`text-[10px] ${MUTED}`}>{label}</div>
       <div className={`font-mono text-base font-bold ${accent ? 'text-[#5833c7] dark:text-[#a78bfa]' : TITLE}`}>{value}</div>
     </div>
@@ -562,7 +562,7 @@ function Mini({ label, value, accent }) {
 
 function Pair({ k, v }) {
   return (
-    <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-[#18192a] p-3">
+    <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-[#fbfbfd] dark:bg-surface2 p-3">
       <dt className={`text-[11px] ${MUTED}`}>{k}</dt>
       <dd className={`font-mono font-semibold mt-0.5 ${TITLE}`}>{v}</dd>
     </div>

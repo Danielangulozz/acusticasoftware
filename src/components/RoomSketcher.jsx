@@ -1863,10 +1863,10 @@ export default function RoomSketcher({
     <div className="space-y-3">
 
       {/* --- BARRA SUPERIOR DE HERRAMIENTAS CAD --- */}
-      <div className="bg-white dark:bg-[#141622] rounded-2xl border border-black/[0.08] dark:border-white/10 p-2 sm:p-2.5 shadow-apple-sm flex flex-wrap items-center justify-between gap-2">
+      <div className="bg-white dark:bg-surface rounded-2xl border border-black/[0.08] dark:border-white/10 p-2 sm:p-2.5 shadow-apple-sm flex flex-wrap items-center justify-between gap-2">
 
         {/* Grupo 1: Selector de Herramientas de Dibujo CAD */}
-        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#0A0C14] p-1 rounded-xl border border-black/[0.04] dark:border-white/10">
+        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-canvas p-1 rounded-xl border border-black/[0.04] dark:border-white/10">
           <button
             type="button"
             onClick={() => {
@@ -1877,7 +1877,7 @@ export default function RoomSketcher({
             }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${activeTool === 'select'
               ? 'bg-[#5833c7] text-white shadow-xs'
-              : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+              : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
               }`}
             title="Seleccionar y Mover (V / Esc)"
           >
@@ -1899,7 +1899,7 @@ export default function RoomSketcher({
               ? 'bg-[#5833c7] text-white shadow-xs'
               : drawPoints.length > 0
                 ? 'bg-[#5833c7]/20 text-[#a78bfa] border border-[#5833c7]/30'
-                : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
               }`}
             title="Trazar Muros Punto a Punto (L)"
           >
@@ -1917,7 +1917,7 @@ export default function RoomSketcher({
             }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${activeTool === 'rect'
               ? 'bg-[#5833c7] text-white shadow-xs'
-              : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+              : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
               }`}
             title="Trazar Rectángulo con 2 esquinas (R)"
           >
@@ -1934,7 +1934,7 @@ export default function RoomSketcher({
             }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${activeTool === 'guide'
               ? 'bg-[#0ea5e9] text-white shadow-xs'
-              : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+              : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
               }`}
             title="Línea Auxiliar Libre (X)"
           >
@@ -1951,7 +1951,7 @@ export default function RoomSketcher({
             }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${activeTool === 'measure'
               ? 'bg-[#10b981] text-white shadow-xs'
-              : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+              : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
               }`}
             title="Medir distancia y ángulo (M)"
           >
@@ -1962,7 +1962,7 @@ export default function RoomSketcher({
         </div>
 
         {/* Grupo 2: Presets Rápidos */}
-        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-[#0A0C14] p-1 rounded-xl border border-black/[0.04] dark:border-white/10 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 bg-[#f5f5f7] dark:bg-canvas p-1 rounded-xl border border-black/[0.04] dark:border-white/10 overflow-x-auto no-scrollbar">
           {SHAPE_PRESETS.map((preset) => {
             const Icon = preset.icon;
             const isActive = activePresetId === preset.id && activeTool === 'select';
@@ -1972,8 +1972,8 @@ export default function RoomSketcher({
                 type="button"
                 onClick={() => { setActiveTool('select'); loadPreset(preset.id); }}
                 className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition flex items-center gap-1 whitespace-nowrap ${isActive
-                  ? 'bg-white dark:bg-[#141622] text-[#5833c7] dark:text-[#a78bfa] shadow-2xs font-bold'
-                  : 'text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white'
+                  ? 'bg-white dark:bg-surface text-[#5833c7] dark:text-[#a78bfa] shadow-2xs font-bold'
+                  : 'text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white'
                   }`}
                 title={`Preset ${preset.name}`}
               >
@@ -1989,7 +1989,7 @@ export default function RoomSketcher({
           <button
             type="button"
             onClick={() => handleRotatePolygon(90)}
-            className="p-1.5 px-2 rounded-xl border border-black/[0.06] dark:border-white/10 text-xs font-bold text-[#86868b] dark:text-slate-300 hover:text-[#5833c7] dark:hover:text-white transition flex items-center gap-1"
+            className="p-1.5 px-2 rounded-xl border border-black/[0.06] dark:border-white/10 text-xs font-bold text-[#86868b] dark:text-[#ccced2] hover:text-[#5833c7] dark:hover:text-white transition flex items-center gap-1"
             title="Rotar plano 90° alrededor del centroide"
           >
             <RotateCw className="w-3.5 h-3.5" />
@@ -1999,7 +1999,7 @@ export default function RoomSketcher({
           <button
             type="button"
             onClick={handleCenterPolygon}
-            className="p-1.5 px-2 rounded-xl border border-black/[0.06] dark:border-white/10 text-xs font-bold text-[#86868b] dark:text-slate-300 hover:text-[#5833c7] dark:hover:text-white transition flex items-center gap-1"
+            className="p-1.5 px-2 rounded-xl border border-black/[0.06] dark:border-white/10 text-xs font-bold text-[#86868b] dark:text-[#ccced2] hover:text-[#5833c7] dark:hover:text-white transition flex items-center gap-1"
             title="Centrar polígono en el origen (0,0)"
           >
             <AlignCenter className="w-3.5 h-3.5" />
@@ -2011,7 +2011,7 @@ export default function RoomSketcher({
             onClick={() => setShowCommandLine(prev => !prev)}
             className={`p-1.5 px-2 rounded-xl border text-xs font-bold transition flex items-center gap-1 ${showCommandLine
               ? 'bg-[#5833c7] text-white border-[#5833c7]'
-              : 'border-black/[0.06] dark:border-white/10 text-[#86868b] dark:text-slate-300 hover:text-[#1d1d1f] dark:hover:text-white'
+              : 'border-black/[0.06] dark:border-white/10 text-[#86868b] dark:text-[#ccced2] hover:text-[#1d1d1f] dark:hover:text-white'
               }`}
             title="Línea de Comandos AutoCAD (consola inferior)"
           >
@@ -2037,7 +2037,7 @@ export default function RoomSketcher({
             type="button"
             onClick={handleUndo}
             disabled={!canUndo}
-            className="p-1.5 rounded-xl border border-black/[0.06] dark:border-white/10 text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white disabled:opacity-30 transition"
+            className="p-1.5 rounded-xl border border-black/[0.06] dark:border-white/10 text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white disabled:opacity-30 transition"
             title="Deshacer (Ctrl + Z)"
           >
             <Undo2 className="w-3.5 h-3.5" />
@@ -2047,7 +2047,7 @@ export default function RoomSketcher({
             type="button"
             onClick={handleRedo}
             disabled={!canRedo}
-            className="p-1.5 rounded-xl border border-black/[0.06] dark:border-white/10 text-[#86868b] dark:text-slate-400 hover:text-[#1d1d1f] dark:hover:text-white disabled:opacity-30 transition"
+            className="p-1.5 rounded-xl border border-black/[0.06] dark:border-white/10 text-[#86868b] dark:text-[#b0b3b8] hover:text-[#1d1d1f] dark:hover:text-white disabled:opacity-30 transition"
             title="Rehacer (Ctrl + Y)"
           >
             <Redo2 className="w-3.5 h-3.5" />
@@ -2088,7 +2088,7 @@ export default function RoomSketcher({
       {/* --- LIENZO SVG CAD --- */}
       <div
         ref={containerRef}
-        className="relative bg-white dark:bg-[#0c0d18] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden shadow-apple-sm transition-colors w-full flex flex-col touch-none"
+        className="relative bg-white dark:bg-canvas rounded-2xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden shadow-apple-sm transition-colors w-full flex flex-col touch-none"
         style={{ touchAction: 'none' }}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -2323,7 +2323,7 @@ export default function RoomSketcher({
           </defs>
 
           {/* Fondo del Lienzo */}
-          <rect width={CANVAS_W} height={CANVAS_H} fill="url(#cadBgGlow)" className="dark:fill-[#0c0d18]" data-canvas-bg="true" />
+          <rect width={CANVAS_W} height={CANVAS_H} fill="url(#cadBgGlow)" className="dark:fill-canvas" data-canvas-bg="true" />
 
           {/* Cuadrícula Arquitectónica */}
           {gridLines.map((line, i) => (
@@ -2538,7 +2538,7 @@ export default function RoomSketcher({
                               if (e.key === 'Enter') handleApplyEdgeLength(i, editingLengthStr);
                               if (e.key === 'Escape') setEditingEdgeIdx(null);
                             }}
-                            className="w-full h-full text-center text-[10px] font-mono font-bold bg-white dark:bg-[#181a28] text-[#5833c7] dark:text-[#8767f9] border-2 border-[#5833c7] rounded-md shadow-lg outline-none px-0.5"
+                            className="w-full h-full text-center text-[10px] font-mono font-bold bg-white dark:bg-surface2 text-[#5833c7] dark:text-[#8767f9] border-2 border-[#5833c7] rounded-md shadow-lg outline-none px-0.5"
                           />
                         </div>
                       </foreignObject>
@@ -2560,7 +2560,7 @@ export default function RoomSketcher({
                           fill="rgba(255,255,255,0.96)"
                           stroke={isCurved ? '#5833c7' : 'rgba(0,0,0,0.12)'}
                           strokeWidth={isCurved ? 1 : 0.5}
-                          className="dark:fill-[#161726] dark:stroke-white/20 hover:stroke-[#5833c7] transition"
+                          className="dark:fill-surface dark:stroke-white/20 hover:stroke-[#5833c7] transition"
                         />
                         <text
                           x={badgeX}
@@ -3157,7 +3157,7 @@ export default function RoomSketcher({
                   x={(ss.x + rs.x) / 2 - 20} y={(ss.y + rs.y) / 2 - 8}
                   width={40} height={16} rx={4}
                   fill="rgba(255,255,255,0.96)" stroke="#5833c7" strokeWidth={1}
-                  className="dark:fill-[#16182a]"
+                  className="dark:fill-surface"
                   style={{ pointerEvents: 'none' }}
                 />
                 <text
@@ -3230,7 +3230,7 @@ export default function RoomSketcher({
           <button
             type="button"
             onClick={() => setUserZoom(z => Math.min(5.0, Number((z * 1.2).toFixed(2))))}
-            className="w-8 h-8 rounded-lg bg-white/90 dark:bg-[#1a1c2e]/90 backdrop-blur-sm border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center text-[#5833c7] hover:bg-[#5833c7] hover:text-white transition shadow-sm"
+            className="w-8 h-8 rounded-lg bg-white/90 dark:bg-surface2/90 backdrop-blur-sm border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center text-[#5833c7] hover:bg-[#5833c7] hover:text-white transition shadow-sm"
             title="Acercar (+)"
           >
             <ZoomIn className="w-4 h-4" />
@@ -3238,7 +3238,7 @@ export default function RoomSketcher({
           <button
             type="button"
             onClick={() => setUserZoom(z => Math.max(0.25, Number((z / 1.2).toFixed(2))))}
-            className="w-8 h-8 rounded-lg bg-white/90 dark:bg-[#1a1c2e]/90 backdrop-blur-sm border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center text-[#5833c7] hover:bg-[#5833c7] hover:text-white transition shadow-sm"
+            className="w-8 h-8 rounded-lg bg-white/90 dark:bg-surface2/90 backdrop-blur-sm border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center text-[#5833c7] hover:bg-[#5833c7] hover:text-white transition shadow-sm"
             title="Alejar (-)"
           >
             <ZoomOut className="w-4 h-4" />
@@ -3246,7 +3246,7 @@ export default function RoomSketcher({
           <button
             type="button"
             onClick={fitToView}
-            className="w-8 h-8 rounded-lg bg-white/90 dark:bg-[#1a1c2e]/90 backdrop-blur-sm border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center text-[#5833c7] hover:bg-[#5833c7] hover:text-white transition shadow-sm"
+            className="w-8 h-8 rounded-lg bg-white/90 dark:bg-surface2/90 backdrop-blur-sm border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center text-[#5833c7] hover:bg-[#5833c7] hover:text-white transition shadow-sm"
             title="Ajustar a vista (0)"
           >
             <Crosshair className="w-4 h-4" />
@@ -3255,7 +3255,7 @@ export default function RoomSketcher({
 
         {/* Badge de zoom actual */}
         <div className="absolute bottom-12 left-3 z-10">
-          <div className="px-2 py-1 rounded-lg bg-white/90 dark:bg-[#1a1c2e]/90 backdrop-blur-sm border border-black/[0.08] dark:border-white/[0.1] shadow-sm">
+          <div className="px-2 py-1 rounded-lg bg-white/90 dark:bg-surface2/90 backdrop-blur-sm border border-black/[0.08] dark:border-white/[0.1] shadow-sm">
             <span className="text-[10px] font-bold font-mono text-[#5833c7] dark:text-[#8767f9]">
               {Math.round(userZoom * 100)}%
             </span>
@@ -3300,7 +3300,7 @@ export default function RoomSketcher({
         )}
 
         {/* --- BARRA DE ESTADO CAD INFERIOR (TIPO AUTOCAD) --- */}
-        <div className="bg-[#fafbfc] dark:bg-[#101222] px-3.5 py-1.5 flex flex-wrap items-center justify-between text-[11px] font-mono text-[#86868b] dark:text-slate-400 border-t border-black/[0.04] dark:border-white/[0.06] gap-2">
+        <div className="bg-[#fafbfc] dark:bg-canvas px-3.5 py-1.5 flex flex-wrap items-center justify-between text-[11px] font-mono text-[#86868b] dark:text-[#b0b3b8] border-t border-black/[0.04] dark:border-white/[0.06] gap-2">
 
           {/* Coordenadas en vivo del cursor */}
           <div className="flex items-center gap-2">
@@ -3403,7 +3403,7 @@ export default function RoomSketcher({
       </div>
 
       {/* --- CONTROL DE ALTURA (H) Y TELEMETRÍA --- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white dark:bg-[#141622] rounded-xl border border-black/[0.06] dark:border-white/10 px-3 py-2.5 shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white dark:bg-surface rounded-xl border border-black/[0.06] dark:border-white/10 px-3 py-2.5 shadow-2xs">
         <div className="flex items-center gap-2 flex-wrap">
           <label className="text-xs font-bold text-[#1d1d1f] dark:text-white">
             Altura del Recinto (H):
@@ -3416,7 +3416,7 @@ export default function RoomSketcher({
                 onClick={() => { pushHistory(); onChangePolygon({ ...roomPolygon, height: hVal }); }}
                 className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition ${Math.abs(height - hVal) < 0.05
                   ? 'bg-[#5833c7] text-white'
-                  : 'bg-[#f5f5f7] dark:bg-[#0A0C14] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                  : 'bg-[#f5f5f7] dark:bg-canvas text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
                   }`}
               >
                 {hVal}m
@@ -3445,7 +3445,7 @@ export default function RoomSketcher({
                 const val = parseFloat(e.target.value);
                 if (!isNaN(val) && val > 0) onChangePolygon({ ...roomPolygon, height: Number(val.toFixed(2)) });
               }}
-              className="w-14 px-1.5 py-0.5 text-xs font-mono font-bold text-center bg-[#f5f5f7] dark:bg-[#0A0C14] rounded-md border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-white"
+              className="w-14 px-1.5 py-0.5 text-xs font-mono font-bold text-center bg-[#f5f5f7] dark:bg-canvas rounded-md border border-black/[0.08] dark:border-white/10 text-[#1d1d1f] dark:text-white"
             />
             <span className="text-xs text-[#86868b] font-semibold">m</span>
           </div>
@@ -3453,7 +3453,7 @@ export default function RoomSketcher({
       </div>
 
       {/* --- PANEL INFERIOR: GESTOR DE PAREDES Y COORDENADAS --- */}
-      <div className="bg-white dark:bg-[#141622] rounded-2xl border border-black/[0.06] dark:border-white/10 p-3 space-y-2.5 shadow-2xs">
+      <div className="bg-white dark:bg-surface rounded-2xl border border-black/[0.06] dark:border-white/10 p-3 space-y-2.5 shadow-2xs">
 
         <div className="flex items-center justify-between gap-2 border-b border-black/[0.06] dark:border-white/10 pb-2">
           <div className="flex items-center gap-1.5">
@@ -3462,7 +3462,7 @@ export default function RoomSketcher({
               onClick={() => { setEditorTab('walls'); setIsEditorExpanded(true); }}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${editorTab === 'walls' && isEditorExpanded
                 ? 'bg-[#5833c7] text-white shadow-xs'
-                : 'bg-[#f5f5f7] dark:bg-[#0A0C14] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'bg-[#f5f5f7] dark:bg-canvas text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
                 }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -3474,7 +3474,7 @@ export default function RoomSketcher({
               onClick={() => { setEditorTab('coords'); setIsEditorExpanded(true); }}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${editorTab === 'coords' && isEditorExpanded
                 ? 'bg-[#5833c7] text-white shadow-xs'
-                : 'bg-[#f5f5f7] dark:bg-[#0A0C14] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'bg-[#f5f5f7] dark:bg-canvas text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
                 }`}
             >
               <Move className="w-3.5 h-3.5" />
@@ -3512,7 +3512,7 @@ export default function RoomSketcher({
                         onMouseLeave={() => setHoveredEdge(null)}
                         className={`p-2.5 rounded-xl border transition flex flex-col justify-between gap-1.5 ${isHovered
                           ? 'bg-[#5833c7]/10 dark:bg-[#5833c7]/20 border-[#5833c7] shadow-xs'
-                          : 'bg-[#fbfbfd] dark:bg-[#0A0C14] border-black/[0.06] dark:border-white/10'
+                          : 'bg-[#fbfbfd] dark:bg-canvas border-black/[0.06] dark:border-white/10'
                           }`}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -3609,7 +3609,7 @@ export default function RoomSketcher({
               <div className="space-y-2 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
                   {vertices.map((v, i) => (
-                    <div key={i} className="flex items-center justify-between gap-1.5 bg-[#fbfbfd] dark:bg-[#0A0C14] rounded-xl p-1.5 px-2 border border-black/[0.06] dark:border-white/10">
+                    <div key={i} className="flex items-center justify-between gap-1.5 bg-[#fbfbfd] dark:bg-canvas rounded-xl p-1.5 px-2 border border-black/[0.06] dark:border-white/10">
                       <span className="text-[10px] font-bold text-[#5833c7] dark:text-[#a78bfa] min-w-[18px]">
                         V{i + 1}
                       </span>
@@ -3630,7 +3630,7 @@ export default function RoomSketcher({
                               onChangePolygon({ ...roomPolygon, vertices: newVerts });
                               setActivePresetId('custom');
                             }}
-                            className="w-14 px-1 py-0.5 text-[10px] font-mono bg-white dark:bg-[#141622] rounded border border-black/[0.08] dark:border-white/10 text-center text-[#1d1d1f] dark:text-white"
+                            className="w-14 px-1 py-0.5 text-[10px] font-mono bg-white dark:bg-surface rounded border border-black/[0.08] dark:border-white/10 text-center text-[#1d1d1f] dark:text-white"
                           />
                         </div>
 
@@ -3649,7 +3649,7 @@ export default function RoomSketcher({
                               onChangePolygon({ ...roomPolygon, vertices: newVerts });
                               setActivePresetId('custom');
                             }}
-                            className="w-14 px-1 py-0.5 text-[10px] font-mono bg-white dark:bg-[#141622] rounded border border-black/[0.08] dark:border-white/10 text-center text-[#1d1d1f] dark:text-white"
+                            className="w-14 px-1 py-0.5 text-[10px] font-mono bg-white dark:bg-surface rounded border border-black/[0.08] dark:border-white/10 text-center text-[#1d1d1f] dark:text-white"
                           />
                         </div>
                       </div>

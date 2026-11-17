@@ -554,20 +554,20 @@ export default function PressureFieldViewer({
   }, [probePoint, currentMode, Lx, Ly, Lz]);
 
   return (
-    <div id="pressure-field-viewer-card" className="bg-white dark:bg-[#121322] rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
+    <div id="pressure-field-viewer-card" className="bg-white dark:bg-surface rounded-3xl border border-black/[0.08] dark:border-white/[0.08] p-6 shadow-apple-sm transition-colors space-y-6">
       
       {/* Encabezado y Selector de Modo */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-purple-400">
+            <span className="p-2 rounded-xl bg-[#5833c7]/10 dark:bg-[#5833c7]/20 text-[#5833c7] dark:text-[#a78bfa]">
               <Eye className="w-5 h-5" />
             </span>
             <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-white">
               Pestaña 5: Distribución Espacial de Presión (2D y 3D)
             </h3>
           </div>
-          <p className="text-xs sm:text-sm text-[#86868b] dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[#86868b] dark:text-[#b0b3b8] mt-1">
             Visualización analítica del campo escalar ψ(x,y,z), cortes 2D, superficie 3D tipo MATLAB y volumen FEM/COMSOL.
           </p>
         </div>
@@ -581,7 +581,7 @@ export default function PressureFieldViewer({
               const m = modes.find(item => item.id === e.target.value);
               if (m) onSelectMode(m);
             }}
-            className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-[#18192a] border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5833c7]"
+            className="px-3 py-1.5 rounded-xl bg-[#f5f5f7] dark:bg-surface2 border border-black/[0.08] dark:border-white/[0.08] text-xs font-mono font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#5833c7]"
           >
             {modes.slice(0, 60).map(m => (
               <option key={m.id} value={m.id}>
@@ -609,7 +609,7 @@ export default function PressureFieldViewer({
       </div>
 
       {/* SELECTOR DE VISTA (3 MODOS: 2D SLICE, 3D SURFACE MATLAB, 3D BOX FEM) */}
-      <div className="flex items-center justify-between flex-wrap gap-3 bg-[#fbfbfd] dark:bg-[#18192a] p-2.5 rounded-2xl border border-black/[0.05] dark:border-white/[0.06]">
+      <div className="flex items-center justify-between flex-wrap gap-3 bg-[#fbfbfd] dark:bg-surface2 p-2.5 rounded-2xl border border-black/[0.05] dark:border-white/[0.06]">
         
         <div className="flex items-center gap-1.5">
           <button
@@ -618,7 +618,7 @@ export default function PressureFieldViewer({
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               renderView === '2d_slice'
                 ? 'bg-[#5833c7] text-white shadow-xs'
-                : 'bg-white dark:bg-[#25263a] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'bg-white dark:bg-[#3a3b3c] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
             <Grid3X3 className="w-3.5 h-3.5" />
@@ -631,7 +631,7 @@ export default function PressureFieldViewer({
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               renderView === '3d_surface'
                 ? 'bg-[#5833c7] text-white shadow-xs'
-                : 'bg-white dark:bg-[#25263a] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'bg-white dark:bg-[#3a3b3c] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -644,7 +644,7 @@ export default function PressureFieldViewer({
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               renderView === '3d_box'
                 ? 'bg-[#5833c7] text-white shadow-xs'
-                : 'bg-white dark:bg-[#25263a] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                : 'bg-white dark:bg-[#3a3b3c] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
             }`}
           >
             <Box className="w-3.5 h-3.5" />
@@ -730,7 +730,7 @@ export default function PressureFieldViewer({
           )}
 
           {/* Barra de Controles Inferior */}
-          <div className="p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3 text-xs">
             
             {/* Controles de Corte */}
             <div className="flex items-center gap-3">
@@ -747,7 +747,7 @@ export default function PressureFieldViewer({
                     className={`px-2.5 py-1 rounded-lg font-bold font-mono text-xs transition-colors ${
                       slicePlane === p
                         ? 'bg-[#5833c7] text-white shadow-xs'
-                        : 'bg-white dark:bg-[#25263a] text-[#86868b] border border-black/[0.06] dark:border-white/[0.06]'
+                        : 'bg-white dark:bg-[#3a3b3c] text-[#86868b] border border-black/[0.06] dark:border-white/[0.06]'
                     }`}
                   >
                     {p}
@@ -800,7 +800,7 @@ export default function PressureFieldViewer({
         </div>
 
         {/* Panel Lateral: Sonda y Gráfica p(t) Temporal (1 columna) */}
-        <div className="space-y-4 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18192a] border border-black/[0.05] dark:border-white/[0.06]">
+        <div className="space-y-4 p-5 rounded-2xl bg-[#fbfbfd] dark:bg-surface2 border border-black/[0.05] dark:border-white/[0.06]">
           
           <div className="pb-2 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
@@ -814,15 +814,15 @@ export default function PressureFieldViewer({
 
           {/* Coordenadas de la sonda */}
           <div className="grid grid-cols-3 gap-2 font-mono text-center text-xs">
-            <div className="p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04]">
+            <div className="p-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04]">
               <span className="text-[10px] text-[#86868b] block">X</span>
               <strong className="text-[#1d1d1f] dark:text-white">{probePoint.x}m</strong>
             </div>
-            <div className="p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04]">
+            <div className="p-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04]">
               <span className="text-[10px] text-[#86868b] block">Y</span>
               <strong className="text-[#1d1d1f] dark:text-white">{probePoint.y}m</strong>
             </div>
-            <div className="p-2 rounded-xl bg-white dark:bg-[#25263a] border border-black/[0.04]">
+            <div className="p-2 rounded-xl bg-white dark:bg-[#3a3b3c] border border-black/[0.04]">
               <span className="text-[10px] text-[#86868b] block">Z</span>
               <strong className="text-[#1d1d1f] dark:text-white">{probePoint.z}m</strong>
             </div>
